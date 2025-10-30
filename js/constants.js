@@ -1,4 +1,4 @@
-const VERSION = '0.6.2';
+const VERSION = '0.6.4';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -20,12 +20,20 @@ const BALANCE = {
   RAID_DEFENSE_SCALE: 1.0,
   // Expeditions
   EXPEDITION_SUCCESS_CHANCE: 0.65,
+  EXPEDITION_COST_FOOD: 10,
+  EXPEDITION_COST_ENERGY: 15,
+  XP_FROM_EXPEDITION_SUCCESS: 25,
+  XP_FROM_EXPEDITION_FAILURE: 10,
   // XP scaling
   XP_MULT: 1.0,
+  XP_FROM_EXPLORE: 5,
+  XP_FROM_LOOT: 8,
   // Production tuning
   PROD_MULT: 1.15,
   SYSTEM_FILTER_MULT: 1.3,
-  SYSTEM_GENERATOR_MULT: 1.4
+  SYSTEM_GENERATOR_MULT: 1.4,
+  LEVEL_PRODUCTION_BONUS: 0.05, // bonus per level
+  LEVEL_ATTACK_BONUS: 0.5, // bonus per level
 };
 
 const LOOT_TABLE = [

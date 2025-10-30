@@ -59,6 +59,13 @@ function exploreTile(idx) {
   state.resources.energy -= cost;
   tile.scouted = true;
   state.explored.add(idx);
+  
+  // Grant XP to the selected explorer
+  const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+  if (explorer) {
+    grantXp(explorer, BALANCE.XP_FROM_EXPLORE);
+  }
+
   handleTileEvent(idx);
   updateUI();
   saveGame('action');

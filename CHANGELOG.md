@@ -4,6 +4,32 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2025-10-30
+### Added
+- **Explorer Selection:** Added a dropdown menu on the map panel to select a specific survivor for exploration.
+- **Solo Exploration XP:** Only the selected explorer now gains XP from discovering new tiles and finding loot.
+- **Explorer Combat:** The selected explorer is now the sole combatant in battles triggered by exploration.
+- **Visible Equipment:** Survivor cards now display currently equipped weapons and armor.
+- **Expedition XP:** Survivors now gain XP for completing expeditions, with more XP awarded for success.
+
+### Changed
+- Updated workbench UI to show the correct, rebalanced crafting costs.
+- Refactored combat logic to differentiate between exploration skirmishes and base raids.
+
+## [0.6.3] - 2025-10-30
+### Added
+- **Expedition Costs:** Expeditions now cost 10 Food and 15 Energy to launch.
+- **Functional XP System:** Survivors now gain XP from exploring, finding loot, and combat.
+- **Level-Up Bonuses:**
+  - Survivor level now increases resource production rates.
+  - Survivor level now increases combat damage.
+  - Leveling up now fully heals the survivor and increases their max HP.
+
+### Changed
+- Survivors on expeditions no longer consume the base's Food and Oxygen.
+- Rebalanced XP rewards for different activities.
+- Refactored level-up logic into a reusable `grantXp` function.
+
 ## [0.6.2] - 2025-10-30
 ### Changed
 - **Major Balance Pass:** Implemented a wide range of changes to increase game difficulty and strategic depth.

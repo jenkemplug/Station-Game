@@ -50,6 +50,85 @@ function updateUI() {
   el('statAmmo').textContent = state.resources.ammo;
 
   renderExpeditionSurvivorSelect();
+  renderExplorerSelect();
+}
+
+function renderExplorerSelect() {
+  const cont = el('explorerDropdown');
+  const availableSurvivors = state.survivors.filter(s => !s.onMission);
+  const availableSurvivorsSnapshot = JSON.stringify(availableSurvivors);
+
+  // Optimization: Only re-render if the list of available explorers has changed.
+  if (lastRenderedAvailableExplorers === availableSurvivorsSnapshot) {
+    return; // Skip re-render to preserve focus
+  }
+  lastRenderedAvailableExplorers = availableSurvivorsSnapshot;
+
+  cont.innerHTML = '';
+
+  if (availableSurvivors.length === 0) {
+    cont.textContent = 'No explorers available';
+    return;
+  }
+
+  if (!selectedExplorerId || !availableSurvivors.some(s => s.id === selectedExplorerId)) {
+    selectedExplorerId = availableSurvivors[0].id;
+  }
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'task-dropdown';
+
+  const button = document.createElement('button');
+  button.className = 'task-dropdown-button';
+  button.type = 'button';
+  const selectedSurvivor = availableSurvivors.find(s => s.id === selectedExplorerId);
+  button.textContent = selectedSurvivor ? `Explorer: ${selectedSurvivor.name}` : 'Select Explorer';
+
+  const content = document.createElement('div');
+  content.className = 'task-dropdown-content';
+
+  availableSurvivors.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'task-dropdown-item' + (s.id === selectedExplorerId ? ' selected' : '');
+    item.textContent = s.name;
+    item.onclick = (e) => {
+      e.stopPropagation();
+      selectedExplorerId = s.id;
+      const selectedSurvivor = state.survivors.find(sur => sur.id === s.id);
+      if (selectedSurvivor) {
+        button.textContent = `Explorer: ${selectedSurvivor.name}`;
+      }
+      dropdown.classList.remove('open');
+      activeDropdown = null;
+      
+      // Manually update the 'selected' class on items without a full re-render
+      content.querySelectorAll('.task-dropdown-item').forEach(el => el.classList.remove('selected'));
+      item.classList.add('selected');
+    };
+    content.appendChild(item);
+  });
+
+  button.onclick = (e) => {
+    e.stopPropagation();
+    const currentlyOpen = dropdown.classList.contains('open');
+    
+    document.querySelectorAll('.task-dropdown.open').forEach(el => el.classList.remove('open'));
+
+    if (!currentlyOpen) {
+      dropdown.classList.add('open');
+      activeDropdown = { type: 'explorer' };
+    } else {
+      activeDropdown = null;
+    }
+  };
+
+  if (activeDropdown && activeDropdown.type === 'explorer') {
+    dropdown.classList.add('open');
+  }
+
+  dropdown.appendChild(button);
+  dropdown.appendChild(content);
+  cont.appendChild(dropdown);
 }
 
 function updateExpeditionTimers() {
@@ -192,6 +271,9 @@ function renderSurvivors() {
       </div>
       <div style="margin-top:6px" class="small">
         Skill: ${s.skill} • Exp: ${s.xp}/${s.nextXp} ${s.injured ? ' • Injured' : ''}
+      </div>
+      <div style="margin-top:4px; font-size: 11px; color: var(--muted);">
+        Equipped: ${s.equipment.weapon?.name || 'None'} / ${s.equipment.armor?.name || 'None'}
       </div>
       <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
         <div style="flex:0 0 auto">Task: </div>

@@ -56,7 +56,10 @@
       </div>
     </div>
     <div class="panel">
-      <strong style="color:var(--accent)">Station Map</strong>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong style="color:var(--accent)">Station Map</strong>
+        <div id="explorerDropdown" style="width:180px;"></div>
+      </div>
       <div class="small" style="margin-top:6px">Explore to find loot, survivors, alien nests, and modules.</div>
       <div class="map" id="mapGrid" style="margin-top:10px"></div>
       <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
@@ -104,21 +107,21 @@
     <div class="panel">
       <strong class="small">Workbench</strong>
       <div id="workbench" style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
-        <button data-item="filter">Make Filter Module (Scrap 25, Energy 15)</button>
-        <button data-item="generator">Make Microgen (Scrap 20)</button>
-        <button data-item="medkit">Assemble Medkit (Scrap 12)</button>
-        <button data-item="ammo">Manufacture Ammo (Scrap 8)</button>
-        <button data-item="turret">Construct Auto-Turret (Scrap 60, Energy 30)</button>
-        <button data-item="armor">Craft Light Armor (Scrap 30, Tech 2)</button>
-        <button data-item="rifle">Build Pulse Rifle (Scrap 45, Tech 4)</button>
-        <button data-item="heavyArmor">Craft Heavy Armor (Scrap 60, Tech 4)</button>
-        <button data-item="shotgun">Build Shotgun (Scrap 55, Tech 3)</button>
+        <button data-item="filter">Make Filter Module (Scrap 30, Energy 20)</button>
+        <button data-item="generator">Make Microgen (Scrap 25)</button>
+        <button data-item="medkit">Assemble Medkit (Scrap 15)</button>
+        <button data-item="ammo">Manufacture Ammo (Scrap 10)</button>
+        <button data-item="turret">Construct Auto-Turret (Scrap 75, Energy 40)</button>
+        <button data-item="armor">Craft Light Armor (Scrap 40, Tech 3)</button>
+        <button data-item="rifle">Build Pulse Rifle (Scrap 55, Tech 5)</button>
+        <button data-item="heavyArmor">Craft Heavy Armor (Scrap 70, Tech 5)</button>
+        <button data-item="shotgun">Build Shotgun (Scrap 65, Tech 4)</button>
       </div>
     </div>
   </aside>
 
   <footer>
-    <div>Version 0.6.2 — Balance Pass</div>
+    <div>Version 0.6.4 — Exploration Update</div>
     <div>Autosave every 15s • Offline progress supported</div>
   </footer>
 </div>

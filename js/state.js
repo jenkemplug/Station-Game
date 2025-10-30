@@ -38,4 +38,6 @@ let lastRenderedSurvivors = {};
 let autoSaveCounter = 0;
 let activeDropdown = null;
 let selectedExpeditionSurvivorId = null;
+let selectedExplorerId = null;
 let lastRenderedAvailableSurvivors = null;
+let lastRenderedAvailableExplorers = null;

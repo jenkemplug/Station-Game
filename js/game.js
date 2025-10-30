@@ -222,6 +222,25 @@ function assignTask(id, newTask) {
   }
 }
 
+function grantXp(survivor, amount) {
+  if (!survivor || survivor.hp <= 0) return;
+
+  const gained = Math.round(amount * BALANCE.XP_MULT);
+  survivor.xp += gained;
+  appendLog(`${survivor.name} gains ${gained} XP.`);
+
+  // Check for level up
+  if (survivor.xp >= survivor.nextXp) {
+    survivor.level++;
+    survivor.skill += rand(1, 2);
+    survivor.maxHp += 5;
+    survivor.hp = survivor.maxHp; // Full heal on level up
+    survivor.xp -= survivor.nextXp; // Carry over excess XP
+    survivor.nextXp = Math.floor(survivor.nextXp * 1.5);
+    appendLog(`${survivor.name} leveled up to Level ${survivor.level}!`);
+  }
+}
+
 function releaseSurvivor(id) {
   const idx = state.survivors.findIndex(x => x.id === id);
   if (idx === -1) return;
@@ -313,11 +332,14 @@ function longRangeScan() {
 function handleTileEvent(idx) {
   const t = state.tiles[idx];
   const { x, y } = t;
+  const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+
   if (t.type === 'resource') {
     // produce loot
     const loot = pickLoot();
     const message = loot.onPickup(state);
     appendLog(`Scavenged ${loot.type} at (${x},${y}): ${message}`);
+    if (explorer) grantXp(explorer, BALANCE.XP_FROM_LOOT);
     t.type = 'empty';
   } else if (t.type === 'survivor') {
     // recruit chance
@@ -325,6 +347,7 @@ function handleTileEvent(idx) {
       const foundName = getRandomName();
       recruitSurvivor(foundName);
       appendLog(`Rescued ${foundName} at (${x},${y}) who joins the base.`);
+      if (explorer) grantXp(explorer, BALANCE.XP_FROM_LOOT * 2); // More XP for finding a person
     } else appendLog(`Signs of life at (${x},${y}) but no one remained.`);
     t.type = 'empty';
   } else if (t.type === 'alien') {
@@ -336,6 +359,7 @@ function handleTileEvent(idx) {
     // grant a minor system node or tech
     state.resources.tech += 1;
     appendLog(`Found a module node at (${x},${y}). Tech +1.`);
+    if (explorer) grantXp(explorer, BALANCE.XP_FROM_LOOT);
     t.type = 'empty';
   } else {
     appendLog(`Empty corridor at (${x},${y}).`);
@@ -365,8 +389,16 @@ function spawnAlienEncounter(idx) {
 }
 
 function resolveSkirmish(aliens, context = 'field', idx = null) {
-  // attackers: use survivors assigned to Explore or Guard (up to 3)
-  const fighters = state.survivors.filter(s => s.task === 'Explore' || s.task === 'Guard').slice(0, 4);
+  let fighters = [];
+  if (context === 'field') {
+    const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+    if (explorer) {
+      fighters.push(explorer);
+    }
+  } else { // context === 'base' for raids
+    fighters = state.survivors.filter(s => s.task === 'Guard').slice(0, 4);
+  }
+
   if (fighters.length === 0) {
     // no defenders: aliens may increase threat or seed a nest
     appendLog('No defenders available: alien presence grows.');
@@ -378,7 +410,7 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
     }
     return;
   }
-  appendLog(`Battle begins: ${fighters.length} survivors vs ${aliens.length} alien(s).`);
+  appendLog(`Battle begins: ${fighters.length} survivor(s) vs ${aliens.length} alien(s).`);
   // simplistic round-based combat
   while (aliens.some(a => a.hp > 0) && fighters.some(f => f.hp > 0)) {
     // survivors attack
@@ -387,7 +419,7 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       // choose target
       const target = aliens.find(a => a.hp > 0);
       if (!target) break;
-      let baseAtk = 2 + s.skill;
+      let baseAtk = 2 + s.skill + (s.level * BALANCE.LEVEL_ATTACK_BONUS);
       if (s.equipment.weapon === 'Pulse Rifle') baseAtk += 6;
       // ammo check
       if (state.resources.ammo <= 0) {
@@ -445,16 +477,7 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
   // survivors gain xp
   for (const s of fighters) {
     if (s.hp > 0) {
-      const gained = Math.round(rand(8, 16) * BALANCE.XP_MULT);
-      s.xp += gained;
-      appendLog(`${s.name} gains ${gained} XP.`);
-      if (s.xp >= s.nextXp) {
-        s.level++;
-        s.skill += rand(1, 2);
-        s.xp = 0;
-        s.nextXp = Math.floor(s.nextXp * 1.4);
-        appendLog(`${s.name} leveled up to ${s.level}.`);
-      }
+      grantXp(s, rand(10, 20));
     }
   }
   updateUI();
@@ -558,6 +581,16 @@ function startExpedition(name = 'Expedition', duration = 30) {
     return;
   }
 
+  // Check for expedition costs
+  if (state.resources.food < BALANCE.EXPEDITION_COST_FOOD || state.resources.energy < BALANCE.EXPEDITION_COST_ENERGY) {
+    appendLog(`Not enough resources for an expedition. Need ${BALANCE.EXPEDITION_COST_FOOD} Food and ${BALANCE.EXPEDITION_COST_ENERGY} Energy.`);
+    return;
+  }
+
+  // Deduct costs
+  state.resources.food -= BALANCE.EXPEDITION_COST_FOOD;
+  state.resources.energy -= BALANCE.EXPEDITION_COST_ENERGY;
+
   survivor.onMission = true;
   activeDropdown = null;
 
@@ -588,6 +621,7 @@ function tickMissions() {
         const success = Math.random() < BALANCE.EXPEDITION_SUCCESS_CHANCE;
         let report = `${m.name} completed. `;
         if (success) {
+          grantXp(survivor, BALANCE.XP_FROM_EXPEDITION_SUCCESS);
           const scrapFound = rand(10, 30);
           const techFound = rand(1, 4);
           state.resources.scrap += scrapFound;
@@ -608,6 +642,7 @@ function tickMissions() {
             }
           }
         } else {
+          grantXp(survivor, BALANCE.XP_FROM_EXPEDITION_FAILURE);
           report += 'Encountered heavy resistance. ';
           survivor.hp -= rand(5, 15);
           if (survivor.hp <= 0) {
@@ -680,27 +715,29 @@ function resolveRaid() {
 function applyTick(isOffline = false) {
   // production by survivors assigned
   let prod = { oxygen: 0, food: 0, energy: 0, scrap: 0 };
-  state.survivors.forEach(s => {
-    if (s.onMission) return; // Survivors on missions don't produce resources
+  const activeSurvivors = state.survivors.filter(s => !s.onMission);
+
+  activeSurvivors.forEach(s => {
+    const levelBonus = 1 + (s.level - 1) * BALANCE.LEVEL_PRODUCTION_BONUS;
     switch (s.task) {
       case 'Oxygen':
-        prod.oxygen += 0.9 + s.skill * 0.05;
+        prod.oxygen += (0.9 + s.skill * 0.05) * levelBonus;
         break;
       case 'Food':
-        prod.food += 0.7 + s.skill * 0.03;
+        prod.food += (0.7 + s.skill * 0.03) * levelBonus;
         break;
       case 'Energy':
-        prod.energy += 0.9 + s.skill * 0.05;
+        prod.energy += (0.9 + s.skill * 0.05) * levelBonus;
         break;
       case 'Scrap':
-        prod.scrap += 0.8 + s.skill * 0.05;
+        prod.scrap += (0.8 + s.skill * 0.05) * levelBonus;
         break;
       case 'Guard':
         /* reduces threat growth */ break;
       case 'Explore':
         /* handled by manual exploration/missions */ break;
-      default:
-        prod.oxygen += 0.03;
+      default: // Idle
+        prod.oxygen += 0.03; // Idle survivors produce a tiny bit of O2
         break;
     }
   });
@@ -719,8 +756,8 @@ function applyTick(isOffline = false) {
   state.resources.energy += prod.energy;
   state.resources.scrap += prod.scrap;
   // consumption
-  const o2Consume = BALANCE.O2_BASE + state.survivors.length * BALANCE.O2_PER_SURVIVOR;
-  const foodConsume = BALANCE.FOOD_BASE + state.survivors.length * BALANCE.FOOD_PER_SURVIVOR;
+  const o2Consume = BALANCE.O2_BASE + activeSurvivors.length * BALANCE.O2_PER_SURVIVOR;
+  const foodConsume = BALANCE.FOOD_BASE + activeSurvivors.length * BALANCE.FOOD_PER_SURVIVOR;
   state.resources.oxygen -= o2Consume;
   state.resources.food -= foodConsume;
   // passive energy drain
