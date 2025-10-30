@@ -4,6 +4,17 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2025-10-30
+### Changed
+- **Major Balance Pass:** Implemented a wide range of changes to increase game difficulty and strategic depth.
+- **Increased Resource Consumption:** Survivors now consume more Food and Oxygen.
+- **Harsher Penalties:** Negative consequences for low resources (starvation, asphyxiation) are more severe.
+- **Tougher Aliens:** Increased HP and attack power for all alien types.
+- **More Frequent Raids:** Raids occur more often and scale faster with threat level.
+- **Reduced Production:** Survivor and system production efficiency has been lowered.
+- **Riskier Expeditions:** Lowered the base success chance for expeditions.
+- **Increased Crafting/Upgrade Costs:** All crafting recipes and system upgrades are now more expensive.
+
 ## [0.6.1] - 2025-10-30
 ### Changed
 - Removed 'Explore' task from survivor assignments

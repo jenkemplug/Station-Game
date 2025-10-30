@@ -478,7 +478,7 @@ function craft(item) {
 }
 
 function upgradeFilter() {
-  const cost = 40 + state.systems.filter * 20;
+  const cost = 50 + state.systems.filter * 25;
   if (state.resources.scrap < cost) {
     appendLog('Not enough scrap to upgrade filter.');
     return;
@@ -490,7 +490,7 @@ function upgradeFilter() {
 }
 
 function upgradeGenerator() {
-  const cost = 35 + state.systems.generator * 18;
+  const cost = 45 + state.systems.generator * 22;
   if (state.resources.scrap < cost) {
     appendLog('Not enough scrap to upgrade generator.');
     return;
@@ -502,13 +502,13 @@ function upgradeGenerator() {
 }
 
 function buildTurret() {
-  const cost = 60;
-  if (state.resources.scrap < cost || state.resources.energy < 20) {
+  const cost = 75;
+  if (state.resources.scrap < cost || state.resources.energy < 40) {
     appendLog('Not enough resources to build turret.');
     return;
   }
   state.resources.scrap -= cost;
-  state.resources.energy -= 20;
+  state.resources.energy -= 40;
   state.systems.turret++;
   appendLog('Auto-turret deployed.');
   updateUI();
