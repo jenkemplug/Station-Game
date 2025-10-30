@@ -4,6 +4,14 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5] - 2025-10-30
+### Added
+- Set up a Git repository and connected it to Netlify for continuous deployment.
+- Documented the deployment workflow in the README.
+
+### Changed
+- Renamed `game.html` to `index.html` to follow web standards.
+
 ## [0.5.4] - 2025-10-30
 ### Fixed
 - Resolved a bug where only the first survivor could be selected for expeditions.
