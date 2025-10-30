@@ -268,6 +268,54 @@ function playerUseMedkit() {
   advanceToNextSurvivor();
 }
 
+function playerRetreat() {
+  if (!currentCombat) return;
+  const isRaid = currentCombat.context === 'base';
+  
+  // Cannot retreat from raids (0.7.2)
+  if (isRaid) {
+    logCombat('Cannot retreat from base defense!');
+    appendLog('Guards must hold the line!');
+    return;
+  }
+  
+  const s = getActiveSurvivor();
+  if (!s) return;
+  
+  // Calculate retreat chance
+  let retreatChance = BALANCE.RETREAT_BASE_CHANCE;
+  retreatChance += s.skill * BALANCE.RETREAT_SKILL_BONUS;
+  retreatChance += s.level * BALANCE.RETREAT_LEVEL_BONUS;
+  
+  // Apply alien type penalty/bonus
+  const aliens = currentCombat.aliens.filter(a => a.hp > 0);
+  if (aliens.length > 0) {
+    const avgPenalty = aliens.reduce((sum, a) => sum + (BALANCE.RETREAT_ALIEN_PENALTY[a.type] || 0), 0) / aliens.length;
+    retreatChance += avgPenalty;
+  }
+  
+  retreatChance = clamp(retreatChance, 0.1, 0.95);
+  
+  const success = Math.random() < retreatChance;
+  
+  if (success) {
+    logCombat(`${s.name} successfully retreats!`);
+    appendLog(`Retreat successful. Hostiles remain in the area.`);
+    // Mark tile as not cleared so it can be revisited
+    if (currentCombat.idx !== null && state.tiles[currentCombat.idx]) {
+      state.tiles[currentCombat.idx].cleared = false;
+      // Keep aliens alive for later
+    }
+    updateUI();
+    closeCombatOverlay();
+  } else {
+    logCombat(`${s.name} failed to retreat!`);
+    appendLog(`Retreat failed - enemies block the exit!`);
+    // Advance to next survivor's turn (or enemy turn if last survivor)
+    advanceToNextSurvivor();
+  }
+}
+
 function enemyTurn() {
   if (!currentCombat) return;
   const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
@@ -319,6 +367,7 @@ function endCombat(win) {
     if (idx !== null && state.tiles[idx]) {
       state.tiles[idx].aliens = [];
       state.tiles[idx].type = 'empty';
+      state.tiles[idx].cleared = true; // Mark as fully cleared (0.7.2)
     }
     // XP reward for all surviving party members
     const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
@@ -368,12 +417,14 @@ function bindCombatUIEvents() {
   const burst = document.getElementById('btnActionBurst');
   const guard = document.getElementById('btnActionGuard');
   const med = document.getElementById('btnActionMedkit');
+  const retreat = document.getElementById('btnActionRetreat');
   const auto = document.getElementById('btnActionAuto');
   if (shoot) shoot.onclick = () => playerShoot('shoot');
   if (aim) aim.onclick = () => playerAim();
   if (burst) burst.onclick = () => playerShoot('burst');
   if (guard) guard.onclick = () => playerGuard();
   if (med) med.onclick = () => playerUseMedkit();
+  if (retreat) retreat.onclick = () => playerRetreat();
   if (auto) auto.onclick = () => { // fall back to auto resolver
     const t = currentCombat?.idx;
     if (t != null) {

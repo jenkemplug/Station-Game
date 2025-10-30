@@ -2,7 +2,7 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.7.1 (Hardcore Defense Mode)
+**Current Version:** 0.7.2 (Quality of Life)
 
 ##  Play Now
 
@@ -15,9 +15,10 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
 - **Survivor Management**: Recruit, assign tasks, and level up survivors with unique skills
 - **Resource Management**: Balance oxygen, food, energy, and scrap production
 - **Interactive Combat System**: 
-  - Turn-based combat with tactical actions (Shoot, Aim, Burst, Guard, Medkit)
+  - Turn-based combat with tactical actions (Shoot, Aim, Burst, Guard, Medkit, Retreat)
   - **HARDCORE MODE**: Only guards defend during raids - no guards = instant game over
   - Raid defeat = permanent game over
+  - **Retreat Option**: Escape from exploration encounters (chance-based on stats)
   - Combat log tracks all actions; active turn indicators
   - Auto-resolve option for quick battles
 - **XP & Progression**: Survivors gain experience and level up for better stats
@@ -36,6 +37,8 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
 - **Dynamic Energy Costs**: Different tile types require varying energy (8-25)
 - **Tile Types**: Empty corridors, resource caches, survivors, alien nests, hazard rooms, modules
 - **Solo Combat**: Your selected explorer fights aliens alone during exploration
+- **Retreat & Return**: Can retreat from encounters and revisit them later
+- **Safe Start**: No aliens spawn directly adjacent to your base
 
 ### 🚀 Expeditions
 - **Deep Runs**: Send survivors on timed expeditions (30-45 seconds)
@@ -48,12 +51,14 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
 - **High Rewards**: 3x loot rolls and 3x XP compared to normal tiles
 - **Durability Cost**: Suit degrades 15-25 points per hazard cleared
 - **Best Risk/Reward**: Most lucrative content in the game
+- **Revisitable**: Can return to clear hazards after obtaining a suit
 
 ### 👾 Threats
 - **Four Alien Types**: Lurkers, Stalkers, Broods, and Spectres with unique stats
 - **Threat Level**: Increases over time, reduced by guards
 - **Base Raids**: **ONLY GUARDS DEFEND** - maintain a strong defense force or lose everything
 - **Guard Task**: Essential for survival - reduces threat and defends against raids
+- **Exploration-Scaled Raids**: Raid frequency increases as you explore more of the station
 - **Critical Resource States**: Oxygen and food depletion cause casualties
 - **Permadeath**: Failed raid defense = game over
 

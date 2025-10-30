@@ -330,30 +330,44 @@ function renderLoadoutContent() {
   const armorList = armors.map(i => `<div class="inv-row"><span>${i.name} ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-armor">Equip</button></div>`).join('') || '<div class="small">No armor in inventory.</div>';
 
   cont.innerHTML = `
-    <div style="display:flex;gap:16px;flex-wrap:wrap">
-      <div style="flex:1;min-width:260px">
-        <div><strong>${s.name}</strong> <span class="small">Lvl ${s.level} • HP ${s.hp}/${s.maxHp}</span></div>
-        <div class="small" style="margin-top:4px;color:var(--muted)">Ammo: ${state.resources.ammo}</div>
-        <div style="margin-top:8px" class="card-like">
-          <div><strong>Weapon</strong></div>
-          <div class="small">${equippedWeapon}</div>
-          <div style="margin-top:6px">
-            ${s.equipment.weapon ? `<button id="btnUnequipWeapon">Unequip</button>` : '<span class="small" style="color:var(--muted)">Empty slot</span>'}
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px">
+          <div><strong>${s.name}</strong> <span class="small">Lvl ${s.level} • HP ${s.hp}/${s.maxHp}</span></div>
+          <div class="small" style="margin-top:4px;color:var(--muted)">Ammo: ${state.resources.ammo}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px">
+          <div style="margin-top:8px" class="card-like">
+            <div><strong>Weapon</strong></div>
+            <div class="small">${equippedWeapon}</div>
+            <div style="margin-top:6px">
+              ${s.equipment.weapon ? `<button id="btnUnequipWeapon">Unequip</button>` : '<span class="small" style="color:var(--muted)">Empty slot</span>'}
+            </div>
           </div>
         </div>
-        <div style="margin-top:8px" class="card-like">
-          <div><strong>Armor</strong></div>
-          <div class="small">${equippedArmor}</div>
-          <div style="margin-top:6px">
-            ${s.equipment.armor ? `<button id="btnUnequipArmor">Unequip</button>` : '<span class="small" style="color:var(--muted)">Empty slot</span>'}
+        <div style="flex:1;min-width:260px">
+          <div style="margin-top:8px" class="card-like">
+            <div><strong>Armor</strong></div>
+            <div class="small">${equippedArmor}</div>
+            <div style="margin-top:6px">
+              ${s.equipment.armor ? `<button id="btnUnequipArmor">Unequip</button>` : '<span class="small" style="color:var(--muted)">Empty slot</span>'}
+            </div>
           </div>
         </div>
       </div>
-      <div style="flex:1;min-width:260px">
-        <div><strong>Inventory — Weapons</strong></div>
-        <div style="margin-top:6px">${weaponList}</div>
-        <div style="margin-top:12px"><strong>Inventory — Armor</strong></div>
-        <div style="margin-top:6px">${armorList}</div>
+      <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px">
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:260px">
+            <div><strong>Inventory — Weapons</strong></div>
+            <div style="margin-top:6px">${weaponList}</div>
+          </div>
+          <div style="flex:1;min-width:260px">
+            <div><strong>Inventory — Armor</strong></div>
+            <div style="margin-top:6px">${armorList}</div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -387,21 +401,31 @@ function renderMap() {
       if (t.scouted || state.explored.has(idx)) tile.classList.add('explored');
       if (t.type === 'base') tile.classList.add('base');
 
-      // Check if tile is explorable (adjacent to explored)
-      if (!state.explored.has(idx)) {
-        const tileObj = { x, y, idx };
-        if (isExplorable(tileObj)) {
-          tile.classList.add('explorable');
-          // Add click handler for explorable tiles
-          tile.onclick = () => exploreTile(idx);
-          // Show energy cost in tooltip
-          const cost = getTileEnergyCost(t);
-          tile.title = `Click to explore (Energy: ${cost})`;
+      // Check if tile is explorable (adjacent to explored OR can be revisited)
+      const tileObj = { x, y, idx };
+      const canExplore = isExplorable(tileObj);
+      
+      if (canExplore) {
+        tile.classList.add('explorable');
+        // Add click handler for explorable tiles
+        tile.onclick = () => exploreTile(idx);
+        // Show energy cost in tooltip
+        const cost = getTileEnergyCost(t);
+        if (state.explored.has(idx) && t.cleared === false) {
+          if (t.type === 'hazard') {
+            tile.title = `Hazard room (needs Hazmat Suit) - Energy: ${cost}`;
+          } else if (t.type === 'alien') {
+            tile.title = `Aliens remain - Energy: ${cost}`;
+          } else {
+            tile.title = `Click to re-explore (Energy: ${cost})`;
+          }
         } else {
-          tile.title = 'Too far to explore';
+          tile.title = `Click to explore (Energy: ${cost})`;
         }
-      } else {
+      } else if (state.explored.has(idx)) {
         tile.title = `${t.type} (Explored)`;
+      } else {
+        tile.title = 'Too far to explore';
       }
 
       const content = document.createElement('span');

@@ -1,4 +1,4 @@
-const VERSION = '0.7.1';
+const VERSION = '0.7.2';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -14,6 +14,16 @@ const BALANCE = {
   BASE_HIT_CHANCE: 0.7,
   CRIT_CHANCE: 0.1,
   CRIT_MULT: 1.5,
+  // Retreat mechanics (0.7.2)
+  RETREAT_BASE_CHANCE: 0.50,
+  RETREAT_SKILL_BONUS: 0.03, // per skill point
+  RETREAT_LEVEL_BONUS: 0.02, // per level
+  RETREAT_ALIEN_PENALTY: {
+    lurker: 0,
+    stalker: -0.05,
+    brood: -0.10,
+    spectre: 0.05 // easier to escape from stealthy enemies
+  },
   // Map & exploration costs (click-to-explore only)
   TILE_ENERGY_COST: {
     hazard: 25,

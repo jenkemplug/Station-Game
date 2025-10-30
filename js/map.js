@@ -35,7 +35,12 @@ function getExploredTilesWithType() {
 }
 
 function isExplorable(tile) {
-  if (state.explored.has(tile.idx)) return false;
+  // Can revisit hazards and alien tiles that weren't cleared (0.7.2)
+  if (state.explored.has(tile.idx)) {
+    const t = state.tiles[tile.idx];
+    // Allow re-exploring hazards or alien tiles if not fully cleared
+    return (t.type === 'hazard' || (t.type === 'alien' && t.aliens && t.aliens.length > 0)) && t.cleared === false;
+  }
   
   // Check if adjacent to any explored tile
   const explored = getExploredTilesWithType();

@@ -8,8 +8,14 @@ function evaluateThreat() {
   state.threat = clamp(state.threat + threatChange, 0, 100);
   // base board risk derived from threat and broken systems
   state.boardRisk = clamp((state.threat / BALANCE.BOARD_RISK_DIVISOR) + (state.systems.turret ? 0 : BALANCE.BOARD_RISK_BASE_NO_TURRET), 0, 1);
-  // possible raid
-  if (Math.random() < Math.min(BALANCE.RAID_BASE_CHANCE + state.threat / BALANCE.RAID_THREAT_DIVISOR, BALANCE.RAID_MAX_CHANCE)) {
+  
+  // Raid chance scales with exploration (0.7.2)
+  const totalTiles = state.mapSize.w * state.mapSize.h;
+  const explorationFactor = state.explored.size / totalTiles;
+  const baseChance = BALANCE.RAID_BASE_CHANCE * (0.3 + explorationFactor * 0.7); // 30% at start, 100% when fully explored
+  const raidChance = Math.min(baseChance + (state.threat / BALANCE.RAID_THREAT_DIVISOR) * explorationFactor, BALANCE.RAID_MAX_CHANCE);
+  
+  if (Math.random() < raidChance) {
     // raid occurs
     resolveRaid();
   }

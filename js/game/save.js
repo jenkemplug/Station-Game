@@ -14,17 +14,35 @@ function pickLoot() {
 function initTiles() {
   const { w, h } = state.mapSize;
   state.tiles = [];
+  
+  // Helper to check if tile is adjacent to base
+  const isAdjacentToBase = (x, y) => {
+    const dx = Math.abs(x - state.baseTile.x);
+    const dy = Math.abs(y - state.baseTile.y);
+    return dx <= 1 && dy <= 1 && !(dx === 0 && dy === 0);
+  };
+  
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
       let type = 'empty';
       let r = Math.random();
-      if (x === state.baseTile.x && y === state.baseTile.y) type = 'base';
-      else if (r < 0.06) type = 'survivor';
-      else if (r < 0.18) type = 'resource';
-      else if (r < 0.28) type = 'alien';
-      else if (r < 0.36) type = 'hazard';
-      else if (r < 0.40) type = 'module';
+      if (x === state.baseTile.x && y === state.baseTile.y) {
+        type = 'base';
+      } else if (isAdjacentToBase(x, y)) {
+        // No aliens adjacent to base (0.7.2)
+        if (r < 0.06) type = 'survivor';
+        else if (r < 0.18) type = 'resource';
+        else if (r < 0.26) type = 'hazard';
+        else if (r < 0.30) type = 'module';
+        // else empty
+      } else {
+        if (r < 0.06) type = 'survivor';
+        else if (r < 0.18) type = 'resource';
+        else if (r < 0.28) type = 'alien';
+        else if (r < 0.36) type = 'hazard';
+        else if (r < 0.40) type = 'module';
+      }
       state.tiles[idx] = { x, y, type, scouted: false, cleared: false, aliens: [] };
     }
   }

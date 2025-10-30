@@ -42,6 +42,8 @@ function handleTileEvent(idx) {
     t.type = 'empty';
   } else if (t.type === 'alien') {
     // immediate encounter: spawn alien(s)
+    // Mark as not cleared initially so retreat can revisit (0.7.2)
+    t.cleared = false;
     spawnAlienEncounter(idx);
   } else if (t.type === 'hazard') {
     const explorer = state.survivors.find(s => s.id === selectedExplorerId);
@@ -51,12 +53,14 @@ function handleTileEvent(idx) {
     }
     const hasHazmat = explorer.equipment.armor?.type === 'hazmatSuit';
     if (!hasHazmat) {
-      appendLog(`Detected hazard at (${x},${y}). Hazmat Suit required.`);
+      appendLog(`Detected hazard at (${x},${y}). Hazmat Suit required to clear.`);
+      // Mark as cleared so it can be revisited later with a suit (0.7.2)
+      t.cleared = false;
       return;
     }
     
-  // Successful hazard room clear
-  explorer.equipment.armor.durability -= rand(BALANCE.HAZARD_DURABILITY_LOSS[0], BALANCE.HAZARD_DURABILITY_LOSS[1]); // Damage the suit
+    // Successful hazard room clear
+    explorer.equipment.armor.durability -= rand(BALANCE.HAZARD_DURABILITY_LOSS[0], BALANCE.HAZARD_DURABILITY_LOSS[1]); // Damage the suit
     if (explorer.equipment.armor.durability <= 0) {
       appendLog(`${explorer.name}'s Hazmat Suit was destroyed clearing the hazard.`);
       explorer.equipment.armor = null;
@@ -74,6 +78,7 @@ function handleTileEvent(idx) {
 
     appendLog(`${explorer.name} successfully cleared the hazardous area.`);
     t.type = 'empty';
+    t.cleared = true;
   } else if (t.type === 'module') {
     // grant a minor system node or tech
     state.resources.tech += 1;

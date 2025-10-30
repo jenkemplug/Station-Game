@@ -4,6 +4,42 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2025-10-30
+### Added
+- **Retreat System:**
+  - Added Retreat button to exploration combat (not available for raids)
+  - Retreat chance based on: 50% base + 3% per skill + 2% per level
+  - Different alien types affect retreat chance (Spectres easier, Broods harder)
+  - Failed retreats cost a turn and trigger enemy attacks
+  - Successful retreats preserve the encounter for later revisiting
+- **Revisitable Content:**
+  - Hazard rooms can now be revisited after obtaining a Hazmat Suit
+  - Alien encounters can be retreated from and cleared later
+  - Map shows explorable indicator for uncleared hazards/aliens
+
+### Changed
+- **UI Improvements:**
+  - Loadout modal now displays equipped items side-by-side at top
+  - Inventory weapons and armor moved below equipped items for better visibility
+  - Clearer visual hierarchy in equipment management
+- **Map Generation:**
+  - Alien rooms no longer spawn in tiles directly adjacent to the base
+  - Provides safer early exploration around starting position
+- **Raid Balance:**
+  - Raid chance now scales with exploration progress
+  - Early game: 30% of normal raid chance
+  - Increases proportionally as you explore more of the station
+  - Fully explored: 100% raid chance (normal rates)
+  - Makes early game more forgiving while maintaining late-game pressure
+
+### Technical
+- Added `RETREAT_BASE_CHANCE`, `RETREAT_SKILL_BONUS`, `RETREAT_LEVEL_BONUS`, and `RETREAT_ALIEN_PENALTY` to BALANCE constants
+- Modified `initTiles()` to check for base adjacency before spawning aliens
+- Updated `evaluateThreat()` to calculate exploration-scaled raid chance
+- Added `playerRetreat()` function to combat system
+- Updated `isExplorable()` to allow revisiting uncleared tiles
+- Added `cleared` flag to tile state tracking
+
 ## [0.7.1] - 2025-10-30
 ### Changed - HARDCORE MODE
 - **Guards Only Defense System:**
