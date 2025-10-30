@@ -4,6 +4,18 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.6] - 2025-10-30
+### Fixed
+- **Critical Bug:** Fixed equipment bonuses not applying in combat
+  - Weapon bonuses (Pulse Rifle +6 damage, Shotgun variable damage) now work correctly
+  - Armor defense bonuses (Light Armor -2, Heavy Armor -4, Hazmat Suit -3) now apply properly
+  - Equipment checks now correctly use object properties instead of string comparison
+  - Combat system now properly recognizes all equipment types
+
+### Changed
+- Improved combat damage calculation for more balanced gameplay
+- Enhanced equipment bonus system for better clarity
+
 ## [0.6.5] - 2025-10-30
 ### Added
 - **Debug Panel:** Press Ctrl+D to open a comprehensive debug panel for testing

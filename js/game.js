@@ -34,7 +34,7 @@ function initTiles() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-    _version: '1.8.0',
+    _version: '1.8.1',
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
@@ -449,7 +449,11 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       const target = aliens.find(a => a.hp > 0);
       if (!target) break;
       let baseAtk = 2 + s.skill + (s.level * BALANCE.LEVEL_ATTACK_BONUS);
-      if (s.equipment.weapon === 'Pulse Rifle') baseAtk += 6;
+      
+      // Apply weapon bonuses
+      if (s.equipment.weapon?.type === 'rifle') baseAtk += 6;
+      else if (s.equipment.weapon?.type === 'shotgun') baseAtk += rand(4, 10); // Shotgun has variable damage
+      
       // ammo check
       if (state.resources.ammo <= 0) {
         appendLog(`${s.name} attempted to fire but no ammo.`);
@@ -475,9 +479,13 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       const targ = fighters.find(x => x.hp > 0);
       if (!targ) break;
       const aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
-      // armor reduces damage
+      
+      // Apply armor defense bonuses
       let defense = 0;
-      if (targ.equipment.armor === 'Light Armor') defense += 2;
+      if (targ.equipment.armor?.type === 'armor') defense += 2; // Light Armor
+      else if (targ.equipment.armor?.type === 'heavyArmor') defense += 4; // Heavy Armor
+      else if (targ.equipment.armor?.type === 'hazmatSuit') defense += 3; // Hazmat Suit (some protection)
+      
       targ.hp -= Math.max(0, aDmg - defense);
       appendLog(`${a.name} strikes ${targ.name} for ${Math.max(0, aDmg - defense)} dmg.`);
       if (targ.hp <= 0) {

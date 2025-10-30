@@ -3,17 +3,17 @@
 ## Project Overview
 This is a browser-based survival/management game where players manage a space station, survivors, and resources while facing alien threats. The project uses vanilla JavaScript, HTML, and CSS with no external dependencies.
 
-**Current Version:** 0.6.5 (Debug Tools Update)
+**Current Version:** 0.6.6 (Combat Equipment Fix)
 
 ## Architecture
 
 ### Core Components
 1. **State Management** (`js/state.js`)
    - Central `state` object manages all game data
-   - Uses localStorage for persistence with unique user IDs (key: `derelict_station_expanded_v0.6.4_${USER_ID}`)
+   - Uses localStorage for persistence with unique user IDs (key: `derelict_station_expanded_v0.6.6_${USER_ID}`)
    - State includes: resources, survivors, map, inventory, systems, threat levels, missions
    - Multi-user support: Each player on the same domain gets a unique save file
-   - UI state tracking: `activeDropdown`, `selectedExplorerId`, `selectedExpeditionSurvivorId`
+   - UI state tracking: `activeDropdown`, `selectedExplorerId`, `selectedExpeditionSurvivorId`, `activeTaskDropdownScroll`
 
 2. **UI Structure** (`index.html`, `styles.css`)
    - Two-column layout with main content and side panels
@@ -99,8 +99,17 @@ js/
 ### 3. Combat System (`js/game.js`)
 - **Field Combat**: Selected explorer vs aliens during exploration
 - **Base Defense**: Guards defend against raids
-- **Weapon Bonuses**: Pulse Rifle +6 damage, Shotgun varies
-- **Armor Defense**: Light Armor -2 damage, Heavy Armor -4 damage
+- **Equipment Structure**: All equipment stored as objects with `type`, `name`, `durability` properties
+  - Example: `{ id: 1, type: 'rifle', name: 'Pulse Rifle', durability: 100, maxDurability: 100 }`
+- **Weapon Bonuses**: 
+  - Pulse Rifle (type: 'rifle'): +6 damage
+  - Shotgun (type: 'shotgun'): +4-10 variable damage
+  - Check with: `survivor.equipment.weapon?.type === 'rifle'`
+- **Armor Defense**: 
+  - Light Armor (type: 'armor'): -2 damage
+  - Heavy Armor (type: 'heavyArmor'): -4 damage
+  - Hazmat Suit (type: 'hazmatSuit'): -3 damage
+  - Check with: `survivor.equipment.armor?.type === 'armor'`
 - **Ammo System**: Consumed during combat (60% chance per attack), halved damage when depleted
 - **XP Rewards**: 10-20 XP per combat, survivors gain levels
 
@@ -243,7 +252,7 @@ js/
 - Use semantic versioning (MAJOR.MINOR.PATCH)
 - Update version in: `js/constants.js` (VERSION constant), `index.html` (footer), `CHANGELOG.md`
 - Update `_version` in `makeSaveSnapshot()` for breaking save changes
-- Tag releases in git: `git tag v0.6.4`
+- Tag releases in git: `git tag v0.6.6`
 
 ### Deployment
 - GitHub repo: jenkemplug/Station-Game
@@ -256,8 +265,9 @@ js/
 - Forgetting to call `updateUI()` after state changes leaves UI stale
 - Test save/load functionality after state structure changes
 - Check that new state properties are included in `makeSaveSnapshot()`
-- Verify equipment checks use `.type` property (e.g., `equipment.weapon?.type === 'rifle'`)
-- Remember combat uses equipment objects, not just strings
+- **CRITICAL**: Always use `.type` property for equipment checks (e.g., `equipment.weapon?.type === 'rifle'`)
+- **NEVER** compare equipment objects directly to strings (e.g., `equipment.weapon === 'Pulse Rifle'` will fail)
+- Equipment is stored as objects with `{ id, type, name, durability, maxDurability }` structure
 - Don't forget to deduct costs before granting benefits
 - Ensure ammo consumption is checked in combat calculations
 - Check mobile responsiveness when modifying layout
