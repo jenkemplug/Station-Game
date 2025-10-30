@@ -1,12 +1,7 @@
-function pickLoot() {
-  const total = LOOT_TABLE.reduce((s, i) => s + i.weight, 0);
-  let t = Math.random() * total;
-  for (const l of LOOT_TABLE) {
-    t -= l.weight;
-    if (t <= 0) return l;
-  }
-  return LOOT_TABLE[0];
-}
+// Deprecated file: legacy monolithic game.js
+// This file is no longer used. The game now loads modular files under js/game/.
+// Kept temporarily to avoid breaking external references. Safe to delete.
+console.warn('[Deprecated] js/game.js is no longer used. Game loads modules from js/game/*.js');
 
 function initTiles() {
   const { w, h } = state.mapSize;
@@ -484,7 +479,7 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       let defense = 0;
       if (targ.equipment.armor?.type === 'armor') defense += 2; // Light Armor
       else if (targ.equipment.armor?.type === 'heavyArmor') defense += 4; // Heavy Armor
-      else if (targ.equipment.armor?.type === 'hazmatSuit') defense += 3; // Hazmat Suit (some protection)
+      else if (targ.equipment.armor?.type === 'hazmatSuit') defense += 2; // Hazmat Suit (some protection)
       
       targ.hp -= Math.max(0, aDmg - defense);
       appendLog(`${a.name} strikes ${targ.name} for ${Math.max(0, aDmg - defense)} dmg.`);

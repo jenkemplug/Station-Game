@@ -3,14 +3,14 @@
 ## Project Overview
 This is a browser-based survival/management game where players manage a space station, survivors, and resources while facing alien threats. The project uses vanilla JavaScript, HTML, and CSS with no external dependencies.
 
-**Current Version:** 0.6.6 (Combat Equipment Fix)
+**Current Version:** 0.6.7 (Modular Refactor)
 
 ## Architecture
 
 ### Core Components
 1. **State Management** (`js/state.js`)
    - Central `state` object manages all game data
-   - Uses localStorage for persistence with unique user IDs (key: `derelict_station_expanded_v0.6.6_${USER_ID}`)
+   - Uses localStorage for persistence with unique user IDs (key: `derelict_station_expanded_v0.6.7_${USER_ID}`)
    - State includes: resources, survivors, map, inventory, systems, threat levels, missions
    - Multi-user support: Each player on the same domain gets a unique save file
    - UI state tracking: `activeDropdown`, `selectedExplorerId`, `selectedExpeditionSurvivorId`, `activeTaskDropdownScroll`
@@ -21,7 +21,7 @@ This is a browser-based survival/management game where players manage a space st
    - All UI elements use the `panel` class with consistent styling
    - Custom dropdown components with state preservation
 
-3. **Game Loop** (`js/game.js`, `js/main.js`)
+3. **Game Loop** (`js/game/tick.js`, `js/main.js`)
    - Runs every 1000ms (`TICK_MS = 1000`)
    - Handles resource production, consumption, and event triggers
    - Updates UI after state changes
@@ -36,7 +36,15 @@ js/
 ├── names.js        # Survivor name pool (200+ names)
 ├── map.js          # Map utilities, exploration, tile management
 ├── ui.js           # All rendering functions (updateUI, renderSurvivors, etc.)
-├── game.js         # Core game logic, combat, crafting, saves
+├── game/           # Modular game systems
+│   ├── save.js       # Save/load, tiles init
+│   ├── survivor.js   # Survivors: recruit, tasks, equip, XP
+│   ├── combat.js     # Combat system
+│   ├── exploration.js# Exploration and tile events
+│   ├── crafting.js   # Crafting and upgrades
+│   ├── expedition.js # Expeditions
+│   ├── threat.js     # Threat and raids
+│   └── tick.js       # Game tick orchestrator
 ├── debug.js        # Debug panel functions (Ctrl+D to toggle)
 └── main.js         # Entry point, event bindings, game loop
 ```
@@ -252,7 +260,7 @@ js/
 - Use semantic versioning (MAJOR.MINOR.PATCH)
 - Update version in: `js/constants.js` (VERSION constant), `index.html` (footer), `CHANGELOG.md`
 - Update `_version` in `makeSaveSnapshot()` for breaking save changes
-- Tag releases in git: `git tag v0.6.6`
+- Tag releases in git: `git tag v0.6.7`
 
 ### Deployment
 - GitHub repo: jenkemplug/Station-Game

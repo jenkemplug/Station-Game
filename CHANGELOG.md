@@ -4,6 +4,26 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.7] - 2025-10-30
+### Changed
+- **Major Code Refactor:** Split monolithic game.js (805 lines) into focused modules
+  - `js/game/save.js` - Save/load system and tile initialization
+  - `js/game/survivor.js` - Survivor recruitment, tasks, equipment, XP
+  - `js/game/combat.js` - Combat system with helper functions for damage calculation
+  - `js/game/exploration.js` - Tile exploration and event handling
+  - `js/game/crafting.js` - Item crafting, system upgrades, repairs
+  - `js/game/expedition.js` - Expedition management and mission tracking
+  - `js/game/threat.js` - Threat evaluation and raid resolution
+  - `js/game/tick.js` - Main game loop orchestrator
+- Improved code maintainability and readability
+- Added helper functions `calculateAttackDamage()` and `calculateDefense()` for cleaner combat logic
+- Better separation of concerns across game systems
+
+### Technical
+- No gameplay changes - purely architectural improvements
+- All existing functionality preserved and tested
+- Updated script loading order in index.html
+
 ## [0.6.6] - 2025-10-30
 ### Fixed
 - **Critical Bug:** Fixed equipment bonuses not applying in combat

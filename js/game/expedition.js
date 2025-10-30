@@ -1,0 +1,92 @@
+// Expedition System
+// Handles survivor expeditions and mission tracking
+
+function startExpedition(name = 'Expedition', duration = 30) {
+  if (selectedExpeditionSurvivorId === null) {
+    appendLog('No survivor selected for expedition.');
+    return;
+  }
+
+  const survivor = state.survivors.find(s => s.id === selectedExpeditionSurvivorId);
+  if (!survivor || survivor.onMission) {
+    appendLog('Selected survivor is not available for an expedition.');
+    return;
+  }
+
+  // Check for expedition costs
+  if (state.resources.food < BALANCE.EXPEDITION_COST_FOOD || state.resources.energy < BALANCE.EXPEDITION_COST_ENERGY) {
+    appendLog(`Not enough resources for an expedition. Need ${BALANCE.EXPEDITION_COST_FOOD} Food and ${BALANCE.EXPEDITION_COST_ENERGY} Energy.`);
+    return;
+  }
+
+  // Deduct costs
+  state.resources.food -= BALANCE.EXPEDITION_COST_FOOD;
+  state.resources.energy -= BALANCE.EXPEDITION_COST_ENERGY;
+
+  survivor.onMission = true;
+  activeDropdown = null;
+
+  const mission = {
+    id: Date.now(),
+    name,
+    party: [survivor.id],
+    startedAt: Date.now(),
+    durationSec: duration,
+    progress: 0,
+    status: 'active'
+  };
+  state.missions.push(mission);
+  appendLog(`${survivor.name} departs on ${name} (${duration}s).`);
+  updateUI();
+}
+
+function tickMissions() {
+  const now = Date.now();
+  for (const m of state.missions) {
+    if (m.status !== 'active') continue;
+    const elapsed = Math.floor((now - m.startedAt) / 1000);
+    m.progress = elapsed;
+    if (m.progress >= m.durationSec) {
+      const survivor = state.survivors.find(s => s.id === m.party[0]);
+      if (survivor) {
+        survivor.onMission = false;
+        const success = Math.random() < BALANCE.EXPEDITION_SUCCESS_CHANCE;
+        let report = `${m.name} completed. `;
+        if (success) {
+          grantXp(survivor, BALANCE.XP_FROM_EXPEDITION_SUCCESS);
+          const scrapFound = rand(10, 30);
+          const techFound = rand(1, 4);
+          state.resources.scrap += scrapFound;
+          state.resources.tech += techFound;
+          report += `Found ${scrapFound} scrap and ${techFound} tech. `;
+          if (survivor.equipment.weapon) {
+            survivor.equipment.weapon.durability -= rand(5, 15);
+            if (survivor.equipment.weapon.durability <= 0) {
+              report += `${survivor.equipment.weapon.name} broke. `;
+              survivor.equipment.weapon = null;
+            }
+          }
+          if (survivor.equipment.armor) {
+            survivor.equipment.armor.durability -= rand(10, 25);
+            if (survivor.equipment.armor.durability <= 0) {
+              report += `${survivor.equipment.armor.name} broke. `;
+              survivor.equipment.armor = null;
+            }
+          }
+        } else {
+          grantXp(survivor, BALANCE.XP_FROM_EXPEDITION_FAILURE);
+          report += 'Encountered heavy resistance. ';
+          survivor.hp -= rand(5, 15);
+          if (survivor.hp <= 0) {
+            report += `${survivor.name} was lost.`;
+            state.survivors = state.survivors.filter(s => s.id !== survivor.id);
+          }
+        }
+        appendLog(report);
+      }
+      m.status = 'complete';
+    }
+  }
+  // prune completed after some time
+  state.missions = state.missions.filter(m => m.status === 'active' || (m.status === 'complete' && Date.now() - m.startedAt < 30000));
+}
