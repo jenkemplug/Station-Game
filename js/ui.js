@@ -52,18 +52,45 @@ function updateUI() {
   renderExpeditionSurvivorSelect();
 }
 
+function updateExpeditionTimers() {
+  state.survivors.forEach(s => {
+    if (s.onMission) {
+      const statusEl = document.querySelector(`#survivor-${s.id}-status`);
+      if (statusEl) {
+        const activeMission = state.missions.find(m => m.party.includes(s.id) && m.status === 'active');
+        if (activeMission) {
+          const remainingSec = Math.max(0, activeMission.durationSec - activeMission.progress);
+          statusEl.textContent = `Lvl ${s.level} • On Expedition (${formatTime(remainingSec)})`;
+        }
+      }
+    }
+  });
+}
+
 function renderSurvivors() {
   const cont = el('survivorList');
 
-  // Create a snapshot of the current survivor state
-  const currentSurvivorsSnapshot = JSON.stringify(state.survivors);
+  // Create a snapshot of just the core survivor data (excluding mission progress)
+  const currentSurvivorsSnapshot = JSON.stringify(state.survivors.map(s => ({
+    ...s,
+    onMission: s.onMission // Include only the flag, not the progress
+  })));
 
-  // If the survivor data hasn't changed, don't re-render
+  // Only do full re-render if core survivor data changed
   if (lastRenderedSurvivors === currentSurvivorsSnapshot) {
+    updateExpeditionTimers();
     return;
   }
 
   lastRenderedSurvivors = currentSurvivorsSnapshot;
+
+  // Store the open dropdown states before re-render
+  const openDropdowns = Array.from(cont.querySelectorAll('.task-dropdown.open')).map(dropdown => {
+    const survivorCard = dropdown.closest('.survivor-card');
+    const survivorId = dropdown.querySelector('.task-dropdown-button').closest('[data-id]')?.dataset.id;
+    const scrollTop = dropdown.querySelector('.task-dropdown-content').scrollTop;
+    return { survivorId, scrollTop };
+  });
 
   cont.innerHTML = '';
   if (state.survivors.length === 0) {
@@ -146,9 +173,21 @@ function renderSurvivors() {
     // restore open state if this dropdown was active before a re-render
     if (activeDropdown && activeDropdown.type === 'task' && activeDropdown.survivorId === s.id) {
       dropdown.classList.add('open');
-    }    card.innerHTML = `
+    }    // Get expedition time remaining if on mission
+    let expeditionStatus = '';
+    if (s.onMission) {
+      const activeMission = state.missions.find(m => m.party.includes(s.id) && m.status === 'active');
+      if (activeMission) {
+        const remainingSec = Math.max(0, activeMission.durationSec - activeMission.progress);
+        expeditionStatus = `On Expedition (${formatTime(remainingSec)})`;
+      } else {
+        expeditionStatus = 'On Expedition';
+      }
+    }
+
+    card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong style="color:var(--accent)">${s.name}</strong><div class="small">Lvl ${s.level} • ${s.onMission ? 'On Expedition' : (s.task || 'Idle')}</div></div>
+        <div><strong style="color:var(--accent)">${s.name}</strong><div class="small" id="survivor-${s.id}-status">Lvl ${s.level} • ${s.onMission ? expeditionStatus : (s.task || 'Idle')}</div></div>
         <div class="small">${healthPct}% HP • Morale ${morale}</div>
       </div>
       <div style="margin-top:6px" class="small">

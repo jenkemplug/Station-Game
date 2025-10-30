@@ -4,6 +4,15 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6] - 2025-10-30
+### Added
+- Added countdown timer display for expeditions
+- Improved expedition status to show remaining time in hours, minutes, and seconds
+
+### Changed
+- Optimized survivor list rendering to update expedition timers smoothly
+- Enhanced UI to maintain dropdown states during timer updates
+
 ## [0.5.5] - 2025-10-30
 ### Added
 - Set up a Git repository and connected it to Netlify for continuous deployment.
