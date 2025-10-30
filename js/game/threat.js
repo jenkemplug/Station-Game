@@ -36,10 +36,19 @@ function resolveRaid() {
     });
   }
 
-  // Check if interactive combat is available and there are defenders
-  const availableDefenders = state.survivors.filter(s => !s.onMission);
-  if (typeof interactiveRaidCombat === 'function' && availableDefenders.length > 0) {
-    interactiveRaidCombat(raidAliens);
+  // ONLY guards defend the base (0.7.1 - hardcore defense)
+  const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission);
+  
+  if (guards.length === 0) {
+    // No guards = instant game over
+    appendLog('No guards on duty. The base is overrun.');
+    triggerGameOver('The aliens breached the base with no resistance. All is lost.');
+    return;
+  }
+  
+  // Check if interactive combat is available
+  if (typeof interactiveRaidCombat === 'function') {
+    interactiveRaidCombat(raidAliens, guards);
   } else {
     // Fall back to auto-resolve
     resolveSkirmish(raidAliens, 'base', null);

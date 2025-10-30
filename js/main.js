@@ -187,13 +187,45 @@ function mainLoop() {
     updateUI();
     // check game over
     if (state.baseIntegrity <= 0) {
-      appendLog('Base integrity failed. Game over.');
-      clearInterval(loopHandle);
+      triggerGameOver('Base integrity compromised. All systems have failed.');
     }
   }
 }
 
+// Game Over Function
+function triggerGameOver(message) {
+  appendLog(message);
+  appendLog('=== GAME OVER ===');
+  clearInterval(loopHandle);
+  
+  // Display game over modal
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="modal-card" style="text-align:center;max-width:500px">
+      <h2 style="color:var(--danger);margin-bottom:16px">GAME OVER</h2>
+      <p style="margin-bottom:24px;color:var(--text)">${message}</p>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button id="btnGameOverReset" class="primary">Start New Game</button>
+        <button id="btnGameOverLoad" class="danger">Load Save</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  
+  document.getElementById('btnGameOverReset').onclick = () => {
+    document.body.removeChild(overlay);
+    resetGame();
+  };
+  document.getElementById('btnGameOverLoad').onclick = () => {
+    document.body.removeChild(overlay);
+    el('btnImport').click();
+  };
+}
+
 // Initial load and startup
+let loopHandle;
 loadGame();
 if (state.survivors.length === 0) {
   recruitSurvivor('Elias');
@@ -206,5 +238,5 @@ if (state.survivors.length === 0) {
 }
 updateUI();
 bindUI();
-const loopHandle = setInterval(mainLoop, 1000);
+loopHandle = setInterval(mainLoop, 1000);
 setInterval(() => saveGame('auto'), 15000);

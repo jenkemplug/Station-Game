@@ -2,11 +2,11 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.7.0 (Interactive Combat & Loadouts)
+**Current Version:** 0.7.1 (Hardcore Defense Mode)
 
 ##  Play Now
 
-Visit [Derelict Station](https://derelictstation.netlify.app/) to play the latest version!
+Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the latest version!
 
 ##  Features
 
@@ -16,7 +16,8 @@ Visit [Derelict Station](https://derelictstation.netlify.app/) to play the lates
 - **Resource Management**: Balance oxygen, food, energy, and scrap production
 - **Interactive Combat System**: 
   - Turn-based combat with tactical actions (Shoot, Aim, Burst, Guard, Medkit)
-  - Multi-survivor raid defense where all available survivors fight together
+  - **HARDCORE MODE**: Only guards defend during raids - no guards = instant game over
+  - Raid defeat = permanent game over
   - Combat log tracks all actions; active turn indicators
   - Auto-resolve option for quick battles
 - **XP & Progression**: Survivors gain experience and level up for better stats
@@ -51,8 +52,10 @@ Visit [Derelict Station](https://derelictstation.netlify.app/) to play the lates
 ### 👾 Threats
 - **Four Alien Types**: Lurkers, Stalkers, Broods, and Spectres with unique stats
 - **Threat Level**: Increases over time, reduced by guards
-- **Base Raids**: Defend against alien attacks with turrets and guards
+- **Base Raids**: **ONLY GUARDS DEFEND** - maintain a strong defense force or lose everything
+- **Guard Task**: Essential for survival - reduces threat and defends against raids
 - **Critical Resource States**: Oxygen and food depletion cause casualties
+- **Permadeath**: Failed raid defense = game over
 
 ### 💾 Quality of Life
 - **Auto-save**: Game saves every 15 seconds

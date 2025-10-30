@@ -4,7 +4,34 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.8] - 2025-10-30
+## [0.7.1] - 2025-10-30
+### Changed - HARDCORE MODE
+- **Guards Only Defense System:**
+  - **BREAKING**: Only survivors assigned to Guard task defend during raids
+  - All other survivors (workers, idle, on tasks) do not participate in base defense
+  - Makes Guard task absolutely critical for survival
+- **Permadeath on Raid Defeat:**
+  - Failed raid defense now triggers immediate game over
+  - No guards on duty = instant game over when raid occurs
+  - Creates high-stakes strategic decision making
+- **Game Over System:**
+  - Added `triggerGameOver()` function with modal overlay
+  - Shows game over screen with "Start New Game" or "Load Save" options
+  - Base integrity reaching 0 also triggers game over
+
+### Technical
+- Updated `resolveRaid()` in `js/game/threat.js` to only use guards
+- Modified `interactiveRaidCombat()` to accept guards parameter
+- Updated `resolveSkirmish()` in `js/game/combat.js` to check for game over on raid defeat
+- Added game over modal system in `js/main.js`
+- Changed `loopHandle` to global scope for proper cleanup
+
+### Balance Impact
+- Guard assignment is now mandatory for long-term survival
+- Players must balance production workers vs defensive guards
+- Threat management becomes critically important
+- Turrets remain valuable but guards are essential
+
 ## [0.7.0] - 2025-10-30
 ### Added
 - **Interactive Combat System:**

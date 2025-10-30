@@ -54,14 +54,14 @@ function interactiveEncounterAtTile(idx) {
   openCombatOverlay();
 }
 
-function interactiveRaidCombat(aliens) {
-  // All survivors not on mission defend the base
-  const defenders = state.survivors.filter(s => !s.onMission).map(s => s.id);
-  if (defenders.length === 0) {
-    appendLog('No defenders available: raid overwhelms the base.');
-    state.baseIntegrity -= rand(10, 20);
+function interactiveRaidCombat(aliens, guards) {
+  // Only guards defend the base (0.7.1 - hardcore mode)
+  if (!guards || guards.length === 0) {
+    appendLog('No guards available: raid overwhelms the base.');
+    triggerGameOver('The base was overrun with no defenders. Game Over.');
     return;
   }
+  const defenders = guards.map(s => s.id);
   currentCombat = {
     context: 'base',
     idx: null,
@@ -72,7 +72,7 @@ function interactiveRaidCombat(aliens) {
     log: [],
     activePartyIdx: 0
   };
-  appendLog(`Base Defense: ${defenders.length} survivor(s) vs ${aliens.length} alien(s).`);
+  appendLog(`Base Defense: ${defenders.length} guard(s) vs ${aliens.length} alien(s).`);
   logCombat(`Turn ${currentCombat.turn} — Defender ${currentCombat.activePartyIdx + 1} of ${defenders.length}.`);
   openCombatOverlay();
 }
@@ -338,20 +338,11 @@ function endCombat(win) {
     // Remove dead
     state.survivors = state.survivors.filter(x => x.hp > 0);
     
-    // Raid failure penalties
+    // Raid failure = GAME OVER (0.7.1 - hardcore mode)
     if (isRaid) {
-      state.baseIntegrity -= rand(BALANCE.INTEGRITY_DAMAGE_ON_BREACH[0], BALANCE.INTEGRITY_DAMAGE_ON_BREACH[1]);
-      appendLog('Raid breached defenses. Base integrity damaged.');
-      
-      // Chance of alien nest spawning
-      if (Math.random() < BALANCE.NEST_CHANCE_AFTER_BREACH) {
-        const explored = Array.from(state.explored);
-        if (explored.length > 0) {
-          const tileIdx = explored[rand(0, explored.length - 1)];
-          state.tiles[tileIdx].type = 'alien';
-          appendLog('Aliens established a nest inside the station.');
-        }
-      }
+      triggerGameOver('The base defenses have fallen. The aliens have taken control. Game Over.');
+      closeCombatOverlay();
+      return;
     }
   }
   updateUI();

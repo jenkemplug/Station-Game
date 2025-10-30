@@ -59,12 +59,18 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
     if (explorer) {
       fighters.push(explorer);
     }
-  } else { // context === 'base' for raids
-    fighters = state.survivors.filter(s => s.task === 'Guard').slice(0, 4);
+  } else { // context === 'base' for raids - ONLY GUARDS defend (0.7.1)
+    fighters = state.survivors.filter(s => s.task === 'Guard' && !s.onMission);
   }
 
   if (fighters.length === 0) {
-    // no defenders: aliens may increase threat or seed a nest
+    // no defenders: GAME OVER if raid (0.7.1)
+    if (context === 'base') {
+      appendLog('No guards on duty: base is overrun.');
+      triggerGameOver('The base fell with no defenders. All is lost.');
+      return;
+    }
+    // field: aliens may increase threat or seed a nest
     appendLog('No defenders available: alien presence grows.');
     state.threat += aliens.length * rand(BALANCE.THREAT_GAIN_PER_ALIEN[0], BALANCE.THREAT_GAIN_PER_ALIEN[1]);
     // chance of nest established
@@ -139,6 +145,13 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
     }
     return true;
   });
+  
+  // Check if raid failed (0.7.1 - game over on raid defeat)
+  if (context === 'base' && aliens.some(a => a.hp > 0)) {
+    // Guards lost = game over
+    triggerGameOver('The guards fell and the base was overrun. Game Over.');
+    return;
+  }
   
   // if all aliens dead, clear tile
   if (idx !== null && state.tiles[idx]) {
