@@ -354,7 +354,36 @@ function handleTileEvent(idx) {
     // immediate encounter: spawn alien(s)
     spawnAlienEncounter(idx);
   } else if (t.type === 'hazard') {
-    appendLog(`Detected hazard at (${x},${y}). Specialized equipment required.`);
+    const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+    if (!explorer) {
+      appendLog(`Detected hazard at (${x},${y}). No explorer selected.`);
+      return;
+    }
+    const hasHazmat = explorer.equipment.armor?.type === 'hazmatSuit';
+    if (!hasHazmat) {
+      appendLog(`Detected hazard at (${x},${y}). Hazmat Suit required.`);
+      return;
+    }
+    
+    // Successful hazard room clear
+    explorer.equipment.armor.durability -= rand(15, 25); // Damage the suit
+    if (explorer.equipment.armor.durability <= 0) {
+      appendLog(`${explorer.name}'s Hazmat Suit was destroyed clearing the hazard.`);
+      explorer.equipment.armor = null;
+    }
+
+    // Extra XP for clearing hazard
+    grantXp(explorer, BALANCE.XP_FROM_LOOT * 3);
+    
+    // Better loot chances
+    for (let i = 0; i < 3; i++) {
+      const loot = pickLoot();
+      const message = loot.onPickup(state);
+      appendLog(`${explorer.name} found ${message}`);
+    }
+
+    appendLog(`${explorer.name} successfully cleared the hazardous area.`);
+    t.type = 'empty';
   } else if (t.type === 'module') {
     // grant a minor system node or tech
     state.resources.tech += 1;

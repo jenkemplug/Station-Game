@@ -48,7 +48,8 @@ const LOOT_TABLE = [
   { type: 'heavyArmor', weight: 1, desc: 'Heavy Armor plating', onPickup: (s) => { s.inventory.push({ id: s.nextItemId++, type: 'heavyArmor', name: 'Heavy Armor', durability: 200, maxDurability: 200 }); return 'Heavy Armor recovered.'; } },
   { type: 'shotgun', weight: 2, desc: 'Shotgun components', onPickup: (s) => { s.inventory.push({ id: s.nextItemId++, type: 'shotgun', name: 'Shotgun', durability: 80, maxDurability: 80 }); return 'Shotgun recovered.'; } },
   { type: 'filter', weight: 0.5, desc: 'A filter module', onPickup: (s) => { s.systems.filter++; return 'Filter module recovered.'; } },
-  { type: 'generator', weight: 0.5, desc: 'A micro-generator', onPickup: (s) => { s.systems.generator++; return 'Micro-generator recovered.'; } }
+  { type: 'generator', weight: 0.5, desc: 'A micro-generator', onPickup: (s) => { s.systems.generator++; return 'Micro-generator recovered.'; } },
+  { type: 'hazmatSuit', weight: 0.1, desc: 'A hazmat suit', onPickup: (s) => { s.inventory.push({ id: s.nextItemId++, type: 'hazmatSuit', name: 'Hazmat Suit', durability: 150, maxDurability: 150 }); return 'Hazmat Suit recovered.'; } }
 ];
 
 const ALIEN_TYPES = [
@@ -67,7 +68,8 @@ const RECIPES = {
   armor: { name: 'Light Armor', scrap: 40, tech: 3, durability: 100, result: () => { state.inventory.push({ id: state.nextItemId++, type: 'armor', name: 'Light Armor', durability: 100, maxDurability: 100 }); appendLog('Light Armor crafted.'); } },
   rifle: { name: 'Pulse Rifle', scrap: 55, tech: 5, durability: 100, result: () => { state.inventory.push({ id: state.nextItemId++, type: 'rifle', name: 'Pulse Rifle', durability: 100, maxDurability: 100 }); appendLog('Pulse Rifle built.'); } },
   heavyArmor: { name: 'Heavy Armor', scrap: 70, tech: 5, durability: 200, result: () => { state.inventory.push({ id: state.nextItemId++, type: 'heavyArmor', name: 'Heavy Armor', durability: 200, maxDurability: 200 }); appendLog('Heavy Armor crafted.'); } },
-  shotgun: { name: 'Shotgun', scrap: 65, tech: 4, durability: 80, result: () => { state.inventory.push({ id: state.nextItemId++, type: 'shotgun', name: 'Shotgun', durability: 80, maxDurability: 80 }); appendLog('Shotgun built.'); } }
+  shotgun: { name: 'Shotgun', scrap: 65, tech: 4, durability: 80, result: () => { state.inventory.push({ id: state.nextItemId++, type: 'shotgun', name: 'Shotgun', durability: 80, maxDurability: 80 }); appendLog('Shotgun built.'); } },
+  hazmatSuit: { name: 'Hazmat Suit', scrap: 85, tech: 6, durability: 150, result: () => { state.inventory.push({ id: state.nextItemId++, type: 'hazmatSuit', name: 'Hazmat Suit', durability: 150, maxDurability: 150 }); appendLog('Hazmat Suit assembled.'); } }
 };
 
 const TASKS = ['Idle', 'Oxygen', 'Food', 'Energy', 'Scrap', 'Guard'];
