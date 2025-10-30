@@ -2,7 +2,7 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.6.8 (Balance & UI Polish)
+**Current Version:** 0.7.0 (Interactive Combat & Loadouts)
 
 ##  Play Now
 
@@ -14,7 +14,11 @@ Visit [Derelict Station](https://derelictstation.netlify.app/) to play the lates
 - **Click-to-Explore Map**: Click adjacent tiles to explore the derelict station
 - **Survivor Management**: Recruit, assign tasks, and level up survivors with unique skills
 - **Resource Management**: Balance oxygen, food, energy, and scrap production
-- **Combat System**: Fight aliens in tactical skirmishes with weapons and armor
+- **Interactive Combat System**: 
+  - Turn-based combat with tactical actions (Shoot, Aim, Burst, Guard, Medkit)
+  - Multi-survivor raid defense where all available survivors fight together
+  - Combat log tracks all actions; active turn indicators
+  - Auto-resolve option for quick battles
 - **XP & Progression**: Survivors gain experience and level up for better stats
 
 ### 🔧 Crafting & Equipment
@@ -23,6 +27,7 @@ Visit [Derelict Station](https://derelictstation.netlify.app/) to play the lates
 - **Consumables**: Medkits and ammo manufacturing
 - **Systems**: Oxygen filters, generators, and auto-turrets
 - **Durability System**: Equipment degrades and can be repaired
+- **Loadout Management**: Equip/unequip weapons and armor for each survivor via a modal
 
 ### 🗺️ Exploration
 - **20x10 Tile Map**: Large station to explore with varied encounters

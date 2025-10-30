@@ -348,6 +348,73 @@ footer {
   justify-content: space-between;
 }
 
+/* Modal overlays (combat, loadout) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(2px);
+}
+
+.modal-card {
+  background: var(--card-gradient);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 16px;
+  width: min(95vw, 960px);
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding-bottom: 8px;
+}
+
+.combat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  min-height: 220px;
+}
+
+.combat-actions {
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+}
+
+.card-like {
+  background: var(--glass);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 12px;
+  transition: border-color 0.2s;
+}
+
+.inv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.inv-row button {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
 .flex-row {
   display: flex;
   gap: 12px;

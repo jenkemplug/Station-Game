@@ -17,39 +17,31 @@ function evaluateThreat() {
 
 function resolveRaid() {
   appendLog('Alarm: unidentified activity detected near the base — a raid is incoming.');
-  const turretPower = state.systems.turret * BALANCE.TURRET_POWER_PER;
-  const guardPower = state.survivors.filter(s => s.task === 'Guard').length * 4;
-  const armorBonus = state.survivors.reduce((total, s) => {
-    if (s.equipment.armor) {
-      return total + (s.equipment.armor.type === 'heavyArmor' ? 4 : 2);
-    }
-    return total;
-  }, 0);
-  const defense = turretPower + guardPower + armorBonus;
-  const attack = rand(BALANCE.RAID_ATTACK_RANGE[0], BALANCE.RAID_ATTACK_RANGE[1]) + Math.floor(state.threat / 2);
-  if (defense >= attack || Math.random() < 0.3) {
-    appendLog('Raid repelled by base defenses.');
-    // small loot or scrap recovered
-    state.resources.scrap += rand(2, 10);
-    state.threat = clamp(state.threat - BALANCE.THREAT_REDUCE_ON_REPEL, 0, 100);
+  
+  // Generate raid aliens based on threat level
+  const alienCount = Math.min(4, Math.floor(state.threat / 20) + rand(1, 2));
+  const raidAliens = [];
+  for (let i = 0; i < alienCount; i++) {
+    const at = ALIEN_TYPES[rand(0, ALIEN_TYPES.length - 1)];
+    const hp = rand(at.hpRange[0], at.hpRange[1]);
+    raidAliens.push({
+      id: `raid_${Date.now()}_${i}`,
+      type: at.id,
+      name: at.name,
+      hp,
+      maxHp: hp,
+      attack: rand(at.attackRange[0], at.attackRange[1]),
+      stealth: at.stealth,
+      flavor: at.flavor
+    });
+  }
+
+  // Check if interactive combat is available and there are defenders
+  const availableDefenders = state.survivors.filter(s => !s.onMission);
+  if (typeof interactiveRaidCombat === 'function' && availableDefenders.length > 0) {
+    interactiveRaidCombat(raidAliens);
   } else {
-    appendLog('Raid breached outer perimeter. Boarding risk increased.');
-    state.baseIntegrity -= rand(BALANCE.INTEGRITY_DAMAGE_ON_BREACH[0], BALANCE.INTEGRITY_DAMAGE_ON_BREACH[1]);
-    // chance of internal breach
-    if (Math.random() < BALANCE.NEST_CHANCE_AFTER_BREACH) {
-      // spawn internal alien in a nearby explored tile
-      const explored = Array.from(state.explored);
-      if (explored.length > 0) {
-        const tileIdx = explored[rand(0, explored.length - 1)];
-        state.tiles[tileIdx].type = 'alien';
-        appendLog('An alien force has boarded and established a presence inside the station.');
-      }
-    }
-    // casualties
-    if (Math.random() < BALANCE.CASUALTY_CHANCE && state.survivors.length > 0) {
-      const idx = rand(0, state.survivors.length - 1);
-      appendLog(`${state.survivors[idx].name} lost defending the base.`);
-      state.survivors.splice(idx, 1);
-    }
+    // Fall back to auto-resolve
+    resolveSkirmish(raidAliens, 'base', null);
   }
 }

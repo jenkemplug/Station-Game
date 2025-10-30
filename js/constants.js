@@ -1,9 +1,19 @@
-const VERSION = '0.6.8';
+const VERSION = '0.7.0';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
 
 const BALANCE = {
+  // Interactive combat
+  COMBAT_ACTIONS: {
+    Aim: { accuracyBonus: 0.2 },
+    Burst: { dmgBonus: [2, 4], accuracyPenalty: 0.1, ammoMult: 2 },
+    Guard: { defenseBonus: 2 },
+    MedkitHeal: [8, 14]
+  },
+  BASE_HIT_CHANCE: 0.7,
+  CRIT_CHANCE: 0.1,
+  CRIT_MULT: 1.5,
   // Map & exploration costs (click-to-explore only)
   TILE_ENERGY_COST: {
     hazard: 25,

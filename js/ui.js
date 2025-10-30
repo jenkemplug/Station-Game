@@ -294,7 +294,81 @@ function renderSurvivors() {
   });
   cont.querySelectorAll('button.dismiss').forEach(b => b.onclick = () => releaseSurvivor(Number(b.dataset.id)));
   cont.querySelectorAll('button.heal').forEach(b => b.onclick = () => useMedkit(Number(b.dataset.id)));
-  cont.querySelectorAll('button.equip').forEach(b => b.onclick = () => equipBest(Number(b.dataset.id)));
+  cont.querySelectorAll('button.equip').forEach(b => b.onclick = () => openLoadoutForSurvivor(Number(b.dataset.id)));
+}
+
+// Loadout Modal Logic
+let activeLoadoutSurvivorId = null;
+
+function openLoadoutForSurvivor(id) {
+  activeLoadoutSurvivorId = id;
+  const modal = el('loadoutModal');
+  modal.style.display = 'flex';
+  renderLoadoutContent();
+  const btnClose = el('btnCloseLoadout');
+  if (btnClose) btnClose.onclick = closeLoadoutModal;
+}
+
+function closeLoadoutModal() {
+  const modal = el('loadoutModal');
+  modal.style.display = 'none';
+  activeLoadoutSurvivorId = null;
+}
+
+function renderLoadoutContent() {
+  const cont = el('loadoutContent');
+  const s = state.survivors.find(x => x.id === activeLoadoutSurvivorId);
+  if (!s) { cont.innerHTML = '<div class="small">No survivor selected.</div>'; return; }
+
+  const equippedWeapon = s.equipment.weapon ? `${s.equipment.weapon.name} ${s.equipment.weapon.durability !== undefined ? `(${s.equipment.weapon.durability}/${s.equipment.weapon.maxDurability})` : ''}` : 'None';
+  const equippedArmor = s.equipment.armor ? `${s.equipment.armor.name} ${s.equipment.armor.durability !== undefined ? `(${s.equipment.armor.durability}/${s.equipment.armor.maxDurability})` : ''}` : 'None';
+
+  const weapons = state.inventory.filter(i => i.type === 'rifle' || i.type === 'shotgun');
+  const armors = state.inventory.filter(i => i.type === 'armor' || i.type === 'heavyArmor' || i.type === 'hazmatSuit');
+
+  const weaponList = weapons.map(i => `<div class="inv-row"><span>${i.name} ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-weapon">Equip</button></div>`).join('') || '<div class="small">No weapons in inventory.</div>';
+  const armorList = armors.map(i => `<div class="inv-row"><span>${i.name} ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-armor">Equip</button></div>`).join('') || '<div class="small">No armor in inventory.</div>';
+
+  cont.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:260px">
+        <div><strong>${s.name}</strong> <span class="small">Lvl ${s.level} • HP ${s.hp}/${s.maxHp}</span></div>
+        <div class="small" style="margin-top:4px;color:var(--muted)">Ammo: ${state.resources.ammo}</div>
+        <div style="margin-top:8px" class="card-like">
+          <div><strong>Weapon</strong></div>
+          <div class="small">${equippedWeapon}</div>
+          <div style="margin-top:6px">
+            ${s.equipment.weapon ? `<button id="btnUnequipWeapon">Unequip</button>` : '<span class="small" style="color:var(--muted)">Empty slot</span>'}
+          </div>
+        </div>
+        <div style="margin-top:8px" class="card-like">
+          <div><strong>Armor</strong></div>
+          <div class="small">${equippedArmor}</div>
+          <div style="margin-top:6px">
+            ${s.equipment.armor ? `<button id="btnUnequipArmor">Unequip</button>` : '<span class="small" style="color:var(--muted)">Empty slot</span>'}
+          </div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:260px">
+        <div><strong>Inventory — Weapons</strong></div>
+        <div style="margin-top:6px">${weaponList}</div>
+        <div style="margin-top:12px"><strong>Inventory — Armor</strong></div>
+        <div style="margin-top:6px">${armorList}</div>
+      </div>
+    </div>
+  `;
+
+  // Bind events
+  const btnUW = document.getElementById('btnUnequipWeapon');
+  if (btnUW) btnUW.onclick = () => { unequipFromSurvivor(s.id, 'weapon'); renderLoadoutContent(); };
+  const btnUA = document.getElementById('btnUnequipArmor');
+  if (btnUA) btnUA.onclick = () => { unequipFromSurvivor(s.id, 'armor'); renderLoadoutContent(); };
+  cont.querySelectorAll('button.equip-weapon').forEach(b => {
+    b.onclick = () => { equipItemToSurvivor(s.id, Number(b.dataset.id)); renderLoadoutContent(); };
+  });
+  cont.querySelectorAll('button.equip-armor').forEach(b => {
+    b.onclick = () => { equipItemToSurvivor(s.id, Number(b.dataset.id)); renderLoadoutContent(); };
+  });
 }
 
 function renderMap() {

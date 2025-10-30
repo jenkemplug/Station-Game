@@ -115,3 +115,47 @@ function equipBest(id) {
   }
   appendLog(`${s.name} has nothing new to equip.`);
 }
+
+// Equip a specific inventory item to a survivor, auto-detecting slot
+function equipItemToSurvivor(survivorId, itemId) {
+  const s = state.survivors.find(x => x.id === survivorId);
+  if (!s) return;
+  const idx = state.inventory.findIndex(i => i.id === itemId);
+  if (idx === -1) { appendLog('Item not found in inventory.'); return; }
+  const item = state.inventory[idx];
+  let slot = null;
+  if (item.type === 'rifle' || item.type === 'shotgun') slot = 'weapon';
+  if (item.type === 'armor' || item.type === 'heavyArmor' || item.type === 'hazmatSuit') slot = 'armor';
+  if (!slot) { appendLog('That item cannot be equipped.'); return; }
+
+  // If slot already occupied, move current equipment back to inventory
+  if (slot === 'weapon' && s.equipment.weapon) {
+    state.inventory.push(s.equipment.weapon);
+  }
+  if (slot === 'armor' && s.equipment.armor) {
+    state.inventory.push(s.equipment.armor);
+  }
+
+  // Assign and remove from inventory
+  if (slot === 'weapon') s.equipment.weapon = item;
+  else s.equipment.armor = item;
+  state.inventory.splice(idx, 1);
+
+  appendLog(`${s.name} equipped ${item.name}.`);
+  updateUI();
+  saveGame('action');
+}
+
+// Unequip an item from a survivor back into inventory
+function unequipFromSurvivor(survivorId, slot) {
+  const s = state.survivors.find(x => x.id === survivorId);
+  if (!s) return;
+  if (slot !== 'weapon' && slot !== 'armor') return;
+  const eq = slot === 'weapon' ? s.equipment.weapon : s.equipment.armor;
+  if (!eq) { appendLog('Nothing to unequip.'); return; }
+  state.inventory.push(eq);
+  if (slot === 'weapon') s.equipment.weapon = null; else s.equipment.armor = null;
+  appendLog(`${s.name} unequipped ${eq.name}.`);
+  updateUI();
+  saveGame('action');
+}

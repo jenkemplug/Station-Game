@@ -44,8 +44,12 @@ function spawnAlienEncounter(idx) {
     });
   }
   appendLog(`Encountered ${t.aliens.length} alien(s) in this sector.`);
-  // immediate skirmish using current team (scout)
-  resolveSkirmish(t.aliens, 'field', idx);
+  // If interactive combat is available and an explorer is selected, open it; otherwise auto-resolve
+  if (typeof interactiveEncounterAtTile === 'function' && selectedExplorerId != null) {
+    interactiveEncounterAtTile(idx);
+  } else {
+    resolveSkirmish(t.aliens, 'field', idx);
+  }
 }
 
 function resolveSkirmish(aliens, context = 'field', idx = null) {

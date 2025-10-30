@@ -122,7 +122,7 @@
   </aside>
 
   <footer>
-     <div>Version 0.6.8 — Balance & UI Polish</div>
+     <div>Version 0.7.0 — Interactive Combat & Loadouts</div>
     <div>Autosave every 15s • Offline progress supported • Press Ctrl+D for debug panel</div>
   </footer>
 </div>
@@ -218,5 +218,38 @@
   <!-- End modular game system -->
 <script src="js/debug.js"></script>
 <script src="js/main.js"></script>
+
+<!-- Interactive Combat Overlay -->
+<div id="combatOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header">
+      <strong>Engagement</strong>
+      <button id="btnCloseCombat" class="danger">✕</button>
+    </div>
+    <div id="combatContent" class="combat-grid"></div>
+    <div class="combat-actions">
+      <button id="btnActionShoot" class="primary">Shoot</button>
+      <button id="btnActionAim">Aim</button>
+      <button id="btnActionBurst">Burst</button>
+      <button id="btnActionGuard">Guard</button>
+      <button id="btnActionMedkit">Use Medkit</button>
+      <button id="btnActionAuto" style="margin-left:auto;">Auto-Resolve</button>
+    </div>
+  </div>
+  
+</div>
+
+<!-- Loadout Modal -->
+<div id="loadoutModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card" style="max-width:720px;">
+    <div class="modal-header">
+      <strong>Manage Loadout</strong>
+      <button id="btnCloseLoadout" class="danger">✕</button>
+    </div>
+    <div id="loadoutContent"></div>
+  </div>
+</div>
+<!-- Interactive combat logic -->
+<script src="js/game/combatInteractive.js"></script>
 </body>
 </html>

@@ -5,7 +5,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.6.8] - 2025-10-30
+## [0.7.0] - 2025-10-30
+### Added
+- **Interactive Combat System:**
+  - Turn-based combat overlay for both exploration encounters and base raids
+  - Player actions: Shoot, Aim (+20% hit chance next turn), Burst (2 shots with bonus damage), Guard (+2 defense), Use Medkit (heal 8-14 HP)
+  - Auto-resolve fallback for players who prefer automated combat
+  - Base raid combat involves all survivors not on expeditions
+  - Combat log tracks all actions and events
+  - Active survivor indicator shows whose turn it is
+  - Hit chance, critical hits (10% chance, 1.5x damage), and equipment bonuses fully functional
+  - Loot drops on alien kills; XP rewards on victory
+  - Action tooltips show detailed stats and requirements
+- **Loadout Management Modal:**
+  - Equip/unequip weapons and armor for each survivor directly from inventory
+  - Visual display of durability and current ammo count
+  - One-click equipment swapping
+  - Equipment automatically returns to inventory when replaced
+- **Enhanced Raid System:**
+  - Raids now spawn 1-4 aliens based on threat level
+  - Victory rewards scrap and reduces threat
+  - Defeat damages base integrity and may spawn alien nests
+
 ### Changed
+- Exploration alien encounters now open the interactive overlay by default when an explorer is selected
+- Survivor "Equip" button now opens the Loadout modal instead of auto-equipping
+- Raid resolution now uses interactive combat with all available defenders
+- Closing the combat overlay mid-fight auto-resolves the encounter
+- Multi-survivor raids allow each defender to take their turn before enemies act
+
+### Technical
+- New module `js/game/combatInteractive.js` for interactive engagements:
+  - `interactiveEncounterAtTile(idx)` for exploration combat
+  - `interactiveRaidCombat(aliens)` for base defense
+  - Turn system with `activePartyIdx` tracks current actor
+  - Combat log with 12-entry rolling buffer
+- Equipment management helpers added to `js/game/survivor.js`:
+  - `equipItemToSurvivor(id, itemId)` and `unequipFromSurvivor(id, slot)`
+- Loadout modal UI wiring added in `js/ui.js`:
+  - `openLoadoutForSurvivor(id)`, `closeLoadoutModal()`, `renderLoadoutContent()`
+- Updated `js/game/threat.js` `resolveRaid()` to generate aliens and trigger interactive combat
+- Added `.inv-row` CSS class for inventory item styling in modals
+
+## [0.6.8] - 2025-10-30
 - **Major Balance Pass:** Comprehensive rebalancing for a more forgiving early game
   - Reduced resource consumption by 15-20% (Oxygen and Food)
   - Increased oxygen critical threshold from 6 to 8
