@@ -4,8 +4,25 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.5] - 2025-10-30
+### Added
+- **Debug Panel:** Press Ctrl+D to open a comprehensive debug panel for testing
+- **Resource Debug Tools:** Instantly add oxygen, food, energy, scrap, tech, and ammo
+- **Equipment Debug Tools:** Add weapons, armor, and hazmat suits to inventory
+- **Survivor Debug Tools:** Free recruitment, heal all, max morale, level up all survivors
+- **Map Debug Tools:** Reveal entire map, spawn aliens, clear aliens, add hazard rooms
+- **System Debug Tools:** Upgrade all systems, reset threat, repair base, trigger raids
+- **Time Control:** Skip forward by 1 minute, 5 minutes, or 1 hour for testing
+
+### Changed
+- Updated footer to show debug panel keyboard shortcut (Ctrl+D)
+
 ## [0.6.4] - 2025-10-30
 ### Added
+- **Hazmat Suit:** New craftable equipment (85 scrap, 6 tech, 150 durability)
+- **Hazard Room Clearing:** Requires Hazmat Suit to clear contaminated areas
+- **Enhanced Hazard Rewards:** 3x loot rolls and 3x XP for clearing hazard rooms
+- **Hazmat Suit Durability:** Suit degrades 15-25 points per hazard cleared
 - **Explorer Selection:** Added a dropdown menu on the map panel to select a specific survivor for exploration.
 - **Solo Exploration XP:** Only the selected explorer now gains XP from discovering new tiles and finding loot.
 - **Explorer Combat:** The selected explorer is now the sole combatant in battles triggered by exploration.
@@ -15,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated workbench UI to show the correct, rebalanced crafting costs.
 - Refactored combat logic to differentiate between exploration skirmishes and base raids.
+- Hazard rooms are now high-value targets with best risk/reward ratio
 
 ## [0.6.3] - 2025-10-30
 ### Added

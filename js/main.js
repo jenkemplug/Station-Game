@@ -55,6 +55,15 @@ function bindUI() {
 
   document.addEventListener('keydown', e => {
     const k = (e.key || '').toLowerCase();
+    
+    // Debug panel toggle (Ctrl+D)
+    if (e.ctrlKey && k === 'd') {
+      e.preventDefault();
+      toggleDebugPanel();
+      return;
+    }
+
+    // Existing shortcuts
     if (k === 'e') {
       exploreTiles(1);
     }
@@ -77,6 +86,11 @@ function bindUI() {
       activeTaskDropdownId = null;
     }
   }, true);
+
+  // Debug panel close button
+  el('btnCloseDebug').onclick = () => {
+    el('debugPanel').style.display = 'none';
+  };
 }
 
 function resetGame() {

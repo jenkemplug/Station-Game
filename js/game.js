@@ -277,7 +277,7 @@ function equipBest(id) {
     updateUI();
     return;
   }
-  const armorIndex = state.inventory.findIndex(item => item.type === 'armor' || item.type === 'heavyArmor');
+  const armorIndex = state.inventory.findIndex(item => item.type === 'armor' || item.type === 'heavyArmor' || item.type === 'hazmatSuit');
   if (armorIndex !== -1 && !s.equipment.armor) {
     const armor = state.inventory.splice(armorIndex, 1)[0];
     s.equipment.armor = armor;

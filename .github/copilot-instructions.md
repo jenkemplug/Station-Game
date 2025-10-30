@@ -3,7 +3,7 @@
 ## Project Overview
 This is a browser-based survival/management game where players manage a space station, survivors, and resources while facing alien threats. The project uses vanilla JavaScript, HTML, and CSS with no external dependencies.
 
-**Current Version:** 0.6.4 (Exploration Update)
+**Current Version:** 0.6.5 (Debug Tools Update)
 
 ## Architecture
 
@@ -37,6 +37,7 @@ js/
 ├── map.js          # Map utilities, exploration, tile management
 ├── ui.js           # All rendering functions (updateUI, renderSurvivors, etc.)
 ├── game.js         # Core game logic, combat, crafting, saves
+├── debug.js        # Debug panel functions (Ctrl+D to toggle)
 └── main.js         # Entry point, event bindings, game loop
 ```
 
@@ -139,6 +140,15 @@ js/
 - **Raid Chance**: Base 0.5% + (threat/3000), max 8%
 - **Defense Calculation**: Turrets + guards + armor bonuses
 - **Raid Outcomes**: Success = scrap reward, Failure = base damage + possible casualties
+
+### 9. Debug Tools (`js/debug.js`)
+- **Access**: Press Ctrl+D to toggle debug panel
+- **Resource Tools**: Add resources instantly for testing
+- **Equipment Tools**: Spawn weapons, armor, hazmat suits
+- **Survivor Tools**: Free recruitment, healing, leveling
+- **Map Tools**: Reveal map, spawn/clear aliens, add hazards
+- **System Tools**: Upgrade systems, reset threat, trigger raids
+- **Time Control**: Skip forward 1 min / 5 min / 1 hour
 
 ## Development Workflows
 
