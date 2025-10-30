@@ -19,14 +19,9 @@ function getAdjacentTiles(x, y, mapSize) {
 }
 
 function getTileEnergyCost(tile) {
-  switch (tile.type) {
-    case 'hazard': return 25;
-    case 'alien': return 20;
-    case 'resource': return 15;
-    case 'module': return 18;
-    case 'survivor': return 12;
-    default: return 8;
-  }
+  const costs = BALANCE.TILE_ENERGY_COST;
+  const t = tile.type || 'empty';
+  return costs[t] ?? costs.empty;
 }
 
 function getExploredTilesWithType() {
@@ -88,16 +83,4 @@ function revealRandomTiles(count = 1) {
     revealed++;
   }
   return revealed;
-}
-
-function longRangeScan() {
-  if (state.resources.energy < 10) {
-    appendLog('Insufficient energy for scanner.');
-    return;
-  }
-  state.resources.energy -= 10;
-  let toReveal = rand(3, 7);
-  revealRandomTiles(toReveal);
-  appendLog('Scanner revealed nearby sectors.');
-  updateUI();
 }

@@ -19,7 +19,7 @@ function craft(item) {
 }
 
 function upgradeFilter() {
-  const cost = 50 + state.systems.filter * 25;
+  const cost = BALANCE.UPGRADE_COSTS.filter.base + state.systems.filter * BALANCE.UPGRADE_COSTS.filter.perLevel;
   if (state.resources.scrap < cost) {
     appendLog('Not enough scrap to upgrade filter.');
     return;
@@ -31,7 +31,7 @@ function upgradeFilter() {
 }
 
 function upgradeGenerator() {
-  const cost = 45 + state.systems.generator * 22;
+  const cost = BALANCE.UPGRADE_COSTS.generator.base + state.systems.generator * BALANCE.UPGRADE_COSTS.generator.perLevel;
   if (state.resources.scrap < cost) {
     appendLog('Not enough scrap to upgrade generator.');
     return;
@@ -43,13 +43,13 @@ function upgradeGenerator() {
 }
 
 function buildTurret() {
-  const cost = 75;
-  if (state.resources.scrap < cost || state.resources.energy < 40) {
+  const cost = BALANCE.UPGRADE_COSTS.turret.scrap;
+  if (state.resources.scrap < cost || state.resources.energy < BALANCE.UPGRADE_COSTS.turret.energy) {
     appendLog('Not enough resources to build turret.');
     return;
   }
   state.resources.scrap -= cost;
-  state.resources.energy -= 40;
+  state.resources.energy -= BALANCE.UPGRADE_COSTS.turret.energy;
   state.systems.turret++;
   appendLog('Auto-turret deployed.');
   updateUI();
@@ -75,7 +75,7 @@ function repairItem(itemId) {
     return;
   }
 
-  const repairCost = Math.ceil((item.maxDurability - item.durability) * 0.5);
+  const repairCost = Math.ceil((item.maxDurability - item.durability) * BALANCE.REPAIR_COST_PER_POINT);
   if (state.resources.scrap < repairCost) {
     appendLog(`Not enough scrap to repair. Need ${repairCost}.`);
     return;

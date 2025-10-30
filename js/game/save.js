@@ -37,7 +37,7 @@ function initTiles() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '1.8.2',
+  _version: '1.9.0',
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,

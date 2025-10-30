@@ -33,9 +33,9 @@ function recruitSurvivor(name) {
 }
 
 function getRecruitCost() {
-  const baseCost = 15;
+  const baseCost = BALANCE.BASE_RECRUIT_COST;
   const survivorMult = Math.pow(1.5, state.survivors.length);
-  const exploredDiscount = Math.min(0.5, state.explored.size / (state.mapSize.w * state.mapSize.h));
+  const exploredDiscount = Math.min(BALANCE.EXPLORED_DISCOUNT_MAX, state.explored.size / (state.mapSize.w * state.mapSize.h));
   return Math.floor(baseCost * survivorMult * (1 - exploredDiscount));
 }
 

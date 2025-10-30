@@ -19,29 +19,6 @@ function revealRandomTiles(count = 1) {
   return revealed;
 }
 
-function exploreTiles(count = 1) {
-  const energyCost = 3;
-  if (state.resources.energy < energyCost) {
-    appendLog("Insufficient energy to explore.");
-    return;
-  }
-  state.resources.energy -= energyCost;
-  let got = revealRandomTiles(count);
-  appendLog(`Exploration: revealed ${got} tile(s).`);
-  updateUI();
-}
-
-function longRangeScan() {
-  if (state.resources.energy < 10) {
-    appendLog('Insufficient energy for long-range scan.');
-    return;
-  }
-  state.resources.energy -= 10;
-  let toReveal = rand(3, 7);
-  revealRandomTiles(toReveal);
-  appendLog('Long-range scan revealed nearby sectors.');
-}
-
 function handleTileEvent(idx) {
   const t = state.tiles[idx];
   const { x, y } = t;
@@ -56,7 +33,7 @@ function handleTileEvent(idx) {
     t.type = 'empty';
   } else if (t.type === 'survivor') {
     // recruit chance
-    if (Math.random() < 0.85) {
+    if (Math.random() < BALANCE.SURVIVOR_RECRUIT_CHANCE) {
       const foundName = getRandomName();
       recruitSurvivor(foundName);
       appendLog(`Rescued ${foundName} at (${x},${y}) who joins the base.`);
@@ -78,8 +55,8 @@ function handleTileEvent(idx) {
       return;
     }
     
-    // Successful hazard room clear
-    explorer.equipment.armor.durability -= rand(15, 25); // Damage the suit
+  // Successful hazard room clear
+  explorer.equipment.armor.durability -= rand(BALANCE.HAZARD_DURABILITY_LOSS[0], BALANCE.HAZARD_DURABILITY_LOSS[1]); // Damage the suit
     if (explorer.equipment.armor.durability <= 0) {
       appendLog(`${explorer.name}'s Hazmat Suit was destroyed clearing the hazard.`);
       explorer.equipment.armor = null;
@@ -89,7 +66,7 @@ function handleTileEvent(idx) {
     grantXp(explorer, BALANCE.XP_FROM_LOOT * 3);
     
     // Better loot chances
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < BALANCE.HAZARD_LOOT_ROLLS; i++) {
       const loot = pickLoot();
       const message = loot.onPickup(state);
       appendLog(`${explorer.name} found ${message}`);

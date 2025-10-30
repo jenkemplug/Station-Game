@@ -1,7 +1,7 @@
 // Expedition System
 // Handles survivor expeditions and mission tracking
 
-function startExpedition(name = 'Expedition', duration = 30) {
+function startExpedition(name = 'Expedition', durationSec = undefined) {
   if (selectedExpeditionSurvivorId === null) {
     appendLog('No survivor selected for expedition.');
     return;
@@ -31,12 +31,12 @@ function startExpedition(name = 'Expedition', duration = 30) {
     name,
     party: [survivor.id],
     startedAt: Date.now(),
-    durationSec: duration,
+    durationSec: (durationSec ?? BALANCE.EXPEDITION_DEFAULT_DURATION),
     progress: 0,
     status: 'active'
   };
   state.missions.push(mission);
-  appendLog(`${survivor.name} departs on ${name} (${duration}s).`);
+  appendLog(`${survivor.name} departs on ${name} (${mission.durationSec}s).`);
   updateUI();
 }
 
@@ -54,20 +54,20 @@ function tickMissions() {
         let report = `${m.name} completed. `;
         if (success) {
           grantXp(survivor, BALANCE.XP_FROM_EXPEDITION_SUCCESS);
-          const scrapFound = rand(10, 30);
-          const techFound = rand(1, 4);
+          const scrapFound = rand(BALANCE.EXPEDITION_REWARDS.scrap[0], BALANCE.EXPEDITION_REWARDS.scrap[1]);
+          const techFound = rand(BALANCE.EXPEDITION_REWARDS.tech[0], BALANCE.EXPEDITION_REWARDS.tech[1]);
           state.resources.scrap += scrapFound;
           state.resources.tech += techFound;
           report += `Found ${scrapFound} scrap and ${techFound} tech. `;
           if (survivor.equipment.weapon) {
-            survivor.equipment.weapon.durability -= rand(5, 15);
+            survivor.equipment.weapon.durability -= rand(BALANCE.EXPEDITION_WEAPON_WEAR[0], BALANCE.EXPEDITION_WEAPON_WEAR[1]);
             if (survivor.equipment.weapon.durability <= 0) {
               report += `${survivor.equipment.weapon.name} broke. `;
               survivor.equipment.weapon = null;
             }
           }
           if (survivor.equipment.armor) {
-            survivor.equipment.armor.durability -= rand(10, 25);
+            survivor.equipment.armor.durability -= rand(BALANCE.EXPEDITION_ARMOR_WEAR[0], BALANCE.EXPEDITION_ARMOR_WEAR[1]);
             if (survivor.equipment.armor.durability <= 0) {
               report += `${survivor.equipment.armor.name} broke. `;
               survivor.equipment.armor = null;
@@ -76,7 +76,7 @@ function tickMissions() {
         } else {
           grantXp(survivor, BALANCE.XP_FROM_EXPEDITION_FAILURE);
           report += 'Encountered heavy resistance. ';
-          survivor.hp -= rand(5, 15);
+          survivor.hp -= rand(BALANCE.EXPEDITION_FAILURE_DAMAGE[0], BALANCE.EXPEDITION_FAILURE_DAMAGE[1]);
           if (survivor.hp <= 0) {
             report += `${survivor.name} was lost.`;
             state.survivors = state.survivors.filter(s => s.id !== survivor.id);

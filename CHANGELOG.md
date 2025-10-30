@@ -4,6 +4,59 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.8] - 2025-10-30
+### Changed
+- **Major Balance Pass:** Comprehensive rebalancing for a more forgiving early game
+  - Reduced resource consumption by 15-20% (Oxygen and Food)
+  - Increased oxygen critical threshold from 6 to 8
+  - Reduced asphyxiation damage and morale penalties by 20-25%
+  - Lowered starvation chance from 8% to 6%
+- **Better Exploration Rewards:**
+  - Reduced energy costs for most tile types (alien, resource, module, survivor)
+  - Increased all XP gains: Explore +60%, Loot +25%, Combat +20-25%
+  - Reduced hazard room durability loss by 20%
+- **Improved Expeditions:**
+  - Success rate increased from 65% to 70%
+  - Costs reduced (8 food/12 energy, down from 10/15)
+  - Rewards boosted: Scrap +2 min/+5 max, Tech max +1
+  - XP rewards increased by 20%
+  - Equipment wear reduced by 20%
+- **Gentler Threat Curve:**
+  - Reduced base threat growth by 20%
+  - Guards 25% more effective at reducing threat
+  - Raids 20% less frequent and 10% weaker
+  - Reduced casualty chance from 12% to 10%
+  - Turrets 25% more powerful (12 → 15 power)
+- **Stronger Production:**
+  - Overall production multiplier increased from 1.15 to 1.20
+  - System bonuses increased (Filter +8%, Generator +7%)
+  - Survivor task production boosted 10-15% across all tasks
+  - Level bonuses increased: Production 5% → 6%, Attack 0.5 → 0.6
+  - Food yield improved from 60% to 65%
+  - Energy drain reduced by ~15-17%
+  - Idle survivors 67% more productive
+- **Cheaper Economy:**
+  - Recruit base cost reduced from 15 to 12 scrap
+  - Repair cost reduced from 0.5 to 0.4 per durability point
+  - All upgrade costs reduced by 10-15%
+  - Ammo consumption reduced from 60% to 55%
+- **UI Improvements:**
+  - Base panel controls (Recruit/Expedition) now properly centered
+  - Improved spacing and layout in base panel
+
+### Removed
+- **Deprecated Exploration Features:**
+  - Removed random exploration function (exploreTiles)
+  - Removed long-range scan function
+  - Removed 'E' keyboard shortcut for random exploration
+  - Removed associated constants: EXPLORE_RANDOM_COST, SCAN_COST, SCAN_REVEAL_RANGE
+  - Game now uses click-to-explore exclusively for more intentional gameplay
+
+### Technical
+- Centralized all balance values into BALANCE constants for easier tuning
+- Save snapshot version updated to 1.9.0
+- Removed unused exploration code from game/exploration.js and map.js
+
 ## [0.6.7] - 2025-10-30
 ### Changed
 - **Major Code Refactor:** Split monolithic game.js (805 lines) into focused modules

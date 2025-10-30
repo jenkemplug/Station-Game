@@ -64,9 +64,6 @@ function bindUI() {
     }
 
     // Existing shortcuts
-    if (k === 'e') {
-      exploreTiles(1);
-    }
     if (k === 'r') {
       recruitSurvivor();
     }

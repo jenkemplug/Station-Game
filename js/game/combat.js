@@ -62,9 +62,9 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
   if (fighters.length === 0) {
     // no defenders: aliens may increase threat or seed a nest
     appendLog('No defenders available: alien presence grows.');
-    state.threat += aliens.length * rand(1, 3);
+    state.threat += aliens.length * rand(BALANCE.THREAT_GAIN_PER_ALIEN[0], BALANCE.THREAT_GAIN_PER_ALIEN[1]);
     // chance of nest established
-    if (Math.random() < 0.25) {
+    if (Math.random() < BALANCE.NEST_CHANCE_NO_DEFEND) {
       appendLog('Aliens established a nest nearby.');
       if (idx !== null) state.tiles[idx].type = 'alien';
     }
@@ -90,7 +90,7 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         baseAtk = Math.max(1, Math.floor(baseAtk / 2));
       } else {
         // consume ammo some chance
-        if (Math.random() < 0.6) state.resources.ammo = Math.max(0, state.resources.ammo - 1);
+        if (Math.random() < BALANCE.AMMO_CONSUME_CHANCE) state.resources.ammo = Math.max(0, state.resources.ammo - 1);
       }
       
       const dmg = rand(Math.max(1, baseAtk - 1), baseAtk + 2);
@@ -148,7 +148,7 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
   // survivors gain xp
   for (const s of fighters) {
     if (s.hp > 0) {
-      grantXp(s, rand(10, 20));
+      grantXp(s, rand(BALANCE.COMBAT_XP_RANGE[0], BALANCE.COMBAT_XP_RANGE[1]));
     }
   }
   
