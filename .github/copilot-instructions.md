@@ -215,8 +215,8 @@ js/
 ## Project Conventions
 
 ### CSS
-- Use `var(--accent)` for highlighted text (#4a9eff blue)
-- Use `var(--muted)` for secondary text (#808080 gray)
+- Use `var(--accent)` for highlighted text (blue: 4a9eff)
+- Use `var(--muted)` for secondary text (gray: 808080)
 - Use `var(--danger)` for warnings/critical states
 - Panel backgrounds use `var(--card-gradient)`
 - Spacing uses 8px increments (8, 16, 24, etc.)
