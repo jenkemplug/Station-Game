@@ -4,6 +4,41 @@ All notable changes to the Derelict Station project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2025-10-30
+### Changed
+- Removed 'Explore' task from survivor assignments
+- Significantly increased exploration energy costs for better game balance:
+  - Hazard tiles: 25 energy
+  - Alien tiles: 20 energy
+  - Module tiles: 18 energy
+  - Resource tiles: 15 energy
+  - Survivor tiles: 12 energy
+  - Empty tiles: 8 energy
+
+### Removed
+- Scanner button and functionality
+- Scanner key shortcut (L key)
+- Long-range scanning system
+
+## [0.6.0] - 2025-10-30
+### Added
+- New exploration system: click adjacent tiles to explore them
+- Visual indicators for explorable tiles
+- Dynamic energy costs based on tile type
+- Enhanced tooltips showing exploration costs
+- Improved adjacent tile detection system
+
+### Changed
+- Removed old exploration buttons in favor of direct tile interaction
+- Updated map UI with clearer exploration guidance
+- Optimized map rendering for better performance
+- Reorganized exploration code into dedicated map.js module
+- Updated Scanner functionality to complement new exploration system
+
+### Removed
+- Old exploration task/buttons for cleaner UI
+- Legacy exploration functions that are no longer needed
+
 ## [0.5.6] - 2025-10-30
 ### Added
 - Added countdown timer display for expeditions

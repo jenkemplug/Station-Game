@@ -4,23 +4,6 @@ function bindUI() {
     saveGame('action');
     updateUI();
   };
-  el('btnExplore').onclick = () => {
-    exploreTiles(1);
-    saveGame('action');
-  };
-  el('btnExploreOnce').onclick = () => {
-    exploreTiles(1);
-    saveGame('action');
-  };
-  el('btnExplore5').onclick = () => {
-    exploreTiles(5);
-    saveGame('action');
-  };
-  el('btnScan').onclick = () => {
-    longRangeScan();
-    saveGame('action');
-    updateUI();
-  };
   el('btnExpedition').onclick = () => {
     startExpedition('Deep Run', 45);
     saveGame('action');
@@ -81,9 +64,7 @@ function bindUI() {
     if (k === 'f') {
       craft('filter');
     }
-    if (k === 'l') {
-      longRangeScan();
-    }
+
   });
 
   // Close dropdowns when clicking outside

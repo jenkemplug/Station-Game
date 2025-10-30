@@ -1,4 +1,4 @@
-const VERSION = '0.5.6';
+const VERSION = '0.6.1';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -62,4 +62,4 @@ const RECIPES = {
   shotgun: { name: 'Shotgun', scrap: 55, tech: 3, durability: 80, result: () => { state.inventory.push({ id: state.nextItemId++, type: 'shotgun', name: 'Shotgun', durability: 80, maxDurability: 80 }); appendLog('Shotgun built.'); } }
 };
 
-const TASKS = ['Idle', 'Oxygen', 'Food', 'Energy', 'Scrap', 'Guard', 'Explore'];
+const TASKS = ['Idle', 'Oxygen', 'Food', 'Energy', 'Scrap', 'Guard'];

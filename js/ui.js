@@ -226,9 +226,28 @@ function renderMap() {
       const t = state.tiles[idx];
       const tile = document.createElement('div');
       tile.className = 'tile';
+
+      // Add explored and base classes
       if (t.scouted || state.explored.has(idx)) tile.classList.add('explored');
       if (t.type === 'base') tile.classList.add('base');
-      tile.title = t.scouted ? `${t.type}` : `Unexplored`;
+
+      // Check if tile is explorable (adjacent to explored)
+      if (!state.explored.has(idx)) {
+        const tileObj = { x, y, idx };
+        if (isExplorable(tileObj)) {
+          tile.classList.add('explorable');
+          // Add click handler for explorable tiles
+          tile.onclick = () => exploreTile(idx);
+          // Show energy cost in tooltip
+          const cost = getTileEnergyCost(t);
+          tile.title = `Click to explore (Energy: ${cost})`;
+        } else {
+          tile.title = 'Too far to explore';
+        }
+      } else {
+        tile.title = `${t.type} (Explored)`;
+      }
+
       const content = document.createElement('span');
       content.textContent = t.scouted ? (t.type === 'base' ? 'B' : (t.type[0] || '?').toUpperCase()) : '.';
       tile.appendChild(content);

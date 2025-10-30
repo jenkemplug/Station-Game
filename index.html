@@ -36,7 +36,6 @@
         </div>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
           <button id="btnAssign" class="primary">Recruit</button>
-          <button id="btnExplore">Explore</button>
           <button id="btnExpedition">Expedition</button>
           <div id="expeditionSurvivorDropdown" style="flex:1;"></div>
         </div>
@@ -61,10 +60,7 @@
       <div class="small" style="margin-top:6px">Explore to find loot, survivors, alien nests, and modules.</div>
       <div class="map" id="mapGrid" style="margin-top:10px"></div>
       <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
-        <button id="btnExploreOnce">Explore 1</button>
-        <button id="btnExplore5">Explore 5</button>
-        <button id="btnScan">Scan</button>
-        <div id="mapInfo" class="small">Explored: 0</div>
+        <div id="mapInfo" class="small">Explored: 0 • Click highlighted tiles to explore</div>
       </div>
     </div>
     <div class="bottom-panels">
@@ -122,7 +118,7 @@
   </aside>
 
   <footer>
-    <div>Version 0.5.6 — Expanded Prototype</div>
+    <div>Version 0.6.1 — Exploration Update</div>
     <div>Autosave every 15s • Offline progress supported</div>
   </footer>
 </div>
@@ -131,6 +127,7 @@
 <script src="js/state.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/names.js"></script>
+<script src="js/map.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>
 <script src="js/main.js"></script>
