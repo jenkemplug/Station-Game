@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Derelict Station — Expanded Idle</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Derelict Station — Expanded Survival</h1>
+      <div style="font-size:12px;color:var(--muted)">You hold a sealed base on a ruined station. Manage survivors, craft gear, face alien threats.</div>
+    </div>
+    <div class="flex-row">
+      <div id="timePlayed" class="small">—</div>
+      <button id="btnSave">Save</button>
+      <button id="btnExport">Export</button>
+      <button id="btnImport">Import</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none" />
+      <button id="btnReset" class="danger">Reset</button>
+    </div>
+  </header>
+
+    <main class="main-col">
+    <div class="top-panels">
+      <div class="panel" style="flex:1;">
+        <strong style="color:var(--accent)">Base</strong>
+        <div class="small">Sealed room. Keep systems online.</div>
+        <div style="margin-top:8px" class="resources">
+          <div class="res-item"><b id="res-oxygen">O₂: 0</b><div id="res-oxygen-rate" class="stat">—/s</div></div>
+          <div class="res-item"><b id="res-food">Food: 0</b><div id="res-food-rate" class="stat">—/s</div></div>
+          <div class="res-item"><b id="res-energy">Energy: 0</b><div id="res-energy-rate" class="stat">—/s</div></div>
+          <div class="res-item"><b id="res-scrap">Scrap: 0</b><div id="res-scrap-rate" class="stat">—/s</div></div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+          <button id="btnAssign" class="primary">Recruit</button>
+          <button id="btnExplore">Explore</button>
+          <button id="btnExpedition">Expedition</button>
+          <div id="expeditionSurvivorDropdown" style="flex:1;"></div>
+        </div>
+      </div>
+      <div class="panel" style="width:340px;">
+        <strong>Systems</strong>
+        <div class="small" style="margin-top:6px">Upgrade base systems to improve production and defense.</div>
+        <div style="margin-top:10px">
+          <div class="stat-block"><div>O₂ Filter</div><div id="sys-filter">Level 0</div></div>
+          <div class="stat-block"><div>Generator</div><div id="sys-generator">Level 0</div></div>
+          <div class="stat-block"><div>Turrets</div><div id="sys-turret">Offline</div></div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <button id="btnUpgradeFilter">Upgrade Filter</button>
+            <button id="btnUpgradeGen">Upgrade Generator</button>
+            <button id="btnBuildTurret">Build Turret</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <strong style="color:var(--accent)">Station Map</strong>
+      <div class="small" style="margin-top:6px">Explore to find loot, survivors, alien nests, and modules.</div>
+      <div class="map" id="mapGrid" style="margin-top:10px"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <button id="btnExploreOnce">Explore 1</button>
+        <button id="btnExplore5">Explore 5</button>
+        <button id="btnScan">Scan</button>
+        <div id="mapInfo" class="small">Explored: 0</div>
+      </div>
+    </div>
+    <div class="bottom-panels">
+      <div class="panel" style="flex:1;">
+        <strong style="color:var(--accent)">Threats & Base</strong>
+        <div class="small" style="margin-top:6px">Manage guard duty and defenses.</div>
+        <div style="margin-top:8px">
+          <div>Threat: <span id="threatLevel">Low</span></div>
+          <div>Base Integrity: <span id="baseIntegrity">100%</span></div>
+          <div style="margin-top:8px">Boarding Risk: <span id="boardRisk">0%</span></div>
+        </div>
+      </div>
+      <div class="panel" style="width:340px;">
+        <strong style="color:var(--accent)">Journal</strong>
+        <div id="journal" class="small" style="margin-top:8px">Station systems nominal.</div>
+      </div>
+    </div>
+  </main>
+  <aside class="side-col">
+    <div class="panel">
+      <strong style="color:var(--accent)">Notifications</strong>
+      <div class="log" id="log" style="margin-top:8px;max-height:300px"></div>
+    </div>
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong style="color:var(--accent)">Survivors</strong><div class="small">Manage skills & assignments</div></div>
+        <div id="survivorCount" class="small">0</div>
+      </div>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:8px 0;">
+      <div id="survivorList"></div>
+    </div>
+    <div class="panel">
+      <strong style="color:var(--accent)">Inventory</strong>
+      <div class="inventory" id="inventory" style="margin-top:8px"></div>
+      <div style="margin-top:8px" class="small">Tech: <span id="statTech">0</span> • Ammo: <span id="statAmmo">0</span></div>
+      <div style="margin-top:10px">
+        <button id="btnAutoSalvage">Salvage</button>
+        <button id="btnDumpJunk">Discard</button>
+      </div>
+    </div>
+    <div class="panel">
+      <strong class="small">Workbench</strong>
+      <div id="workbench" style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+        <button data-item="filter">Make Filter Module (Scrap 25, Energy 15)</button>
+        <button data-item="generator">Make Microgen (Scrap 20)</button>
+        <button data-item="medkit">Assemble Medkit (Scrap 12)</button>
+        <button data-item="ammo">Manufacture Ammo (Scrap 8)</button>
+        <button data-item="turret">Construct Auto-Turret (Scrap 60, Energy 30)</button>
+        <button data-item="armor">Craft Light Armor (Scrap 30, Tech 2)</button>
+        <button data-item="rifle">Build Pulse Rifle (Scrap 45, Tech 4)</button>
+        <button data-item="heavyArmor">Craft Heavy Armor (Scrap 60, Tech 4)</button>
+        <button data-item="shotgun">Build Shotgun (Scrap 55, Tech 3)</button>
+      </div>
+    </div>
+  </aside>
+
+  <footer>
+    <div>Version 0.5.4 — Expanded Prototype</div>
+    <div>Autosave every 15s • Offline progress supported</div>
+  </footer>
+</div>
+
+<script src="js/constants.js"></script>
+<script src="js/state.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/names.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
