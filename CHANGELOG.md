@@ -1,6 +1,41 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.3] - 2025-10-30
+### Fixed
+- **Combat UI Updates**: Fixed combat engagement UI not updating correctly after each action
+  - Added `renderCombatUI()` calls after all player actions (shoot, aim, guard, medkit, revive)
+  - Added UI updates after turret attacks and enemy turns
+  - Combat now displays HP changes, status effects, and alien/survivor states in real-time
+- **Combat Log Format**: Improved combat log structure for better readability
+  - Added "=== ENGAGEMENT START ===" header for field encounters
+  - Added "=== BASE DEFENSE ===" header for raids
+  - Clear turn indicators with "— Turn X —" and "— Your Turn —" / "— Enemy Turn —" separators
+  - Removed redundant per-survivor turn announcements
+  - Combat log now displays newest messages at top (like notifications panel)
+- **Field Exploration Combat**: Fixed multiple issues with solo explorer encounters
+  - Only the selected explorer now participates in field combat (no other survivors involved)
+  - Explorer death now automatically closes engagement window without requiring manual closure
+  - Closing engagement window during field combat no longer auto-resolves with all survivors
+  - Fixed "Combat abandoned" message appearing when explorer dies
+  - Death message changed from "is down!" to "has died." for field exploration
+  - Tile properly marked as not cleared when explorer is defeated
+  - Fixed JavaScript error (`const` vs `let`) that prevented death detection from working
+
+### Changed
+- Close button behavior during field combat now simply abandons the encounter (no auto-resolve)
+- Auto-resolve button during field combat now correctly uses only the explorer
+- Only survivors actually participating in combat are removed on defeat
+- Target selection in combat now filters out dead/downed survivors
+
+### Technical
+- Enhanced `endCombat()` to only remove survivors who were in the specific combat
+- Added immediate death check in `enemyTurn()` to auto-close window on explorer death
+- Updated `bindCombatUIEvents()` to distinguish between field and base combat contexts
+- Fixed `targ` variable scope issue (changed from `const` to `let` for reassignment)
+- Added pre-attack survivor check to prevent targeting dead survivors
+- Combat log uses `unshift()` instead of `push()` for reverse chronological order
+
 ## [0.8.2] - 2025-10-30
 ### Changed
 - Threat display in UI now shows the exact percentage instead of bucketed labels

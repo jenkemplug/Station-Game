@@ -1,4 +1,4 @@
-const VERSION = '0.8.2';
+const VERSION = '0.8.3';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -47,19 +47,19 @@ const BALANCE = {
   HAZARD_LOOT_ROLLS: 3,
 
   // Resource consumption (per tick)
-  O2_BASE: 0.12,
-  O2_PER_SURVIVOR: 0.30,
-  FOOD_BASE: 0.04,
-  FOOD_PER_SURVIVOR: 0.18,
+  O2_BASE: 0.15,
+  O2_PER_SURVIVOR: 0.35,
+  FOOD_BASE: 0.05,
+  FOOD_PER_SURVIVOR: 0.22,
   
   // Critical state thresholds
-  OXY_CRITICAL_THRESHOLD: 8,
-  OXY_DAMAGE_RANGE: [1, 3],
-  INTEGRITY_DAMAGE_OXY_CRIT: 0.08,
-  MORALE_LOSS_OXY_CRIT: 0.3,
-  MORALE_LOSS_ASPHYXIA: 0.5,
-  MORALE_LOSS_STARVATION: 0.20,
-  STARVATION_CHANCE: 0.06,
+  OXY_CRITICAL_THRESHOLD: 10,
+  OXY_DAMAGE_RANGE: [2, 4],
+  INTEGRITY_DAMAGE_OXY_CRIT: 0.1,
+  MORALE_LOSS_OXY_CRIT: 0.4,
+  MORALE_LOSS_ASPHYXIA: 0.6,
+  MORALE_LOSS_STARVATION: 0.25,
+  STARVATION_CHANCE: 0.07,
   
   // Threat & raid mechanics
   THREAT_GROWTH_BASE: 0.035,
@@ -73,13 +73,13 @@ const BALANCE = {
   RAID_MAX_CHANCE: 0.10,     // Cap at 10% per minute
   // 0.7.3 – Defensive reduction to raid chance (absolute)
   RAID_CHANCE_REDUCTION_PER_GUARD: 0.0025,
-  RAID_CHANCE_REDUCTION_PER_TURRET: 0.002,
+  RAID_CHANCE_REDUCTION_PER_TURRET: 0.0025,
   // 0.7.3 – Additive pressure from exploration and alien kills
-  RAID_CHANCE_PER_TILE: 0.00020,     // ~4% at 200 tiles fully explored
-  RAID_CHANCE_PER_ALIEN_KILL: 0.0008, // 0.08% per alien kill
+  RAID_CHANCE_PER_TILE: 0.00030,     // ~6% at 200 tiles fully explored
+  RAID_CHANCE_PER_ALIEN_KILL: 0.0015, // 0.15% per alien kill
   // 0.7.3 – Raid cooldown to keep raids impactful and infrequent
   RAID_MIN_INTERVAL_SEC: 900,  // 15 minutes
-  RAID_MAX_INTERVAL_SEC: 1200, // 20 minutes
+  RAID_MAX_INTERVAL_SEC: 1800, // 30 minutes
   TURRET_POWER_PER: 15,
   RAID_ATTACK_RANGE: [6, 28],
   THREAT_REDUCE_ON_REPEL: 4,
@@ -90,60 +90,60 @@ const BALANCE = {
   NEST_CHANCE_NO_DEFEND: 0.30,
   
   // Expeditions
-  EXPEDITION_SUCCESS_CHANCE: 0.70,
-  EXPEDITION_COST_FOOD: 8,
-  EXPEDITION_COST_ENERGY: 12,
-  EXPEDITION_DEFAULT_DURATION: 30,
-  EXPEDITION_WEAPON_WEAR: [4, 12],
-  EXPEDITION_ARMOR_WEAR: [8, 20],
-  EXPEDITION_FAILURE_DAMAGE: [4, 12],
+  EXPEDITION_SUCCESS_CHANCE: 0.65,
+  EXPEDITION_COST_FOOD: 10,
+  EXPEDITION_COST_ENERGY: 15,
+  EXPEDITION_DEFAULT_DURATION: 35,
+  EXPEDITION_WEAPON_WEAR: [5, 15],
+  EXPEDITION_ARMOR_WEAR: [10, 25],
+  EXPEDITION_FAILURE_DAMAGE: [5, 15],
   EXPEDITION_REWARDS: {
-    scrap: [12, 35],
-    tech: [1, 5]
+    scrap: [10, 30],
+    tech: [1, 4]
   },
-  XP_FROM_EXPEDITION_SUCCESS: 30,
-  XP_FROM_EXPEDITION_FAILURE: 12,
+  XP_FROM_EXPEDITION_SUCCESS: 25,
+  XP_FROM_EXPEDITION_FAILURE: 10,
   
   // XP & leveling
-  XP_MULT: 1.0,
-  XP_FROM_EXPLORE: 8,
-  XP_FROM_LOOT: 10,
-  COMBAT_XP_RANGE: [12, 25],
+  XP_MULT: 0.9,
+  XP_FROM_EXPLORE: 7,
+  XP_FROM_LOOT: 8,
+  COMBAT_XP_RANGE: [10, 22],
   
   // Production multipliers
-  PROD_MULT: 1.20,
-  SYSTEM_FILTER_MULT: 1.4,
-  SYSTEM_GENERATOR_MULT: 1.25,
+  PROD_MULT: 1.15,
+  SYSTEM_FILTER_MULT: 1.3,
+  SYSTEM_GENERATOR_MULT: 1.2,
   SURVIVOR_PROD: {
-    Oxygen: { base: 1.0, perSkill: 0.06 },
-    Food: { base: 0.8, perSkill: 0.04 },
-    Energy: { base: 0.8, perSkill: 0.05 },
-    Scrap: { base: 0.7, perSkill: 0.04 },
-    IdleOxygen: 0.05,
-    FoodYieldFactor: 0.65,
-    PassiveEnergyDrainBase: 0.06,
-    PassiveEnergyDrainPerTurret: 0.025
+    Oxygen: { base: 0.9, perSkill: 0.05 },
+    Food: { base: 0.7, perSkill: 0.03 },
+    Energy: { base: 0.7, perSkill: 0.04 },
+    Scrap: { base: 0.6, perSkill: 0.03 },
+    IdleOxygen: 0.04,
+    FoodYieldFactor: 0.6,
+    PassiveEnergyDrainBase: 0.07,
+    PassiveEnergyDrainPerTurret: 0.03
   },
-  LEVEL_PRODUCTION_BONUS: 0.06,
-  LEVEL_ATTACK_BONUS: 0.6,
+  LEVEL_PRODUCTION_BONUS: 0.05,
+  LEVEL_ATTACK_BONUS: 0.5,
   
   // Combat
-  AMMO_CONSUME_CHANCE: 0.55,
+  AMMO_CONSUME_CHANCE: 0.6,
   
   // Economy & upgrades
-  BASE_RECRUIT_COST: 12,
-  EXPLORED_DISCOUNT_MAX: 0.5,
-  REPAIR_COST_PER_POINT: 0.4,
+  BASE_RECRUIT_COST: 15,
+  EXPLORED_DISCOUNT_MAX: 0.4,
+  REPAIR_COST_PER_POINT: 0.5,
   UPGRADE_COSTS: {
-    filter: { base: 45, perLevel: 22 },
-    generator: { base: 40, perLevel: 20 },
-    turret: { scrap: 70, energy: 35 }
+    filter: { base: 50, perLevel: 25 },
+    generator: { base: 45, perLevel: 22 },
+    turret: { scrap: 80, energy: 40 }
   },
   // 0.8.0 - System repair costs after failures
   REPAIR_COSTS: {
-    filter: { scrap: 25, energy: 10 },
-    generator: { scrap: 20, energy: 15 },
-    turret: { scrap: 35, energy: 20 }
+    filter: { scrap: 30, energy: 12 },
+    generator: { scrap: 25, energy: 18 },
+    turret: { scrap: 40, energy: 25 }
   }
 };
 
@@ -398,7 +398,7 @@ const RECIPES = {
     const item = { id: state.nextItemId++, type: 'armor', name: 'Light Armor', durability: 100, maxDurability: 100 }; 
     if (tryAddToInventory(item)) appendLog('Light Armor crafted.'); 
   } },
-  rifle: { name: 'Pulse Rifle', scrap: 55, tech: 5, durability: 100, result: () => { 
+  rifle: { name: 'Pulse Rifle', scrap: 55, tech: 5, weaponPart: 1, durability: 100, result: () => { 
     const item = { id: state.nextItemId++, type: 'rifle', name: 'Pulse Rifle', durability: 100, maxDurability: 100 }; 
     if (tryAddToInventory(item)) appendLog('Pulse Rifle built.'); 
   } },
@@ -406,7 +406,7 @@ const RECIPES = {
     const item = { id: state.nextItemId++, type: 'heavyArmor', name: 'Heavy Armor', durability: 200, maxDurability: 200 }; 
     if (tryAddToInventory(item)) appendLog('Heavy Armor crafted.'); 
   } },
-  shotgun: { name: 'Shotgun', scrap: 65, tech: 4, durability: 80, result: () => { 
+  shotgun: { name: 'Shotgun', scrap: 65, tech: 4, weaponPart: 1, durability: 80, result: () => { 
     const item = { id: state.nextItemId++, type: 'shotgun', name: 'Shotgun', durability: 80, maxDurability: 80 }; 
     if (tryAddToInventory(item)) appendLog('Shotgun built.'); 
   } },

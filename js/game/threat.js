@@ -56,22 +56,12 @@ function evaluateThreat() {
     const nowMs = Date.now();
     const lastNote = Number(state.lastThreatNoticeAt) || 0;
     const throttleMs = 20000; // 20s between notices
-    const buckets = (v) => (v < 15 ? 'Low' : v < 35 ? 'Moderate' : v < 60 ? 'High' : 'Critical');
-    const prevBucket = buckets(prevThreat);
-    const newBucket = buckets(state.threat);
-    const crossedBucket = prevBucket !== newBucket;
     const prevQuart = Math.floor(prevThreat / 25);
     const newQuart = Math.floor(state.threat / 25);
     const crossedQuart = prevQuart !== newQuart; // 0→1 at 25%, etc.
-    const bigMove = Math.abs(state.threat - prevThreat) >= 2.5;
-    if ((crossedBucket || bigMove || crossedQuart) && (nowMs - lastNote) > throttleMs) {
-      if (crossedQuart) {
-        const dir = newQuart > prevQuart ? 'crossed above' : 'fell below';
-        appendLog(`Threat ${dir} ${Math.min(100, newQuart * 25)}%. Higher threat increases raid odds; guards and turrets slow growth.`);
-      } else {
-        const dir = state.threat > prevThreat ? 'rising' : 'easing';
-        appendLog(`Threat ${dir} (${newBucket}). Higher threat increases raid odds; guards and turrets slow growth.`);
-      }
+    if (crossedQuart && (nowMs - lastNote) > throttleMs) {
+      const dir = newQuart > prevQuart ? 'crossed above' : 'fell below';
+      appendLog(`Threat ${dir} ${Math.min(100, newQuart * 25)}%. Higher threat increases raid odds; guards and turrets slow growth.`);
       state.lastThreatNoticeAt = nowMs;
     }
   } catch (e) { /* noop */ }

@@ -19,10 +19,24 @@ function craft(item) {
   const scrapCost = Math.ceil((r.scrap || 0) * costMult);
   const energyCost = Math.ceil((r.energy || 0) * costMult);
   const techCost = Math.ceil((r.tech || 0) * costMult);
+  const weaponPartCost = r.weaponPart || 0;
   
-  if (state.resources.scrap < scrapCost || state.resources.energy < energyCost || state.resources.tech < techCost) {
+  // Check for weapon parts in inventory
+  const weaponPartsInInventory = state.inventory.filter(i => i.type === 'weaponPart').length;
+
+  if (state.resources.scrap < scrapCost || state.resources.energy < energyCost || state.resources.tech < techCost || weaponPartsInInventory < weaponPartCost) {
     appendLog('Insufficient resources for ' + item + '.');
     return;
+  }
+  
+  // Consume weapon parts
+  if (weaponPartCost > 0) {
+    for (let i = 0; i < weaponPartCost; i++) {
+      const partIndex = state.inventory.findIndex(invItem => invItem.type === 'weaponPart');
+      if (partIndex !== -1) {
+        state.inventory.splice(partIndex, 1);
+      }
+    }
   }
   
   state.resources.scrap -= scrapCost;

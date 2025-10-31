@@ -57,8 +57,8 @@ function updateUI() {
   const turretFailures = state.systemFailures.filter(f => f.type === 'turret').length;
   const hasFailures = filterFailures + genFailures + turretFailures > 0;
   
-  el('sys-filter').textContent = `Cost: ${costFilter} scrap • Level ${state.systems.filter}` + (filterFailures > 0 ? ` ⚠️ ${filterFailures} failed` : '');
-  el('sys-generator').textContent = `Cost: ${costGen} scrap • Level ${state.systems.generator}` + (genFailures > 0 ? ` ⚠️ ${genFailures} failed` : '');
+  el('sys-filter').textContent = `Cost: ${costFilter} scrap • Level ${state.systems.filter}` + (filterFailures > 0 ? ` ⚠️ Failed` : '');
+  el('sys-generator').textContent = `Cost: ${costGen} scrap • Level ${state.systems.generator}` + (genFailures > 0 ? ` ⚠️ Failed` : '');
   el('sys-turret').textContent = state.systems.turret > 0
     ? `Cost: ${costTurScrap}s/${costTurEnergy}e • ${state.systems.turret} turret(s)` + (turretFailures > 0 ? ` ⚠️ ${turretFailures} failed` : '')
     : `Cost: ${costTurScrap}s/${costTurEnergy}e • Offline` + (turretFailures > 0 ? ` ⚠️ ${turretFailures} failed` : '');
@@ -710,14 +710,14 @@ function renderWorkbench() {
 
   // Define recipes with their display info
   const recipes = [
-    { item: 'medkit', label: 'Assemble Medkit', scrap: 15, energy: 0, tech: 0 },
-    { item: 'ammo', label: 'Manufacture Ammo', scrap: 10, energy: 0, tech: 0 },
-    { item: 'turret', label: 'Construct Auto-Turret', scrap: 75, energy: 40, tech: 0 },
-    { item: 'armor', label: 'Craft Light Armor', scrap: 40, energy: 0, tech: 3 },
-    { item: 'rifle', label: 'Build Pulse Rifle', scrap: 55, energy: 0, tech: 5 },
-    { item: 'heavyArmor', label: 'Craft Heavy Armor', scrap: 70, energy: 0, tech: 5 },
-    { item: 'shotgun', label: 'Build Shotgun', scrap: 65, energy: 0, tech: 4 },
-    { item: 'hazmatSuit', label: 'Craft Hazmat Suit', scrap: 85, energy: 0, tech: 6 }
+    { item: 'medkit', label: 'Assemble Medkit', scrap: 15 },
+    { item: 'ammo', label: 'Manufacture Ammo', scrap: 10 },
+    { item: 'turret', label: 'Construct Auto-Turret', scrap: 75, energy: 40, tech: 3 },
+    { item: 'armor', label: 'Craft Light Armor', scrap: 40, tech: 3 },
+    { item: 'rifle', label: 'Build Pulse Rifle', scrap: 55, tech: 5, weaponPart: 1 },
+    { item: 'heavyArmor', label: 'Craft Heavy Armor', scrap: 70, tech: 5 },
+    { item: 'shotgun', label: 'Build Shotgun', scrap: 65, tech: 4, weaponPart: 1 },
+    { item: 'hazmatSuit', label: 'Craft Hazmat Suit', scrap: 85, tech: 6 }
   ];
 
   // Rebuild workbench buttons when cost structure changes
@@ -727,15 +727,17 @@ function renderWorkbench() {
     button.dataset.item = r.item;
 
     // Calculate actual costs with multiplier
-    const scrapCost = Math.ceil(r.scrap * costMult);
-    const energyCost = Math.ceil(r.energy * costMult);
-    const techCost = Math.ceil(r.tech * costMult);
+    const scrapCost = Math.ceil((r.scrap || 0) * costMult);
+    const energyCost = Math.ceil((r.energy || 0) * costMult);
+    const techCost = Math.ceil((r.tech || 0) * costMult);
+    const weaponPartCost = r.weaponPart || 0;
 
     // Build cost string
     let costParts = [];
     if (scrapCost > 0) costParts.push(`Scrap ${scrapCost}`);
     if (energyCost > 0) costParts.push(`Energy ${energyCost}`);
     if (techCost > 0) costParts.push(`Tech ${techCost}`);
+    if (weaponPartCost > 0) costParts.push(`Parts ${weaponPartCost}`);
 
     const costStr = costParts.length > 0 ? ` (${costParts.join(', ')})` : '';
 
@@ -745,6 +747,7 @@ function renderWorkbench() {
       if (r.scrap > 0) originalParts.push(`${r.scrap}`);
       if (r.energy > 0) originalParts.push(`${r.energy}`);
       if (r.tech > 0) originalParts.push(`${r.tech}`);
+      if (r.weaponPart > 0) originalParts.push(`${r.weaponPart}p`);
       button.innerHTML = `${r.label}${costStr} <span style="text-decoration:line-through;color:var(--muted);font-size:11px">${originalParts.join('/')}</span>`;
     } else {
       button.textContent = `${r.label}${costStr}`;

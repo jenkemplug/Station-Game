@@ -57,8 +57,11 @@ function interactiveEncounterAtTile(idx) {
     log: [],
     activePartyIdx: 0
   };
+  logCombat('=== ENGAGEMENT START ===');
+  logCombat(`${currentCombat.partyIds.length} Survivor vs ${t.aliens.length} Alien(s)`);
+  logCombat(`— Turn ${currentCombat.turn} —`);
+  logCombat('— Your Turn —');
   appendLog(`Engagement: ${currentCombat.partyIds.length} survivor vs ${t.aliens.length} alien(s).`);
-  logCombat(`Turn ${currentCombat.turn} — Your move.`);
   openCombatOverlay();
 }
 
@@ -82,16 +85,20 @@ function interactiveRaidCombat(aliens, guards, turretCount = 0) {
     log: [],
     activePartyIdx: 0
   };
+  logCombat('=== BASE DEFENSE ===');
+  logCombat(`${defenders.length} Guard(s) vs ${aliens.length} Alien(s)`);
+  logCombat(`— Turn ${currentCombat.turn} —`);
+  logCombat('— Your Turn —');
   appendLog(`Base Defense: ${defenders.length} guard(s) vs ${aliens.length} alien(s).`);
-  logCombat(`Turn ${currentCombat.turn} — Defender ${currentCombat.activePartyIdx + 1} of ${defenders.length}.`);
   openCombatOverlay();
 }
 
-function logCombat(msg) {
+function logCombat(msg, alsoAppend = false) {
   if (!currentCombat) return;
-  currentCombat.log.push(msg);
+  currentCombat.log.unshift(msg); // Add to beginning (newest first)
   // Keep log limited to last 12 entries
-  if (currentCombat.log.length > 12) currentCombat.log.shift();
+  if (currentCombat.log.length > 12) currentCombat.log.pop(); // Remove from end
+  if (alsoAppend) appendLog(msg);
 }
 
 function renderCombatUI() {
@@ -249,11 +256,11 @@ function advanceToNextSurvivor() {
   if (currentCombat.activePartyIdx >= party.length) {
     // All survivors acted — turrets fire, then enemy turn
     currentCombat.activePartyIdx = 0;
+    renderCombatUI(); // Update UI before turret phase
     turretPhase();
     enemyTurn();
   } else {
     const nextSurvivor = party[currentCombat.activePartyIdx];
-    logCombat(`${nextSurvivor.name}'s turn.`);
     renderCombatUI();
   }
 }
@@ -292,16 +299,19 @@ function turretAttack(idx, action, tState) {
     const hit = Math.random() < hitChance;
     if (!hit) {
       logCombat(`Auto-Turret #${idx + 1} missed.`);
+      renderCombatUI(); // Update UI after miss
       continue;
     }
     
     // Check alien special defenses
     if (target.special === 'dodge' && Math.random() < 0.25) {
       logCombat(`${target.name} evades auto-turret fire!`);
+      renderCombatUI(); // Update UI after dodge
       continue;
     }
     if (target.special === 'phase' && Math.random() < 0.40) {
       logCombat(`${target.name} phases through turret fire!`);
+      renderCombatUI(); // Update UI after phase
       continue;
     }
     
@@ -325,9 +335,12 @@ function turretAttack(idx, action, tState) {
     
     target.hp -= dealt;
     logCombat(`Auto-Turret #${idx + 1} hits ${target.name} for ${dealt}.`);
+    renderCombatUI(); // Update UI after damage
+    
     if (target.hp <= 0) {
       logCombat(`${target.name} neutralized by automated fire.`);
       state.alienKills = (state.alienKills || 0) + 1;
+      renderCombatUI(); // Update UI after kill
     }
   }
 }
@@ -345,8 +358,7 @@ function playerShoot(action = 'shoot') {
 
   for (let i = 0; i < shots; i++) {
     if (state.resources.ammo <= 0) {
-      logCombat(`${s.name} is out of ammo!`);
-      appendLog(`${s.name} is out of ammo!`);
+      logCombat(`${s.name} is out of ammo!`, true);
       break;
     }
     if (Math.random() < BALANCE.AMMO_CONSUME_CHANCE) state.resources.ammo = Math.max(0, state.resources.ammo - 1);
@@ -354,8 +366,8 @@ function playerShoot(action = 'shoot') {
     if (hit) {
       // Check alien special defenses before applying damage
       if (target.special === 'dodge' && Math.random() < 0.25) {
-        logCombat(`${target.name} dodges the attack!`);
-        appendLog(`${target.name} dodges!`);
+        logCombat(`${target.name} dodges the attack!`, true);
+        renderCombatUI(); // Update UI after dodge
         continue;
       }
       
@@ -368,8 +380,7 @@ function playerShoot(action = 'shoot') {
       }
       
       if (phaseChance > 0 && Math.random() < phaseChance) {
-        logCombat(`${target.name} phases out of reality!`);
-        appendLog(`${target.name} phases out!`);
+        logCombat(`${target.name} phases out of reality!`, true);
         
         // 0.8.0 - Mark as just phased for Wraith modifier
         target._justPhased = true;
@@ -378,8 +389,7 @@ function playerShoot(action = 'shoot') {
         if (hasModifier(target, 'blink') && s.hp > 0) {
           const blinkDmg = rand(Math.max(1, target.attack - 1), target.attack + 1);
           s.hp -= blinkDmg;
-          logCombat(`${target.name} blinks behind ${s.name} for ${blinkDmg} damage!`);
-          appendLog(`${target.name} counters with Blink Strike!`);
+          logCombat(`${target.name} blinks behind ${s.name} for ${blinkDmg} damage!`, true);
         }
         
         // 0.8.0 - Void Touched: phase drains HP
@@ -388,6 +398,7 @@ function playerShoot(action = 'shoot') {
           logCombat(`${target.name} suffers void corruption (-2 HP).`);
         }
         
+        renderCombatUI(); // Update UI after phase
         continue;
       }
       
@@ -415,11 +426,11 @@ function playerShoot(action = 'shoot') {
       }
       
       target.hp -= dealt;
-      logCombat(`${s.name} hits ${target.name} for ${dealt} damage.`);
-      appendLog(`${s.name} hits ${target.name} for ${dealt}.`);
+      logCombat(`${s.name} hits ${target.name} for ${dealt} damage.`, true);
+      renderCombatUI(); // Update UI after damage
+      
       if (target.hp <= 0) {
-        logCombat(`${target.name} eliminated.`);
-        appendLog(`${target.name} downed.`);
+        logCombat(`${target.name} eliminated.`, true);
         state.alienKills = (state.alienKills || 0) + 1;
         
         // 0.8.0 - Spawner: summon drone on death
@@ -441,8 +452,8 @@ function playerShoot(action = 'shoot') {
               modifiers: [],
               firstStrike: true
             });
-            logCombat(`${target.name} spawns a drone as it dies!`);
-            appendLog(`${target.name} spawns a drone!`);
+            logCombat(`${target.name} spawns a drone as it dies!`, true);
+            renderCombatUI(); // Update UI after spawn
           }
         }
         
@@ -456,8 +467,8 @@ function playerShoot(action = 'shoot') {
         }
       }
     } else {
-      logCombat(`${s.name} missed.`);
-      appendLog(`${s.name} missed.`);
+      logCombat(`${s.name} missed.`, true);
+      renderCombatUI(); // Update UI after miss
     }
   }
 
@@ -470,8 +481,8 @@ function playerAim() {
   const s = getActiveSurvivor();
   if (!s) return;
   currentCombat.aimed[s.id] = true;
-  logCombat(`${s.name} takes careful aim...`);
-  appendLog(`${s.name} takes careful aim...`);
+  logCombat(`${s.name} takes careful aim...`, true);
+  renderCombatUI(); // Update UI after aim
   advanceToNextSurvivor();
 }
 
@@ -480,8 +491,8 @@ function playerGuard() {
   const s = getActiveSurvivor();
   if (!s) return;
   s._guardBonus = (s._guardBonus || 0) + (BALANCE.COMBAT_ACTIONS.Guard.defenseBonus || 2);
-  logCombat(`${s.name} braces for impact.`);
-  appendLog(`${s.name} braces for impact.`);
+  logCombat(`${s.name} braces for impact.`, true);
+  renderCombatUI(); // Update UI after guard
   advanceToNextSurvivor();
 }
 
@@ -490,8 +501,7 @@ function playerUseMedkit() {
   if (!s) return;
   const idx = state.inventory.findIndex(i => i.type === 'medkit');
   if (idx === -1) { 
-    logCombat('No medkits available.');
-    appendLog('No medkits available.'); 
+    logCombat('No medkits available.', true);
     return; 
   }
   let heal = rand(BALANCE.COMBAT_ACTIONS.MedkitHeal[0], BALANCE.COMBAT_ACTIONS.MedkitHeal[1]);
@@ -511,8 +521,8 @@ function playerUseMedkit() {
     logCombat(`${s.name} feels a surge of adrenaline!`);
   }
   
-  logCombat(`${s.name} uses a Medkit and heals ${heal} HP.`);
-  appendLog(`${s.name} uses a Medkit and heals ${heal} HP.`);
+  logCombat(`${s.name} uses a Medkit and heals ${heal} HP.`, true);
+  renderCombatUI(); // Update UI after healing
   advanceToNextSurvivor();
 }
 
@@ -524,8 +534,7 @@ function playerRevive() {
   
   // Check for Field Medic ability
   if (!hasAbility(s, 'fieldmedic')) {
-    logCombat('Only Field Medics can revive downed allies.');
-    appendLog('Requires Field Medic ability.');
+    logCombat('Only Field Medics can revive downed allies.', true);
     return;
   }
   
@@ -534,8 +543,7 @@ function playerRevive() {
   const downedAllies = party.filter(p => p.downed && p.id !== s.id);
   
   if (downedAllies.length === 0) {
-    logCombat('No downed allies to revive.');
-    appendLog('No one needs revival.');
+    logCombat('No downed allies to revive.', true);
     return;
   }
   
@@ -545,8 +553,8 @@ function playerRevive() {
   target.hp = reviveHP;
   target.downed = false;
   
-  logCombat(`${s.name} revives ${target.name}! Restored to ${reviveHP} HP.`);
-  appendLog(`${s.name} revives ${target.name}!`);
+  logCombat(`${s.name} revives ${target.name}! Restored to ${reviveHP} HP.`, true);
+  renderCombatUI(); // Update UI after revival
   advanceToNextSurvivor();
 }
 
@@ -556,8 +564,7 @@ function playerRetreat() {
   
   // Cannot retreat from raids (0.7.2)
   if (isRaid) {
-    logCombat('Cannot retreat from base defense!');
-    appendLog('Guards must hold the line!');
+    logCombat('Cannot retreat from base defense!', true);
     return;
   }
   
@@ -581,8 +588,7 @@ function playerRetreat() {
   const success = Math.random() < retreatChance;
   
   if (success) {
-    logCombat(`${s.name} successfully retreats!`);
-    appendLog(`Retreat successful. Hostiles remain in the area.`);
+    logCombat(`${s.name} successfully retreats!`, true);
     // 0.8.x - Retreat increases raid pressure slightly
     state.raidPressure = Math.min((state.raidPressure || 0) + 0.003, 0.03);
     state.threat = clamp(state.threat + 0.5, 0, 100);
@@ -594,8 +600,7 @@ function playerRetreat() {
     updateUI();
     closeCombatOverlay();
   } else {
-    logCombat(`${s.name} failed to retreat!`);
-    appendLog(`Retreat failed - enemies block the exit!`);
+    logCombat(`${s.name} failed to retreat!`, true);
     // Advance to next survivor's turn (or enemy turn if last survivor)
     advanceToNextSurvivor();
   }
@@ -610,6 +615,7 @@ function enemyTurn() {
   if (aliveParty.length === 0) return endCombat(false);
 
   logCombat(`— Enemy Turn —`);
+  renderCombatUI(); // Update UI at start of enemy turn
   
   // 0.8.0 - Medic Miracle Worker: passive heal 1 HP/turn to all allies
   const miracleWorkers = aliveParty.filter(p => hasAbility(p, 'miracle'));
@@ -620,6 +626,7 @@ function enemyTurn() {
       }
     });
     logCombat(`Miracle Worker provides healing to the team.`);
+    renderCombatUI(); // Update UI after healing
   }
   
   // Apply poison damage
@@ -628,6 +635,7 @@ function enemyTurn() {
       const poisonDmg = p._poisonStacks;
       p.hp = Math.max(0, p.hp - poisonDmg);
       logCombat(`${p.name} takes ${poisonDmg} poison damage.`);
+      renderCombatUI(); // Update UI after poison damage
       if (p.hp <= 0) {
         logCombat(`${p.name} succumbs to poison.`);
       }
@@ -640,6 +648,7 @@ function enemyTurn() {
       const healAmount = rand(2, 4);
       a.hp = Math.min(a.maxHp, a.hp + healAmount);
       logCombat(`${a.name} regenerates ${healAmount} HP!`);
+      renderCombatUI(); // Update UI after regeneration
     }
   }
   
@@ -652,18 +661,29 @@ function enemyTurn() {
       const resurrected = deadDrones[0];
       resurrected.hp = Math.floor(resurrected.maxHp * 0.5);
       queen._hivemindUsed = true;
-      logCombat(`${queen.name}'s Hivemind resurrects ${resurrected.name}!`);
-      appendLog(`${queen.name} resurrects a fallen drone!`);
+      logCombat(`${queen.name}'s Hivemind resurrects ${resurrected.name}!`, true);
+      renderCombatUI(); // Update UI after resurrection
     }
   }
   
   for (const a of aliveAliens) {
+    // Check if any survivors are still alive before each alien attacks
+    const currentAliveParty = party.filter(p => p.hp > 0 && !p.downed);
+    if (currentAliveParty.length === 0) {
+      return endCombat(false);
+    }
+    
     // Multi-strike special (queen)
     const attackCount = (a.special === 'multistrike') ? 2 : 1;
     
     for (let strike = 0; strike < attackCount; strike++) {
       // Pick a random survivor to attack
-      const targ = aliveParty[rand(0, aliveParty.length - 1)];
+      const targetsAvailable = party.filter(p => p.hp > 0 && !p.downed);
+      if (targetsAvailable.length === 0) {
+        return endCombat(false);
+      }
+      
+      let targ = targetsAvailable[rand(0, targetsAvailable.length - 1)];
       if (!targ || targ.hp <= 0) break;
       
       let aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
@@ -671,8 +691,7 @@ function enemyTurn() {
       // 0.8.0 - Wraith: +50% damage after phasing
       if (hasModifier(a, 'wraith') && a._justPhased) {
         aDmg = Math.floor(aDmg * 1.5);
-        logCombat(`${a.name} strikes from the void!`);
-        appendLog(`${a.name} phases and strikes!`);
+        logCombat(`${a.name} strikes from the void!`, true);
         a._justPhased = false; // Clear flag
       }
       
@@ -708,13 +727,14 @@ function enemyTurn() {
       if (guardians.length > 0 && Math.random() < 0.50) { // 50% chance to intercept
         actualTarget = guardians[0];
         actualTarget._shieldUsed = true;
-        logCombat(`${actualTarget.name} intercepts with Living Shield!`);
-        appendLog(`${actualTarget.name} shields ${targ.name}!`);
+        logCombat(`${actualTarget.name} intercepts with Living Shield!`, true);
       }
       
       const taken = Math.max(0, aDmg - defense);
       actualTarget.hp -= taken;
       logCombat(`${a.name} strikes ${actualTarget.name} for ${taken} damage.`);
+      renderCombatUI(); // Update UI after damage
+      
       if (actualTarget !== targ) {
         appendLog(`${a.name} hits ${actualTarget.name} for ${taken} (shielded ${targ.name}).`);
       } else {
@@ -728,6 +748,7 @@ function enemyTurn() {
       if (hasModifier(a, 'venomous') && taken > 0) {
         targ._poisonStacks = (targ._poisonStacks || 0) + 1;
         logCombat(`${targ.name} is poisoned!`);
+        renderCombatUI(); // Update UI after poison applied
       }
       
       // 0.8.0 - Caustic: splash damage
@@ -738,6 +759,7 @@ function enemyTurn() {
           const splashDmg = Math.floor(taken * 0.5);
           splashTarg.hp -= splashDmg;
           logCombat(`Caustic splash hits ${splashTarg.name} for ${splashDmg}!`);
+          renderCombatUI(); // Update UI after splash damage
         }
       }
       
@@ -746,19 +768,27 @@ function enemyTurn() {
         if (hasAbility(targ, 'lifesaver') && !targ._lifesaverUsed) {
           targ.hp = 1;
           targ._lifesaverUsed = true;
-          logCombat(`${targ.name}'s Lifesaver ability prevents death!`);
-          appendLog(`${targ.name} survives a fatal blow!`);
+          logCombat(`${targ.name}'s Lifesaver ability prevents death!`, true);
+          renderCombatUI(); // Update UI after lifesaver
         } else {
           // 0.8.0 - Downed state instead of instant death
           targ.hp = 0;
           targ.downed = true;
-          logCombat(`${targ.name} is down! (Can be revived by Field Medic)`);
-          appendLog(`${targ.name} is down!`);
+          logCombat(`${targ.name} has died.`, true);
+          renderCombatUI(); // Update UI after downed
           if (currentCombat.context !== 'base') {
             state.raidPressure = Math.min((state.raidPressure || 0) + 0.004, 0.03);
             state.threat = clamp(state.threat + 1, 0, 100);
           }
         }
+        
+        // Check if ALL survivors in this combat are now dead
+        const stillAlive = party.filter(p => p.hp > 0 && !p.downed).length;
+        if (stillAlive === 0) {
+          // All survivors dead - end combat immediately
+          return endCombat(false);
+        }
+        
         break; // Don't continue multi-strike on dead target
       }
     }
@@ -768,14 +798,16 @@ function enemyTurn() {
   // Reset guard bonuses after enemy phase
   for (const p of party) p._guardBonus = 0;
   
-  // Check if any survivors remain
-  if (aliveParty.filter(p => p.hp > 0).length === 0) {
+  // Check if any survivors remain alive (not downed)
+  const survivorsAlive = aliveParty.filter(p => p.hp > 0 && !p.downed).length;
+  if (survivorsAlive === 0) {
     return endCombat(false);
   }
 
   // Reset to first survivor for next round
   currentCombat.activePartyIdx = 0;
   logCombat(`— Turn ${currentCombat.turn} —`);
+  logCombat('— Your Turn —');
   
   // 0.8.0 - Reset per-turn flags
   for (const p of party) p._guardBonus = 0; // guard bonus was already reset, but keep it explicit
@@ -784,8 +816,6 @@ function enemyTurn() {
     if (a._justPhased) a._justPhased = false; // Clear wraith flag
   }
   
-  const nextSurvivor = party[currentCombat.activePartyIdx];
-  if (nextSurvivor) logCombat(`${nextSurvivor.name}'s turn.`);
   renderCombatUI();
 }
 
@@ -794,8 +824,7 @@ function endCombat(win) {
   const isRaid = currentCombat?.context === 'base';
   
   if (win) {
-    logCombat('Victory! Area secured.');
-    appendLog('Engagement resolved. Area cleared.');
+    logCombat('Victory! Area secured.', true);
     if (idx !== null && state.tiles[idx]) {
       state.tiles[idx].aliens = [];
       state.tiles[idx].type = 'empty';
@@ -819,11 +848,14 @@ function endCombat(win) {
       appendLog('Raid repelled. Recovered scrap from wreckage.');
     }
   } else {
-    logCombat('Defeat.');
-    appendLog(isRaid ? 'Raid failed. Defenses overwhelmed.' : 'Engagement failed.');
-    // 0.8.0 - Remove downed/dead survivors
+    logCombat('Defeat.', true);
+    
+    // 0.8.0 - Remove downed/dead survivors from this combat
+    const combatPartyIds = currentCombat.partyIds;
     state.survivors = state.survivors.filter(x => {
-      if (x.hp <= 0 || x.downed) {
+      // Only remove survivors who were actually in this combat
+      const wasInCombat = combatPartyIds.includes(x.id);
+      if (wasInCombat && (x.hp <= 0 || x.downed)) {
         appendLog(`${x.name} was lost in combat.`);
         return false;
       }
@@ -836,6 +868,11 @@ function endCombat(win) {
       closeCombatOverlay();
       return;
     }
+    
+    // For field combat, mark tile as not cleared so it can be revisited
+    if (idx !== null && state.tiles[idx]) {
+      state.tiles[idx].cleared = false;
+    }
   }
   updateUI();
   closeCombatOverlay();
@@ -844,16 +881,25 @@ function endCombat(win) {
 function bindCombatUIEvents() {
   const btnClose = document.getElementById('btnCloseCombat');
   if (btnClose) btnClose.onclick = () => { 
-    // If closing mid-combat, auto-resolve
+    // If closing mid-combat during field exploration, treat as retreat/forfeit
     if (currentCombat && currentCombat.aliens.some(a => a.hp > 0)) {
-      const t = currentCombat?.idx;
-      if (t != null) {
-        resolveSkirmish(currentCombat.aliens, currentCombat.context, t);
+      const isFieldCombat = currentCombat.context === 'field';
+      
+      if (isFieldCombat) {
+        // For field exploration, just close - don't auto-resolve with other survivors
+        logCombat('Combat abandoned.', true);
+        appendLog('Engagement ended.');
+        // Mark tile as not cleared so it can be revisited
+        if (currentCombat.idx !== null && state.tiles[currentCombat.idx]) {
+          state.tiles[currentCombat.idx].cleared = false;
+        }
       } else if (currentCombat.context === 'base') {
+        // For base defense, auto-resolve with all guards
         resolveSkirmish(currentCombat.aliens, 'base', null);
       }
     }
-    closeCombatOverlay(); 
+    closeCombatOverlay();
+    updateUI();
   };
   const shoot = document.getElementById('btnActionShoot');
   const aim = document.getElementById('btnActionAim');
@@ -871,10 +917,15 @@ function bindCombatUIEvents() {
   if (revive) revive.onclick = () => playerRevive();
   if (retreat) retreat.onclick = () => playerRetreat();
   if (auto) auto.onclick = () => { // fall back to auto resolver
+    const isFieldCombat = currentCombat?.context === 'field';
     const t = currentCombat?.idx;
-    if (t != null) {
-      // call existing auto resolver
-      resolveSkirmish(currentCombat.aliens, currentCombat.context, t);
+    
+    if (isFieldCombat && t != null) {
+      // For field exploration, only use the explorer in auto-resolve
+      const explorer = state.survivors.find(s => s.id === currentCombat.partyIds[0]);
+      if (explorer) {
+        resolveSkirmish(currentCombat.aliens, 'field', t);
+      }
     } else if (currentCombat.context === 'base') {
       resolveSkirmish(currentCombat.aliens, 'base', null);
     }

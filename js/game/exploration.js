@@ -125,6 +125,7 @@ function handleTileEvent(idx) {
       if (!adjTile.scouted && adjTile.type === 'alien') {
         adjTile.scouted = true;
         state.explored.add(adj.idx);
+        handleTileEvent(adj.idx); // This will spawn the aliens and mark the tile as not cleared
         revealed++;
       }
     }
