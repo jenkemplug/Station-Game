@@ -33,6 +33,9 @@ let state = {
   raidPressure: 0,
   // 0.8.x - throttle threat change notifications
   lastThreatNoticeAt: 0,
+  // 0.8.8 - persist selected explorer and expedition survivor
+  selectedExplorerId: null,
+  selectedExpeditionSurvivorId: null,
   journal: ["Station systems nominal. Maintain discipline."],
   missions: [], // active expeditions
   timeNow: Date.now(),
@@ -45,7 +48,6 @@ const activeTaskDropdownScroll = {};
 let lastRenderedSurvivors = {};
 let autoSaveCounter = 0;
 let activeDropdown = null;
-let selectedExpeditionSurvivorId = null;
-let selectedExplorerId = null;
+// 0.8.8 - selectedExplorerId and selectedExpeditionSurvivorId moved to state for persistence
 let lastRenderedAvailableSurvivors = null;
 let lastRenderedAvailableExplorers = null;

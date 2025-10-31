@@ -22,7 +22,7 @@ function revealRandomTiles(count = 1) {
 function handleTileEvent(idx) {
   const t = state.tiles[idx];
   const { x, y } = t;
-  const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+  const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
 
   if (t.type === 'resource') {
     // produce loot
@@ -73,7 +73,7 @@ function handleTileEvent(idx) {
     t.cleared = false;
     spawnAlienEncounter(idx);
   } else if (t.type === 'hazard') {
-    const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+    const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
     if (!explorer) {
       appendLog(`Detected hazard at (${x},${y}). No explorer selected.`);
       return;

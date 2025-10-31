@@ -196,7 +196,7 @@ function spawnAlienEncounter(idx) {
   }
   appendLog(`Encountered ${t.aliens.length} alien(s) in this sector.`);
   // If interactive combat is available and an explorer is selected, open it; otherwise auto-resolve
-  if (typeof interactiveEncounterAtTile === 'function' && selectedExplorerId != null) {
+  if (typeof interactiveEncounterAtTile === 'function' && state.selectedExplorerId != null) {
     interactiveEncounterAtTile(idx);
   } else {
     resolveSkirmish(t.aliens, 'field', idx);
@@ -206,7 +206,7 @@ function spawnAlienEncounter(idx) {
 function resolveSkirmish(aliens, context = 'field', idx = null) {
   let fighters = [];
   if (context === 'field') {
-    const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+    const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
     if (explorer) {
       fighters.push(explorer);
     }

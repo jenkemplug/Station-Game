@@ -70,7 +70,7 @@ function initTiles() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '1.10.1', // 0.8.1 - Threat notices, raid pressure, system failures save
+  _version: '1.10.2', // 0.8.8 - Save selected explorer and expedition survivor
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
@@ -96,6 +96,8 @@ function makeSaveSnapshot() {
   alienKills: state.alienKills,
   raidPressure: state.raidPressure,
   lastThreatNoticeAt: state.lastThreatNoticeAt,
+  selectedExplorerId: state.selectedExplorerId,
+  selectedExpeditionSurvivorId: state.selectedExpeditionSurvivorId,
     journal: state.journal,
     missions: state.missions,
     timeNow: Date.now()
@@ -171,6 +173,10 @@ function loadGame() {
         state.journal = Array.isArray(parsed.journal) ? parsed.journal : state.journal;
         state.missions = Array.isArray(parsed.missions) ? parsed.missions : state.missions;
         state.timeNow = parsed.timeNow || Date.now();
+        
+        // Restore UI selections
+        state.selectedExplorerId = parsed.selectedExplorerId || null;
+        state.selectedExpeditionSurvivorId = parsed.selectedExpeditionSurvivorId || null;
 
         // sanitize numeric resource fields
         for (const k of ['oxygen', 'food', 'energy', 'scrap', 'tech', 'ammo']) {

@@ -1,6 +1,32 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.8] - 2025-10-30
+### Changed - Major Balance & Progression Overhaul
+- **Energy Consumption Rebalanced**: Energy now scales per-survivor (0.18/s each) instead of flat base rate
+  - Oxygen filters consume 0.08 energy per upgrade level (scales with production)
+  - Turrets consume 0.05 energy each (increased from 0.03)
+  - Makes energy management more challenging as base grows
+  
+- **Threat & Raid System Overhaul**: Mid-to-late game progression now functional
+  - **Permanent Threat Floor**: 15% threat cannot be reduced below by guards/turrets
+  - **Guard/Turret Effectiveness**: Reduced from 0.10 → 0.08 per guard (less effective)
+  - **Defense Soft Cap**: Guards + turrets can only reduce raid chance by max 6%
+  - **Threat Scaling**: Threat contributes more to raids (divisor 3000 → 2500)
+  - **Raid Cap Increased**: Maximum raid chance raised from 10% → 12% per minute
+  - **Exploration Pressure**: Tile exploration increases raids (0.00030 → 0.00035 per tile)
+  - **Combat Pressure**: Alien kills increase raids (0.0015 → 0.0020 per kill)
+  - **Result**: Stacking guards/turrets no longer eliminates all threat; progression remains meaningful
+
+- **UI Polish**: Consumption text alignment further improved (5px right margin)
+
+### Added
+- **Explorer Persistence**: Selected explorer now persists between reloads (saved to state)
+- **Expedition Survivor Persistence**: Selected expedition survivor now persists between reloads
+
+### Fixed
+- **Load System Bug**: UI selections now properly restored from save file on game load
+
 ## [0.8.7] - 2025-10-30
 ### Changed
 - **UI Polish**: Consumption text alignment improved (2px right margin for better visual balance)

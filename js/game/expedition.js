@@ -2,12 +2,12 @@
 // Handles survivor expeditions and mission tracking
 
 function startExpedition(name = 'Expedition', durationSec = undefined) {
-  if (selectedExpeditionSurvivorId === null) {
+  if (state.selectedExpeditionSurvivorId === null) {
     appendLog('No survivor selected for expedition.');
     return;
   }
 
-  const survivor = state.survivors.find(s => s.id === selectedExpeditionSurvivorId);
+  const survivor = state.survivors.find(s => s.id === state.selectedExpeditionSurvivorId);
   if (!survivor || survivor.onMission) {
     appendLog('Selected survivor is not available for an expedition.');
     return;

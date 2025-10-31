@@ -1,4 +1,4 @@
-const VERSION = '0.8.7';
+const VERSION = '0.8.8';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -61,22 +61,24 @@ const BALANCE = {
   MORALE_LOSS_STARVATION: 0.25,
   STARVATION_CHANCE: 0.07,
   
-  // Threat & raid mechanics
+  // 0.8.8 - Threat & raid mechanics rebalanced for mid-late game progression
   THREAT_GROWTH_BASE: 0.035,
   THREAT_GROWTH_RAND: 0.045,
-  GUARD_THREAT_REDUCTION: 0.10,
+  GUARD_THREAT_REDUCTION: 0.08,  // Reduced from 0.10 (less effective)
+  THREAT_FLOOR: 0.15,            // Permanent threat floor (15%) that cannot be reduced
   BOARD_RISK_DIVISOR: 120,
   BOARD_RISK_BASE_NO_TURRET: 0.05,
   // Per-minute baseline chance; tuned for early-mid-late progression
   RAID_BASE_CHANCE: 0.0025, // 0.25% per minute baseline
-  RAID_THREAT_DIVISOR: 3000, // Threat contributes up to ~3.3% at 100
-  RAID_MAX_CHANCE: 0.10,     // Cap at 10% per minute
-  // 0.7.3 – Defensive reduction to raid chance (absolute)
-  RAID_CHANCE_REDUCTION_PER_GUARD: 0.0025,
-  RAID_CHANCE_REDUCTION_PER_TURRET: 0.0025,
-  // 0.7.3 – Additive pressure from exploration and alien kills
-  RAID_CHANCE_PER_TILE: 0.00030,     // ~6% at 200 tiles fully explored
-  RAID_CHANCE_PER_ALIEN_KILL: 0.0015, // 0.15% per alien kill
+  RAID_THREAT_DIVISOR: 2500, // Increased from 3000 (threat contributes more)
+  RAID_MAX_CHANCE: 0.12,     // Increased from 0.10 (can reach 12% per minute)
+  // 0.8.8 - Defensive reduction to raid chance (diminishing returns)
+  RAID_CHANCE_REDUCTION_PER_GUARD: 0.0020,   // Reduced from 0.0025
+  RAID_CHANCE_REDUCTION_PER_TURRET: 0.0015,  // Reduced from 0.0025
+  RAID_DEFENSE_SOFTCAP: 0.06,                // Max 6% reduction from guards+turrets
+  // 0.8.8 - Increased pressure from exploration and alien kills
+  RAID_CHANCE_PER_TILE: 0.00035,      // Increased from 0.00030 (~7% at 200 tiles)
+  RAID_CHANCE_PER_ALIEN_KILL: 0.0020, // Increased from 0.0015 (0.20% per alien kill)
   // 0.7.3 – Raid cooldown to keep raids impactful and infrequent
   RAID_MIN_INTERVAL_SEC: 900,  // 15 minutes
   RAID_MAX_INTERVAL_SEC: 1800, // 30 minutes
@@ -121,8 +123,10 @@ const BALANCE = {
     Scrap: { base: 0.6, perSkill: 0.03 },
     IdleOxygen: 0.04,
     FoodYieldFactor: 0.6,
-    PassiveEnergyDrainBase: 0.07,
-    PassiveEnergyDrainPerTurret: 0.03
+    // 0.8.8 - Energy consumption rebalanced to per-survivor basis
+    PassiveEnergyDrainPerSurvivor: 0.18,  // Base energy per survivor
+    PassiveEnergyDrainPerTurret: 0.05,    // Turret energy cost (increased from 0.03)
+    PassiveEnergyDrainPerFilterLevel: 0.08 // Filter energy cost per upgrade level
   },
   LEVEL_PRODUCTION_BONUS: 0.05,
   LEVEL_ATTACK_BONUS: 0.5,

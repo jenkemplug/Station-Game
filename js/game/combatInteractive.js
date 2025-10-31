@@ -42,7 +42,7 @@ function interactiveEncounterAtTile(idx) {
       firstStrike: true
     });
   }
-  const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+  const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
   if (!explorer) {
     appendLog('No explorer selected for engagement.');
     return;

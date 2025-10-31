@@ -214,8 +214,9 @@ function renderExplorerSelect() {
     return;
   }
 
-  if (!selectedExplorerId || !availableSurvivors.some(s => s.id === selectedExplorerId)) {
-    selectedExplorerId = availableSurvivors[0].id;
+  // 0.8.8 - Use state.selectedExplorerId for persistence
+  if (!state.selectedExplorerId || !availableSurvivors.some(s => s.id === state.selectedExplorerId)) {
+    state.selectedExplorerId = availableSurvivors[0].id;
   }
 
   const dropdown = document.createElement('div');
@@ -224,7 +225,7 @@ function renderExplorerSelect() {
   const button = document.createElement('button');
   button.className = 'task-dropdown-button';
   button.type = 'button';
-  const selectedSurvivor = availableSurvivors.find(s => s.id === selectedExplorerId);
+  const selectedSurvivor = availableSurvivors.find(s => s.id === state.selectedExplorerId);
   button.textContent = selectedSurvivor ? `Explorer: ${selectedSurvivor.name}` : 'Select Explorer';
 
   const content = document.createElement('div');
@@ -232,11 +233,11 @@ function renderExplorerSelect() {
 
   availableSurvivors.forEach(s => {
     const item = document.createElement('div');
-    item.className = 'task-dropdown-item' + (s.id === selectedExplorerId ? ' selected' : '');
+    item.className = 'task-dropdown-item' + (s.id === state.selectedExplorerId ? ' selected' : '');
     item.textContent = s.name;
     item.onclick = (e) => {
       e.stopPropagation();
-      selectedExplorerId = s.id;
+      state.selectedExplorerId = s.id;
       const selectedSurvivor = state.survivors.find(sur => sur.id === s.id);
       if (selectedSurvivor) {
         button.textContent = `Explorer: ${selectedSurvivor.name}`;
@@ -585,7 +586,7 @@ function renderMap() {
         
         // Calculate energy cost with explorer bonuses
         const baseCost = getTileEnergyCost(t);
-        const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+        const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
         let actualCost = baseCost;
         if (explorer && hasAbility(explorer, 'pathfinder')) {
           actualCost = Math.ceil(baseCost * 0.85); // -15% cost for Pathfinder
@@ -697,8 +698,9 @@ function renderExpeditionSurvivorSelect() {
     return;
   }
 
-  if (!selectedExpeditionSurvivorId || !availableSurvivors.some(s => s.id === selectedExpeditionSurvivorId)) {
-    selectedExpeditionSurvivorId = availableSurvivors[0].id;
+  // 0.8.8 - Use state.selectedExpeditionSurvivorId for persistence
+  if (!state.selectedExpeditionSurvivorId || !availableSurvivors.some(s => s.id === state.selectedExpeditionSurvivorId)) {
+    state.selectedExpeditionSurvivorId = availableSurvivors[0].id;
   }
 
   const dropdown = document.createElement('div');
@@ -707,7 +709,7 @@ function renderExpeditionSurvivorSelect() {
   const button = document.createElement('button');
   button.className = 'task-dropdown-button';
   button.type = 'button';
-  const selectedSurvivor = availableSurvivors.find(s => s.id === selectedExpeditionSurvivorId);
+  const selectedSurvivor = availableSurvivors.find(s => s.id === state.selectedExpeditionSurvivorId);
   button.textContent = selectedSurvivor ? selectedSurvivor.name : 'Select Survivor';
 
   const content = document.createElement('div');
@@ -715,11 +717,11 @@ function renderExpeditionSurvivorSelect() {
 
   availableSurvivors.forEach(s => {
     const item = document.createElement('div');
-    item.className = 'task-dropdown-item' + (s.id === selectedExpeditionSurvivorId ? ' selected' : '');
+    item.className = 'task-dropdown-item' + (s.id === state.selectedExpeditionSurvivorId ? ' selected' : '');
     item.textContent = s.name;
     item.onclick = (e) => {
       e.stopPropagation();
-      selectedExpeditionSurvivorId = s.id;
+      state.selectedExpeditionSurvivorId = s.id;
       button.textContent = s.name;
       dropdown.classList.remove('open');
       activeDropdown = null;

@@ -52,7 +52,7 @@ function exploreTile(idx) {
   let cost = getTileEnergyCost(tile);
   
   // 0.8.0 - Scout Pathfinder ability reduces energy cost
-  const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+  const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
   if (explorer && hasAbility(explorer, 'pathfinder')) {
     cost = Math.floor(cost * 0.85); // -15% energy cost
   }

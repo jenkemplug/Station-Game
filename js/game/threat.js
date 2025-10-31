@@ -41,7 +41,7 @@ function rollAlienModifiers(alienType) {
 }
 
 function evaluateThreat() {
-  // Threat drift: grows slowly; guards and turrets suppress it
+  // 0.8.8 - Threat drift: grows slowly; guards and turrets suppress it (but not below floor)
   const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission).length;
   const turrets = state.systems.turret || 0;
   const prevThreat = state.threat || 0;
@@ -49,7 +49,10 @@ function evaluateThreat() {
     + Math.random() * BALANCE.THREAT_GROWTH_RAND
     - guards * BALANCE.GUARD_THREAT_REDUCTION
     - turrets * (BALANCE.TURRET_THREAT_REDUCTION || 0);
-  state.threat = clamp(state.threat + threatChange, 0, 100);
+  
+  // 0.8.8 - Apply threat floor: cannot go below THREAT_FLOOR (15% permanent threat)
+  const minThreat = BALANCE.THREAT_FLOOR || 0;
+  state.threat = clamp(state.threat + threatChange, minThreat, 100);
   
   // Notify on notable threat changes and quartile crossings (throttled)
   try {
@@ -81,10 +84,11 @@ function evaluateThreat() {
   state.raidPressure = Math.max(0, (state.raidPressure || 0) - 0.0002); // decay ~0.02/min
   raidChance += (state.raidPressure || 0);
 
-  // Defenders reduce incident likelihood
+  // 0.8.8 - Defenders reduce incident likelihood (with soft cap on defense)
   const guardReduce = (BALANCE.RAID_CHANCE_REDUCTION_PER_GUARD || 0) * guards;
   const turretReduce = (BALANCE.RAID_CHANCE_REDUCTION_PER_TURRET || 0) * turrets;
-  raidChance = Math.max(0, raidChance - guardReduce - turretReduce);
+  const totalDefenseReduction = Math.min(guardReduce + turretReduce, BALANCE.RAID_DEFENSE_SOFTCAP || 0.06);
+  raidChance = Math.max(0, raidChance - totalDefenseReduction);
   raidChance = clamp(raidChance, 0, BALANCE.RAID_MAX_CHANCE);
 
   // Expose for UI as per-minute chance
