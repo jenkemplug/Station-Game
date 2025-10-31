@@ -102,9 +102,9 @@ function resetGame() {
   state.secondsPlayed = 0;
   state.resources = {
     oxygen: 60,
-    food: 30,
-    energy: 40,
-    scrap: 25,
+    food: 40,
+    energy: 50,
+    scrap: 35,
     tech: 0,
     ammo: 10
   };
