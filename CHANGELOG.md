@@ -1,6 +1,48 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.6] - 2025-10-30
+### Added
+- **Resource Consumption Display**: Base panel now shows consumption rates under production rates in grayish-red text
+  - Displays oxygen, food, and energy consumption per second
+  - Helps players understand net resource flow at a glance
+  - Updates dynamically with survivor count and system states
+- **Class Base Bonuses Implemented**: All 8 classes now have their advertised base bonuses active
+  - **Soldier**: +10% hit chance, +15% crit chance, +15% combat damage, +5 max HP
+  - **Medic**: +30% medkit healing (10 HP → 13 HP base)
+  - **Engineer**: Production bonuses work (verified in previous fix)
+  - **Scout**: +15% base dodge chance (stacks with abilities to reach 20-35% range)
+  - **Technician**: Crafting bonuses work (verified in audit)
+  - **Scientist**: +15% XP gain (multiplicative with XP abilities for 15-25% total)
+  - **Guardian**: +3 base defense (stacks with abilities to reach 3-11 defense range)
+  - **Scavenger**: Scrap and loot bonuses work (verified in audit)
+
+### Changed
+- **Production Balance**: Increased base oxygen and food production for better early-game progression
+  - Oxygen: 0.9 → 1.1 base, 0.05 → 0.06 per skill
+  - Food: 0.7 → 0.9 base, 0.03 → 0.04 per skill
+  - Makes early game slightly more forgiving while maintaining challenge
+- **Scientist Class Rebalance**: Removed automatic tech generation from base class
+  - Base class now provides +15% XP gain (previously had tech multiplier)
+  - Tech generation now exclusive to Analytical and Genius abilities
+  - Keeps Scientists valuable for leveling while making tech generation more specialized
+  - Analysis bonus (1.2x) remains for future alien analysis features
+
+### Fixed
+- **Engineer Overclock Ability**: Now correctly applies +30% bonus to system production (filters, generators)
+  - Previously only affected survivor-task production
+  - System production bonuses now properly stack (Efficient, Overclock, Mastermind)
+  - All Engineer abilities verified working correctly
+
+### Technical
+- Added `state.consumption` object tracking oxygen, food, and energy consumption rates
+- Modified `applyTick()` to calculate and store consumption for UI display
+- Added snapshot tracking for consumption in `updateUI()` to prevent unnecessary re-renders
+- Added `.stat-consume` CSS class for consumption text styling (grayish-red: #d47a7a)
+- Refactored system production to apply Engineer ability bonuses correctly
+- Comprehensive audit of all 40 abilities across 8 classes - all verified functional
+- VERSION bumped to 0.8.6
+
 ## [0.8.5] - 2025-10-30
 ### Fixed
 - **Focus Loss Bug**: Fixed critical bug where all panels (survivors, base systems, map) lost focus every second on live deployment

@@ -40,9 +40,17 @@ function applyTick(isOffline = false) {
     }
   });
   
-  // systems contribute
-  prod.oxygen += state.systems.filter * 1.2 * BALANCE.SYSTEM_FILTER_MULT;
-  prod.energy += state.systems.generator * 1.4 * BALANCE.SYSTEM_GENERATOR_MULT;
+  // 0.8.6 - Calculate system production bonuses from Engineer abilities
+  let systemBonus = 1;
+  activeSurvivors.forEach(s => {
+    if (hasAbility(s, 'efficient')) systemBonus *= 1.15; // +15% system production
+    if (hasAbility(s, 'overclock')) systemBonus *= 1.30; // +30% system production
+    if (hasAbility(s, 'mastermind')) systemBonus *= 1.25; // +25% all systems
+  });
+  
+  // systems contribute (with Engineer bonuses)
+  prod.oxygen += state.systems.filter * 1.2 * BALANCE.SYSTEM_FILTER_MULT * systemBonus;
+  prod.energy += state.systems.generator * 1.4 * BALANCE.SYSTEM_GENERATOR_MULT * systemBonus;
   
   // apply production multiplier for survivors/systems
   prod.oxygen *= BALANCE.PROD_MULT;
@@ -60,11 +68,20 @@ function applyTick(isOffline = false) {
   // consumption
   const o2Consume = BALANCE.O2_BASE + activeSurvivors.length * BALANCE.O2_PER_SURVIVOR;
   const foodConsume = BALANCE.FOOD_BASE + activeSurvivors.length * BALANCE.FOOD_PER_SURVIVOR;
+  const energyConsume = BALANCE.SURVIVOR_PROD.PassiveEnergyDrainBase + state.systems.turret * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerTurret;
+  
+  // Store consumption for UI display
+  state.consumption = {
+    oxygen: o2Consume,
+    food: foodConsume,
+    energy: energyConsume
+  };
+  
   state.resources.oxygen -= o2Consume;
   state.resources.food -= foodConsume;
   
   // passive energy drain
-  state.resources.energy = Math.max(0, state.resources.energy - BALANCE.SURVIVOR_PROD.PassiveEnergyDrainBase - state.systems.turret * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerTurret);
+  state.resources.energy = Math.max(0, state.resources.energy - energyConsume);
   
   // Prevent resources from going negative
   state.resources.oxygen = Math.max(0, state.resources.oxygen);

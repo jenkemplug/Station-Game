@@ -11,9 +11,20 @@ function hasModifier(alien, modifierId) {
   return alien.modifiers && alien.modifiers.includes(modifierId);
 }
 
+// 0.8.6 - Helper: Get class bonuses for a survivor
+function getClassBonuses(survivor) {
+  if (!survivor.class) return {};
+  const classInfo = SURVIVOR_CLASSES.find(c => c.id === survivor.class);
+  return classInfo ? classInfo.bonuses : {};
+}
+
 // 0.8.0 - Helper: Apply survivor ability effects to damage
 function applyAbilityDamageModifiers(survivor, baseDamage, context = {}) {
   let damage = baseDamage;
+  
+  // 0.8.6 - Soldier class bonus: +15% combat damage
+  const classBonuses = getClassBonuses(survivor);
+  if (classBonuses.combat) damage *= classBonuses.combat;
   
   // Soldier abilities
   if (hasAbility(survivor, 'veteran')) damage *= 1.2; // +20% damage
@@ -37,10 +48,22 @@ function applyAbilityHitModifiers(survivor) {
   let critBonus = 0;
   let dodgeChance = 0;
   
+  // 0.8.6 - Soldier class bonuses: +10% hit, +15% crit
+  const classBonuses = getClassBonuses(survivor);
+  if (survivor.class === 'soldier') {
+    hitBonus += 0.10; // +10% hit
+    critBonus += 0.15; // +15% crit
+  }
+  
+  // 0.8.6 - Scout class bonus: +15% dodge (matches exploration 0.8 = -20% cost, so ~15% effective)
+  if (survivor.class === 'scout' && classBonuses.dodge) {
+    dodgeChance += 0.15; // base 15% from class
+  }
+  
   if (hasAbility(survivor, 'marksman')) hitBonus += 0.10; // +10% hit
   if (hasAbility(survivor, 'tactical')) critBonus += 0.15; // +15% crit
   
-  // Scout evasion abilities
+  // Scout evasion abilities (stack with class bonus)
   if (hasAbility(survivor, 'evasive')) dodgeChance += 0.20; // 20% dodge
   if (hasAbility(survivor, 'ghost')) dodgeChance += 0.35; // 35% dodge
   
@@ -50,6 +73,11 @@ function applyAbilityHitModifiers(survivor) {
 // 0.8.0 - Helper: Apply survivor defensive abilities
 function applyAbilityDefenseModifiers(survivor, baseDef, context = {}) {
   let defense = baseDef;
+  
+  // 0.8.6 - Guardian class bonus: +3 defense
+  if (survivor.class === 'guardian') {
+    defense += 3;
+  }
   
   // Guardian abilities
   if (hasAbility(survivor, 'stalwart') && survivor.task === 'Guard') defense += 3;

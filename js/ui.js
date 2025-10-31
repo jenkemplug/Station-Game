@@ -35,7 +35,7 @@ function computeMapSnapshot() {
 }
 
 function updateUI() {
-  // 0.8.5 - Only update resources if they've changed
+  // 0.8.6 - Include consumption in resource snapshot
   const resourceSnapshot = JSON.stringify({
     oxygen: Math.floor(state.resources.oxygen),
     food: Math.floor(state.resources.food),
@@ -44,7 +44,10 @@ function updateUI() {
     oxygenRate: state.production.oxygen.toFixed(1),
     foodRate: state.production.food.toFixed(1),
     energyRate: state.production.energy.toFixed(1),
-    scrapRate: state.production.scrap.toFixed(1)
+    scrapRate: state.production.scrap.toFixed(1),
+    oxygenConsume: state.consumption?.oxygen.toFixed(1) || '0.0',
+    foodConsume: state.consumption?.food.toFixed(1) || '0.0',
+    energyConsume: state.consumption?.energy.toFixed(1) || '0.0'
   });
   
   if (lastRenderedResourceSnapshot !== resourceSnapshot) {
@@ -53,10 +56,17 @@ function updateUI() {
     el('res-food').textContent = `Food: ${Math.floor(state.resources.food)}`;
     el('res-energy').textContent = `Energy: ${Math.floor(state.resources.energy)}`;
     el('res-scrap').textContent = `Scrap: ${Math.floor(state.resources.scrap)}`;
-    el('res-oxygen-rate').textContent = `${state.production.oxygen.toFixed(1)}/s`;
-    el('res-food-rate').textContent = `${state.production.food.toFixed(1)}/s`;
-    el('res-energy-rate').textContent = `${state.production.energy.toFixed(1)}/s`;
-    el('res-scrap-rate').textContent = `${state.production.scrap.toFixed(1)}/s`;
+    el('res-oxygen-rate').textContent = `+${state.production.oxygen.toFixed(1)}/s`;
+    el('res-food-rate').textContent = `+${state.production.food.toFixed(1)}/s`;
+    el('res-energy-rate').textContent = `+${state.production.energy.toFixed(1)}/s`;
+    el('res-scrap-rate').textContent = `+${state.production.scrap.toFixed(1)}/s`;
+    
+    // 0.8.6 - Show consumption rates
+    if (state.consumption) {
+      el('res-oxygen-consume').textContent = `-${state.consumption.oxygen.toFixed(1)}/s`;
+      el('res-food-consume').textContent = `-${state.consumption.food.toFixed(1)}/s`;
+      el('res-energy-consume').textContent = `-${state.consumption.energy.toFixed(1)}/s`;
+    }
   }
 
   // survivors

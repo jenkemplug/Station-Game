@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Derelict Station — Expanded Idle</title>
-  <link rel="stylesheet" href="styles.css?v=0.8.5">
+  <link rel="stylesheet" href="styles.css?v=0.8.6">
 </head>
 <body>
 <div class="wrap">
@@ -29,10 +29,25 @@
         <strong style="color:var(--accent)">Base</strong>
         <div class="small">Sealed room. Keep systems online.</div>
         <div style="margin-top:8px" class="resources">
-          <div class="res-item"><b id="res-oxygen">O₂: 0</b><div id="res-oxygen-rate" class="stat">—/s</div></div>
-          <div class="res-item"><b id="res-food">Food: 0</b><div id="res-food-rate" class="stat">—/s</div></div>
-          <div class="res-item"><b id="res-energy">Energy: 0</b><div id="res-energy-rate" class="stat">—/s</div></div>
-          <div class="res-item"><b id="res-scrap">Scrap: 0</b><div id="res-scrap-rate" class="stat">—/s</div></div>
+          <div class="res-item">
+            <b id="res-oxygen">O₂: 0</b>
+            <div id="res-oxygen-rate" class="stat">—/s</div>
+            <div id="res-oxygen-consume" class="stat-consume">—/s</div>
+          </div>
+          <div class="res-item">
+            <b id="res-food">Food: 0</b>
+            <div id="res-food-rate" class="stat">—/s</div>
+            <div id="res-food-consume" class="stat-consume">—/s</div>
+          </div>
+          <div class="res-item">
+            <b id="res-energy">Energy: 0</b>
+            <div id="res-energy-rate" class="stat">—/s</div>
+            <div id="res-energy-consume" class="stat-consume">—/s</div>
+          </div>
+          <div class="res-item">
+            <b id="res-scrap">Scrap: 0</b>
+            <div id="res-scrap-rate" class="stat">—/s</div>
+          </div>
         </div>
         <div class="base-controls">
           <button id="btnAssign" class="primary">Recruit</button>
@@ -122,7 +137,7 @@
   </aside>
 
   <footer>
-    <div>Version 0.8.5 — Focus Fix</div>
+    <div>Version 0.8.6 — Class Balance & Production</div>
     <div>Autosave every 15s • Offline progress supported • Press Ctrl+D for debug panel</div>
   </footer>
 </div>
@@ -200,24 +215,24 @@
   </div>
 </div>
 
-<script src="js/constants.js?v=0.8.5"></script>
-<script src="js/state.js?v=0.8.5"></script>
-<script src="js/utils.js?v=0.8.5"></script>
-<script src="js/names.js?v=0.8.5"></script>
-<script src="js/map.js?v=0.8.5"></script>
-<script src="js/ui.js?v=0.8.5"></script>
+<script src="js/constants.js?v=0.8.6"></script>
+<script src="js/state.js?v=0.8.6"></script>
+<script src="js/utils.js?v=0.8.6"></script>
+<script src="js/names.js?v=0.8.6"></script>
+<script src="js/map.js?v=0.8.6"></script>
+<script src="js/ui.js?v=0.8.6"></script>
   <!-- Modular game system -->
-  <script src="js/game/save.js?v=0.8.5"></script>
-  <script src="js/game/survivor.js?v=0.8.5"></script>
-  <script src="js/game/combat.js?v=0.8.5"></script>
-  <script src="js/game/exploration.js?v=0.8.5"></script>
-  <script src="js/game/crafting.js?v=0.8.5"></script>
-  <script src="js/game/expedition.js?v=0.8.5"></script>
-  <script src="js/game/threat.js?v=0.8.5"></script>
-  <script src="js/game/tick.js?v=0.8.5"></script>
+  <script src="js/game/save.js?v=0.8.6"></script>
+  <script src="js/game/survivor.js?v=0.8.6"></script>
+  <script src="js/game/combat.js?v=0.8.6"></script>
+  <script src="js/game/exploration.js?v=0.8.6"></script>
+  <script src="js/game/crafting.js?v=0.8.6"></script>
+  <script src="js/game/expedition.js?v=0.8.6"></script>
+  <script src="js/game/threat.js?v=0.8.6"></script>
+  <script src="js/game/tick.js?v=0.8.6"></script>
   <!-- End modular game system -->
-<script src="js/debug.js?v=0.8.5"></script>
-<script src="js/main.js?v=0.8.5"></script>
+<script src="js/debug.js?v=0.8.6"></script>
+<script src="js/main.js?v=0.8.6"></script>
 
 <!-- Interactive Combat Overlay -->
 <div id="combatOverlay" class="modal-overlay" style="display:none;">
@@ -252,6 +267,6 @@
   </div>
 </div>
 <!-- Interactive combat logic -->
-<script src="js/game/combatInteractive.js?v=0.8.5"></script>
+<script src="js/game/combatInteractive.js?v=0.8.6"></script>
 </body>
 </html>

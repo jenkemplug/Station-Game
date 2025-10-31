@@ -43,6 +43,13 @@ function recruitSurvivor(name) {
   else if (skillRoll < 0.95) skill = 2; // 25% chance skill 2
   else skill = 3;                        // 5% chance skill 3
 
+  // 0.8.6 - Apply class-specific HP bonuses
+  let baseHp = 20;
+  const classInfo = SURVIVOR_CLASSES.find(c => c.id === survivorClass);
+  if (classInfo && classInfo.bonuses.hp) {
+    baseHp += classInfo.bonuses.hp; // Soldier gets +5 HP
+  }
+
   const s = {
     id: state.nextSurvivorId++,
     name: name || getRandomName(),
@@ -50,8 +57,8 @@ function recruitSurvivor(name) {
     xp: 0,
     nextXp: 50,
     skill: skill,
-    hp: 20,
-    maxHp: 20,
+    hp: baseHp,
+    maxHp: baseHp,
     morale: 60,
     role: 'Idle',
     task: 'Idle',
@@ -102,7 +109,15 @@ function assignTask(id, newTask) {
 function grantXp(survivor, amount) {
   if (!survivor || survivor.hp <= 0) return;
 
-  const gained = Math.round(amount * BALANCE.XP_MULT);
+  let xpMult = BALANCE.XP_MULT;
+  
+  // 0.8.6 - Scientist class bonus: +15% XP
+  const classInfo = SURVIVOR_CLASSES.find(c => c.id === survivor.class);
+  if (classInfo && classInfo.bonuses.xp) {
+    xpMult *= classInfo.bonuses.xp;
+  }
+
+  const gained = Math.round(amount * xpMult);
   survivor.xp += gained;
   appendLog(`${survivor.name} gains ${gained} XP.`);
 
@@ -136,9 +151,17 @@ function useMedkit(id) {
     return;
   }
   state.inventory.splice(medkitIndex, 1);
-  s.hp = Math.min(s.maxHp, s.hp + 10);
+  
+  // 0.8.6 - Medic class bonus: +30% healing (base 10 -> 13)
+  let healAmount = 10;
+  const classInfo = SURVIVOR_CLASSES.find(c => c.id === s.class);
+  if (classInfo && classInfo.bonuses.healing) {
+    healAmount = Math.floor(healAmount * classInfo.bonuses.healing);
+  }
+  
+  s.hp = Math.min(s.maxHp, s.hp + healAmount);
   s.injured = false;
-  appendLog(`${s.name} treated with medkit.`);
+  appendLog(`${s.name} treated with medkit${healAmount > 10 ? ` (healed ${healAmount})` : ''}.`);
   updateUI();
 }
 

@@ -1,4 +1,4 @@
-const VERSION = '0.8.5';
+const VERSION = '0.8.6';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -115,8 +115,8 @@ const BALANCE = {
   SYSTEM_FILTER_MULT: 1.3,
   SYSTEM_GENERATOR_MULT: 1.2,
   SURVIVOR_PROD: {
-    Oxygen: { base: 0.9, perSkill: 0.05 },
-    Food: { base: 0.7, perSkill: 0.03 },
+    Oxygen: { base: 1.1, perSkill: 0.06 },  // 0.8.6 - Boosted from 0.9/0.05
+    Food: { base: 0.9, perSkill: 0.04 },    // 0.8.6 - Boosted from 0.7/0.03
     Energy: { base: 0.7, perSkill: 0.04 },
     Scrap: { base: 0.6, perSkill: 0.03 },
     IdleOxygen: 0.04,
@@ -248,7 +248,7 @@ const SURVIVOR_CLASSES = [
     id: 'scientist', 
     name: 'Scientist', 
     desc: 'Research specialist: +15-25% XP, passive tech generation, alien analysis',
-    bonuses: { tech: 1.25, analysis: 1.2 },
+    bonuses: { xp: 1.15, analysis: 1.2 },  // 0.8.6 - Removed base tech bonus, only from abilities now
     color: 'var(--class-common)'
   },
   { 
