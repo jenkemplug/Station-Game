@@ -3,15 +3,15 @@
 ## Project Overview
 This is a browser-based survival/management game where players manage a space station, survivors, and resources while facing alien threats. The project uses vanilla JavaScript, HTML, and CSS with no external dependencies.
 
-**Current Version:** 0.6.7 (Modular Refactor)
+**Current Version:** 0.7.4 (Alien Diversity)
 
 ## Architecture
 
 ### Core Components
 1. **State Management** (`js/state.js`)
    - Central `state` object manages all game data
-   - Uses localStorage for persistence with unique user IDs (key: `derelict_station_expanded_v0.6.7_${USER_ID}`)
-   - State includes: resources, survivors, map, inventory, systems, threat levels, missions
+   - Uses localStorage for persistence with unique user IDs (key: `derelict_station_expanded_v0.7.4_${USER_ID}`)
+   - State includes: resources, survivors, map, inventory, systems, threat levels, missions, alienKills, raidChance, raidCooldownMs
    - Multi-user support: Each player on the same domain gets a unique save file
    - UI state tracking: `activeDropdown`, `selectedExplorerId`, `selectedExpeditionSurvivorId`, `activeTaskDropdownScroll`
 
@@ -30,21 +30,22 @@ This is a browser-based survival/management game where players manage a space st
 ### File Structure
 ```
 js/
-├── constants.js    # Game balance, recipes, loot tables, alien types
+├── constants.js    # Game balance, recipes, loot tables, alien types (8 types)
 ├── state.js        # Global state object and UI state variables
 ├── utils.js        # Helper functions (rand, clamp, el, formatTime)
-├── names.js        # Survivor name pool (200+ names)
+├── names.js        # Survivor name pool (300+ names)
 ├── map.js          # Map utilities, exploration, tile management
 ├── ui.js           # All rendering functions (updateUI, renderSurvivors, etc.)
 ├── game/           # Modular game systems
-│   ├── save.js       # Save/load, tiles init
-│   ├── survivor.js   # Survivors: recruit, tasks, equip, XP
-│   ├── combat.js     # Combat system
-│   ├── exploration.js# Exploration and tile events
-│   ├── crafting.js   # Crafting and upgrades
-│   ├── expedition.js # Expeditions
-│   ├── threat.js     # Threat and raids
-│   └── tick.js       # Game tick orchestrator
+│   ├── save.js           # Save/load, tiles init
+│   ├── survivor.js       # Survivors: recruit, tasks, equip, XP
+│   ├── combat.js         # Auto-resolve combat system with alien specials
+│   ├── combatInteractive.js # Interactive turn-based combat
+│   ├── exploration.js    # Exploration and tile events
+│   ├── crafting.js       # Crafting and upgrades
+│   ├── expedition.js     # Expeditions
+│   ├── threat.js         # Threat and raids with dynamic composition
+│   └── tick.js           # Game tick orchestrator
 ├── debug.js        # Debug panel functions (Ctrl+D to toggle)
 └── main.js         # Entry point, event bindings, game loop
 ```
@@ -66,62 +67,87 @@ js/
    saveGame('action'); // Optional: trigger save
    ```
 
-3. **Save/Load System** (`js/game.js`)
+3. **Save/Load System** (`js/game/save.js`)
    - Game state saved every 15s automatically (silent autosave every 10 ticks)
    - Manual save available via UI (shows log message)
    - Action saves are silent (called after user actions)
    - Handles offline progress calculation via `handleOffline()`
    - Save key includes version and unique user ID
+   - Current snapshot version: 1.9.1
 
-4. **XP and Leveling** (`js/game.js`)
+4. **XP and Leveling** (`js/game/survivor.js`)
    ```javascript
    grantXp(survivor, amount); // Handles XP gain and level ups
    // Level ups: +1-2 skill, +5 maxHP, full heal, 1.5x nextXp
    ```
 
-5. **Combat System** (`js/game.js`)
+5. **Combat System** (`js/game/combat.js`, `js/game/combatInteractive.js`)
    ```javascript
    resolveSkirmish(aliens, context, idx);
    // context: 'field' (exploration) or 'base' (raids)
+   // Interactive combat: turn-based with actions (Shoot, Aim, Burst, Guard, Medkit, Retreat)
+   // Auto-resolve fallback available
+   // Turrets participate in base defense (0.7.3)
+   // Alien special abilities apply in both modes (0.7.4)
    // Weapons add damage, armor reduces incoming damage
-   // Ammo consumed during combat (60% chance per shot)
+   // Ammo consumed during combat (55% chance per shot)
    ```
 
 ## Game Systems
 
-### 1. Exploration System (`js/map.js`, `js/game.js`)
+### 1. Exploration System (`js/map.js`, `js/game/exploration.js`)
 - **Click-to-explore**: Players click adjacent tiles on the map
 - **Explorer Selection**: Dropdown menu selects which survivor explores
 - **Energy Costs**: Vary by tile type (8-25 energy)
-  - Empty: 8, Survivor: 12, Resource: 15, Module: 18, Alien: 20, Hazard: 25
+  - Empty: 8, Survivor: 10, Resource: 12, Module: 15, Alien: 18, Hazard: 25
 - **Solo Combat**: Selected explorer fights aliens encountered during exploration
 - **XP Rewards**: Explorer gains XP for discovering tiles and finding loot
+- **Retreat System**: Can escape from field encounters (chance-based on stats/alien type)
+- **Revisitable Content**: Uncleared hazards/aliens can be returned to after retreat
 
-### 2. Survivor System (`js/game.js`)
+### 2. Survivor System (`js/game/survivor.js`)
 - **Attributes**: level, xp, skill, hp, maxHp, morale, task, equipment
 - **Equipment Slots**: weapon (rifle/shotgun), armor (light/heavy/hazmat)
 - **Tasks**: Idle, Oxygen, Food, Energy, Scrap, Guard
-- **Level Bonuses**: +5% production per level, +0.5 combat damage per level
+- **Level Bonuses**: +6% production per level, +0.6 combat damage per level
 - **Recruitment**: Cost scales with survivor count, discounted by exploration progress
+- **Randomized Names**: Starter survivors have random names from 300+ name pool
 
-### 3. Combat System (`js/game.js`)
+### 3. Combat System (`js/game/combat.js`, `js/game/combatInteractive.js`)
+- **Interactive Combat**: Turn-based overlay with tactical actions
+  - Actions: Shoot, Aim (+25% hit), Burst (2 shots + bonus dmg), Guard (+3 def), Medkit, Retreat
+  - Auto-resolve option available for quick battles
+  - Combat log tracks all actions and alien specials
 - **Field Combat**: Selected explorer vs aliens during exploration
-- **Base Defense**: Guards defend against raids
+- **Base Defense**: ONLY GUARDS defend raids (0.7.1 hardcore mode)
+  - Turrets assist guards with automated support (0.7.3)
+  - Raid defeat = instant game over
 - **Equipment Structure**: All equipment stored as objects with `type`, `name`, `durability` properties
   - Example: `{ id: 1, type: 'rifle', name: 'Pulse Rifle', durability: 100, maxDurability: 100 }`
 - **Weapon Bonuses**: 
-  - Pulse Rifle (type: 'rifle'): +6 damage
-  - Shotgun (type: 'shotgun'): +4-10 variable damage
+  - Pulse Rifle (type: 'rifle'): +8 damage
+  - Shotgun (type: 'shotgun'): +6-12 variable damage
   - Check with: `survivor.equipment.weapon?.type === 'rifle'`
 - **Armor Defense**: 
-  - Light Armor (type: 'armor'): -2 damage
-  - Heavy Armor (type: 'heavyArmor'): -4 damage
+  - Light Armor (type: 'armor'): -3 damage
+  - Heavy Armor (type: 'heavyArmor'): -6 damage
   - Hazmat Suit (type: 'hazmatSuit'): -3 damage
   - Check with: `survivor.equipment.armor?.type === 'armor'`
-- **Ammo System**: Consumed during combat (60% chance per attack), halved damage when depleted
-- **XP Rewards**: 10-20 XP per combat, survivors gain levels
+- **Ammo System**: Consumed during combat (55% chance per attack), halved damage when depleted
+- **XP Rewards**: 12-25 XP per combat, survivors gain levels
+- **Hit Chance**: 75% base, 12% crit chance (1.6x damage multiplier)
 
-### 4. Hazard Rooms (`js/game.js`)
+### 4. Alien Types (`js/constants.js`) - 8 unique types with special abilities
+- **Drone** (HP 6-10, Atk 2-5): 25% dodge chance
+- **Lurker** (HP 8-14, Atk 3-6): +50% damage on first strike (ambush)
+- **Stalker** (HP 14-22, Atk 5-9): +2 damage per ally (pack tactics)
+- **Spitter** (HP 10-16, Atk 4-8): Ignores 50% armor (armor piercing)
+- **Brood** (HP 28-40, Atk 8-14): Regenerates 2-4 HP per turn
+- **Ravager** (HP 20-30, Atk 10-16): Takes 50% less damage (armored)
+- **Spectre** (HP 12-18, Atk 6-11): 40% chance to phase through attacks
+- **Hive Queen** (HP 35-50, Atk 12-20): Attacks twice per turn (multi-strike)
+
+### 5. Hazard Rooms (`js/game/exploration.js`)
 - **Requirement**: Hazmat Suit equipped to clear
 - **Durability Loss**: 15-25 durability per hazard cleared
 - **Rewards**: 3x loot rolls, 3x normal XP (24 XP base)
@@ -152,11 +178,21 @@ js/
   - Oxygen = 0: 2-4 HP damage per tick to all survivors
   - Food = 0: Morale loss, 8% chance of starvation death per tick
 
-### 8. Threat & Raids (`js/game.js`)
+### 8. Threat & Raids (`js/game/threat.js`)
 - **Threat Level**: Increases over time, reduced by guards
-- **Raid Chance**: Base 0.5% + (threat/3000), max 8%
-- **Defense Calculation**: Turrets + guards + armor bonuses
-- **Raid Outcomes**: Success = scrap reward, Failure = base damage + possible casualties
+- **Raid Chance**: Base 0.4% + contributions from exploration/alienKills, max 7%
+  - Per-minute probability displayed in UI
+  - Reduced by guards (0.25% each) and turrets (0.2% each)
+  - Increased by explored tiles (0.003% each) and alien kills (0.05% each)
+- **Raid Cooldown**: 15-20 minute randomized cooldown between raids (0.7.3)
+- **Defense**: Only guards defend raids (0.7.1); turrets provide automated fire support (0.7.3)
+- **Raid Composition**: Dynamic alien spawning based on threat level (0.7.4)
+  - Low threat: Drones and Lurkers
+  - Mid threat: Stalkers and Spitters
+  - High threat: Broods and Ravagers
+  - Very high threat: Spectres and Queens
+- **Raid Outcomes**: Victory reduces threat; defeat = instant game over
+- **No Guards**: Instant game over if raid triggers with no guards on duty
 
 ### 9. Debug Tools (`js/debug.js`)
 - **Access**: Press Ctrl+D to toggle debug panel
