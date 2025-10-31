@@ -1,6 +1,32 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.2] - 2025-10-30
+### Changed
+- Threat display in UI now shows the exact percentage instead of bucketed labels
+- Raid chance display increased to two decimal places for better clarity
+
+### Technical
+- VERSION bumped to 0.8.2; cache-busting updated
+
+## [0.8.1] - 2025-10-30
+### Added
+- Threat quartile notifications at 25%, 50%, 75%, and 100% (logs when crossing above/below)
+- Unified alien spawn weighting by threat for both exploration encounters and raids
+
+### Changed
+- Rebalanced raid chance scaling for clearer early → mid → late progression
+  - Base per-minute chance lowered to 0.25%
+  - Per-tile and per-kill contributions tuned; max capped at 10%/min
+- Alien type selection now scales more smoothly with threat (fewer high-tier enemies early)
+
+### Fixed
+- Workbench buttons no longer re-render every tick; costs only re-evaluate when technician bonuses change
+
+### Technical
+- Version bump with cache-busting for GitHub Pages (0.8.2)
+- Helper `pickAlienTypeByThreat()` shared across raids and exploration
+
 ## [0.8.1] - 2025-10-30
 ### Added
 - **Dynamic Workbench Costs**: Crafting recipes now display reduced costs when Technician abilities (Resourceful, Prodigy) are active

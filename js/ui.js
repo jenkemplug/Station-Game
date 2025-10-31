@@ -12,6 +12,8 @@ function appendLog(text) {
 // Snapshot caches to avoid unnecessary DOM re-renders that break hover/focus
 let lastRenderedMapSnapshot = null;
 let lastRenderedInventorySnapshot = null;
+// 0.8.2 - Avoid rerendering workbench every tick
+let lastRenderedWorkbenchKey = null;
 
 function computeMapSnapshot() {
   try {
@@ -96,8 +98,8 @@ function updateUI() {
   const rcEl = document.getElementById('raidChance');
   if (rcEl) {
     const pct = (Number(state.raidChance) || 0) * 100;
-    // Show one decimal so small chances are visible (e.g., 0.1%)
-    rcEl.textContent = `${pct.toFixed(1)}%`;
+    // Show two decimals so small chances are visible (e.g., 0.05%)
+    rcEl.textContent = `${pct.toFixed(2)}%`;
   }
   // Raid cooldown indicator (only show when active)
   const cdRow = document.getElementById('raidCooldownRow');
@@ -604,11 +606,9 @@ function renderInventory() {
 }
 
 function threatText() {
-  const v = state.threat;
-  if (v < 15) return 'Low';
-  if (v < 35) return 'Moderate';
-  if (v < 60) return 'High';
-  return 'Critical';
+  // Show threat as a percentage (0-100%) instead of buckets
+  const v = Math.max(0, Math.min(100, Number(state.threat) || 0));
+  return `${Math.round(v)}%`;
 }
 
 function renderExpeditionSurvivorSelect() {
@@ -699,10 +699,15 @@ function renderWorkbench() {
     if (hasAbility(t, 'resourceful')) costMult *= 0.90; // -10% cost
     if (hasAbility(t, 'prodigy')) costMult *= 0.75; // -25% cost
   }
-  
+
+  const key = `v1:${costMult.toFixed(3)}`;
+  // Skip rerendering if costs haven't changed
+  if (lastRenderedWorkbenchKey === key) return;
+  lastRenderedWorkbenchKey = key;
+
   const workbench = el('workbench');
   if (!workbench) return;
-  
+
   // Define recipes with their display info
   const recipes = [
     { item: 'medkit', label: 'Assemble Medkit', scrap: 15, energy: 0, tech: 0 },
@@ -714,26 +719,26 @@ function renderWorkbench() {
     { item: 'shotgun', label: 'Build Shotgun', scrap: 65, energy: 0, tech: 4 },
     { item: 'hazmatSuit', label: 'Craft Hazmat Suit', scrap: 85, energy: 0, tech: 6 }
   ];
-  
-  // Rebuild workbench buttons
+
+  // Rebuild workbench buttons when cost structure changes
   workbench.innerHTML = '';
   recipes.forEach(r => {
     const button = document.createElement('button');
     button.dataset.item = r.item;
-    
+
     // Calculate actual costs with multiplier
     const scrapCost = Math.ceil(r.scrap * costMult);
     const energyCost = Math.ceil(r.energy * costMult);
     const techCost = Math.ceil(r.tech * costMult);
-    
+
     // Build cost string
     let costParts = [];
     if (scrapCost > 0) costParts.push(`Scrap ${scrapCost}`);
     if (energyCost > 0) costParts.push(`Energy ${energyCost}`);
     if (techCost > 0) costParts.push(`Tech ${techCost}`);
-    
+
     const costStr = costParts.length > 0 ? ` (${costParts.join(', ')})` : '';
-    
+
     // Show original cost if different (discount applied)
     if (costMult < 1) {
       let originalParts = [];
@@ -744,13 +749,13 @@ function renderWorkbench() {
     } else {
       button.textContent = `${r.label}${costStr}`;
     }
-    
+
     button.onclick = () => {
       craft(r.item);
       saveGame('action');
       updateUI();
     };
-    
+
     workbench.appendChild(button);
   });
 }

@@ -143,7 +143,10 @@ function spawnAlienEncounter(idx) {
   // decide group size
   const size = rand(1, 3);
   for (let i = 0; i < size; i++) {
-    const at = ALIEN_TYPES[rand(0, ALIEN_TYPES.length - 1)];
+    // 0.8.2 - Bias alien type based on current threat for progression
+    const at = (typeof pickAlienTypeByThreat === 'function')
+      ? pickAlienTypeByThreat(state.threat)
+      : ALIEN_TYPES[rand(0, ALIEN_TYPES.length - 1)];
     const hp = rand(at.hpRange[0], at.hpRange[1]);
     
     // 0.8.0 - Roll for rare modifiers (use rollAlienModifiers from threat.js)

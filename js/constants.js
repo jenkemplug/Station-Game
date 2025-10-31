@@ -1,4 +1,4 @@
-const VERSION = '0.8.1';
+const VERSION = '0.8.2';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -62,20 +62,21 @@ const BALANCE = {
   STARVATION_CHANCE: 0.06,
   
   // Threat & raid mechanics
-  THREAT_GROWTH_BASE: 0.04,
-  THREAT_GROWTH_RAND: 0.05,
+  THREAT_GROWTH_BASE: 0.035,
+  THREAT_GROWTH_RAND: 0.045,
   GUARD_THREAT_REDUCTION: 0.10,
   BOARD_RISK_DIVISOR: 120,
   BOARD_RISK_BASE_NO_TURRET: 0.05,
-  RAID_BASE_CHANCE: 0.004,
-  RAID_THREAT_DIVISOR: 3500,
-  RAID_MAX_CHANCE: 0.12,
+  // Per-minute baseline chance; tuned for early-mid-late progression
+  RAID_BASE_CHANCE: 0.0025, // 0.25% per minute baseline
+  RAID_THREAT_DIVISOR: 3000, // Threat contributes up to ~3.3% at 100
+  RAID_MAX_CHANCE: 0.10,     // Cap at 10% per minute
   // 0.7.3 – Defensive reduction to raid chance (absolute)
   RAID_CHANCE_REDUCTION_PER_GUARD: 0.0025,
   RAID_CHANCE_REDUCTION_PER_TURRET: 0.002,
   // 0.7.3 – Additive pressure from exploration and alien kills
-  RAID_CHANCE_PER_TILE: 0.00025, // ~5% at 200 tiles fully explored
-  RAID_CHANCE_PER_ALIEN_KILL: 0.0012, // 0.12% per alien kill
+  RAID_CHANCE_PER_TILE: 0.00020,     // ~4% at 200 tiles fully explored
+  RAID_CHANCE_PER_ALIEN_KILL: 0.0008, // 0.08% per alien kill
   // 0.7.3 – Raid cooldown to keep raids impactful and infrequent
   RAID_MIN_INTERVAL_SEC: 900,  // 15 minutes
   RAID_MAX_INTERVAL_SEC: 1200, // 20 minutes

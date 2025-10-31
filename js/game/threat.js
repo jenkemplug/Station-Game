@@ -1,6 +1,31 @@
 // Threat System
 // Handles threat level management and base raids
 
+// 0.8.2 - Weight alien types by threat for consistent progression
+function pickAlienTypeByThreat(threatValue) {
+  const t = Math.max(0, Math.min(100, Number(threatValue) || 0));
+  const weights = [
+    { id: 'drone',   w: t < 20 ? 7 : t < 40 ? 4 : t < 60 ? 2 : 1 },
+    { id: 'lurker',  w: t < 30 ? 6 : t < 50 ? 4 : 2 },
+    { id: 'stalker', w: t < 35 ? 3 : t < 60 ? 6 : 4 },
+    { id: 'spitter', w: t < 45 ? 2 : t < 70 ? 5 : 4 },
+    { id: 'brood',   w: t < 55 ? 1 : t < 75 ? 4 : 6 },
+    { id: 'ravager', w: t < 60 ? 0 : t < 80 ? 3 : 6 },
+    { id: 'spectre', w: t < 70 ? 0 : 3 },
+    { id: 'queen',   w: t < 90 ? 0 : 2 }
+  ];
+  const total = weights.reduce((s, x) => s + x.w, 0) || 1;
+  let r = Math.random() * total;
+  for (const w of weights) {
+    r -= w.w;
+    if (r <= 0) {
+      const alienType = ALIEN_TYPES.find(a => a.id === w.id);
+      return alienType || ALIEN_TYPES[0];
+    }
+  }
+  return ALIEN_TYPES[0];
+}
+
 // 0.8.0 - Helper: Roll for alien rare modifiers
 function rollAlienModifiers(alienType) {
   const modifiers = [];
@@ -26,7 +51,7 @@ function evaluateThreat() {
     - turrets * (BALANCE.TURRET_THREAT_REDUCTION || 0);
   state.threat = clamp(state.threat + threatChange, 0, 100);
   
-  // Notify on notable threat changes with basic explanation (throttled)
+  // Notify on notable threat changes and quartile crossings (throttled)
   try {
     const nowMs = Date.now();
     const lastNote = Number(state.lastThreatNoticeAt) || 0;
@@ -35,10 +60,18 @@ function evaluateThreat() {
     const prevBucket = buckets(prevThreat);
     const newBucket = buckets(state.threat);
     const crossedBucket = prevBucket !== newBucket;
+    const prevQuart = Math.floor(prevThreat / 25);
+    const newQuart = Math.floor(state.threat / 25);
+    const crossedQuart = prevQuart !== newQuart; // 0→1 at 25%, etc.
     const bigMove = Math.abs(state.threat - prevThreat) >= 2.5;
-    if ((crossedBucket || bigMove) && (nowMs - lastNote) > throttleMs) {
-      const dir = state.threat > prevThreat ? 'rising' : 'easing';
-      appendLog(`Threat ${dir} (${newBucket}). Higher threat increases raid odds; guards and turrets slow growth.`);
+    if ((crossedBucket || bigMove || crossedQuart) && (nowMs - lastNote) > throttleMs) {
+      if (crossedQuart) {
+        const dir = newQuart > prevQuart ? 'crossed above' : 'fell below';
+        appendLog(`Threat ${dir} ${Math.min(100, newQuart * 25)}%. Higher threat increases raid odds; guards and turrets slow growth.`);
+      } else {
+        const dir = state.threat > prevThreat ? 'rising' : 'easing';
+        appendLog(`Threat ${dir} (${newBucket}). Higher threat increases raid odds; guards and turrets slow growth.`);
+      }
       state.lastThreatNoticeAt = nowMs;
     }
   } catch (e) { /* noop */ }
@@ -96,32 +129,8 @@ function resolveRaid() {
   const scale = Math.floor(state.threat / 20);
   const alienCount = Math.min(7, baseCount + Math.max(1, Math.floor(scale * 0.8)));
   const raidAliens = [];
-  // Weighted type selection favoring stronger aliens at higher threat (0.7.4 - 8 alien types)
-  const pickType = () => {
-    const t = state.threat || 0;
-    const weights = [
-      { id: 'drone', w: t < 20 ? 6 : t < 40 ? 3 : 1 },
-      { id: 'lurker', w: t < 30 ? 5 : t < 50 ? 3 : 1 },
-      { id: 'stalker', w: t < 40 ? 3 : t < 70 ? 5 : 3 },
-      { id: 'spitter', w: t < 50 ? 2 : t < 70 ? 4 : 3 },
-      { id: 'brood', w: t < 60 ? 1 : t < 80 ? 4 : 5 },
-      { id: 'ravager', w: t < 60 ? 0 : t < 80 ? 3 : 5 },
-      { id: 'spectre', w: t < 70 ? 0 : 3 },
-      { id: 'queen', w: t < 90 ? 0 : 2 }
-    ];
-    const total = weights.reduce((s, x) => s + x.w, 0);
-    let r = Math.random() * total;
-    for (const w of weights) { 
-      r -= w.w; 
-      if (r <= 0) {
-        const alienType = ALIEN_TYPES.find(a => a.id === w.id);
-        return alienType || ALIEN_TYPES[0];
-      }
-    }
-    return ALIEN_TYPES[0];
-  };
   for (let i = 0; i < alienCount; i++) {
-    const at = pickType();
+    const at = pickAlienTypeByThreat(state.threat);
     let hp = rand(at.hpRange[0], at.hpRange[1]);
     // Slight scaling based on threat to make raids hit harder
     const hMult = 1 + (state.threat || 0) / 120;
