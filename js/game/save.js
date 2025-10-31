@@ -1,14 +1,29 @@
 // Save/Load System
 // Handles game persistence, save snapshots, and offline progress
 
-function pickLoot() {
-  const total = LOOT_TABLE.reduce((s, i) => s + i.weight, 0);
+function pickLoot(qualityBonus = 0) {
+  // qualityBonus increases chance of better loot (0.0 to 1.0+)
+  // Rarity weight adjustments based on quality
+  const adjustedTable = LOOT_TABLE.map(item => {
+    let weight = item.weight;
+    if (qualityBonus > 0) {
+      // Increase weight of uncommon/rare/veryrare items
+      if (item.rarity === 'uncommon') weight *= (1 + qualityBonus * 0.5);
+      if (item.rarity === 'rare') weight *= (1 + qualityBonus * 1.0);
+      if (item.rarity === 'veryrare') weight *= (1 + qualityBonus * 2.0);
+      // Decrease weight of common items
+      if (item.rarity === 'common') weight *= (1 - qualityBonus * 0.3);
+    }
+    return { ...item, adjustedWeight: Math.max(0.1, weight) };
+  });
+  
+  const total = adjustedTable.reduce((s, i) => s + i.adjustedWeight, 0);
   let t = Math.random() * total;
-  for (const l of LOOT_TABLE) {
-    t -= l.weight;
+  for (const l of adjustedTable) {
+    t -= l.adjustedWeight;
     if (t <= 0) return l;
   }
-  return LOOT_TABLE[0];
+  return adjustedTable[0];
 }
 
 function initTiles() {
@@ -55,7 +70,7 @@ function initTiles() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '1.9.1',
+  _version: '1.10.1', // 0.8.1 - Threat notices, raid pressure
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
@@ -77,6 +92,8 @@ function makeSaveSnapshot() {
   lastRaidAt: state.lastRaidAt,
   raidCooldownMs: state.raidCooldownMs,
   alienKills: state.alienKills,
+  raidPressure: state.raidPressure,
+  lastThreatNoticeAt: state.lastThreatNoticeAt,
     journal: state.journal,
     missions: state.missions,
     timeNow: Date.now()
@@ -139,12 +156,14 @@ function loadGame() {
         state.equipment = Object.assign({}, state.equipment, parsed.equipment || {});
         state.systems = Object.assign({}, state.systems, parsed.systems || {});
         state.threat = Number(parsed.threat) || state.threat;
-        state.baseIntegrity = Number(parsed.baseIntegrity) || state.baseIntegrity;
+    state.baseIntegrity = Number(parsed.baseIntegrity) || state.baseIntegrity;
   // raidChance is derived; load if present else default 0
   state.raidChance = Number(parsed.raidChance) || 0;
   state.lastRaidAt = Number(parsed.lastRaidAt) || 0;
   state.raidCooldownMs = Number(parsed.raidCooldownMs) || 0;
   state.alienKills = Number(parsed.alienKills) || 0;
+  state.raidPressure = Number(parsed.raidPressure) || 0;
+  state.lastThreatNoticeAt = Number(parsed.lastThreatNoticeAt) || 0;
         state.journal = Array.isArray(parsed.journal) ? parsed.journal : state.journal;
         state.missions = Array.isArray(parsed.missions) ? parsed.missions : state.missions;
         state.timeNow = parsed.timeNow || Date.now();
@@ -170,7 +189,10 @@ function loadGame() {
           role: s.role || 'Idle',
           task: s.task || 'Idle',
           injured: !!s.injured,
-          equipment: s.equipment || { weapon: null, armor: null }
+          equipment: s.equipment || { weapon: null, armor: null },
+          // 0.8.0 - Migration: add class/abilities for old saves
+          class: s.class || assignRandomClass(),
+          abilities: Array.isArray(s.abilities) ? s.abilities : (s.class ? rollAbilities(s.class) : [])
         }));
 
         // ensure tiles exist

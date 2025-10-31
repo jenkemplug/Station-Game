@@ -3,7 +3,7 @@
 ## Project Overview
 This is a browser-based survival/management game where players manage a space station, survivors, and resources while facing alien threats. The project uses vanilla JavaScript, HTML, and CSS with no external dependencies.
 
-**Current Version:** 0.7.4 (Alien Diversity)
+**Current Version:** 0.8.0 (Advanced Systems)
 
 ## Architecture
 
@@ -73,7 +73,7 @@ js/
    - Action saves are silent (called after user actions)
    - Handles offline progress calculation via `handleOffline()`
    - Save key includes version and unique user ID
-   - Current snapshot version: 1.9.1
+   - Current snapshot version: 1.10.0
 
 4. **XP and Leveling** (`js/game/survivor.js`)
    ```javascript
@@ -106,18 +106,31 @@ js/
 - **Revisitable Content**: Uncleared hazards/aliens can be returned to after retreat
 
 ### 2. Survivor System (`js/game/survivor.js`)
-- **Attributes**: level, xp, skill, hp, maxHp, morale, task, equipment
+- **Attributes**: level, xp, skill, hp, maxHp, morale, task, equipment, class, abilities, downed
+- **Classes**: 8 types (Soldier, Medic, Engineer, Scout, Technician, Scientist, Guardian, Scavenger)
+- **Abilities**: 40+ special abilities with rarity tiers (uncommon, rare, very rare)
 - **Equipment Slots**: weapon (rifle/shotgun), armor (light/heavy/hazmat)
 - **Tasks**: Idle, Oxygen, Food, Energy, Scrap, Guard
 - **Level Bonuses**: +6% production per level, +0.6 combat damage per level
 - **Recruitment**: Cost scales with survivor count, discounted by exploration progress
 - **Randomized Names**: Starter survivors have random names from 300+ name pool
+- **Downed State**: Survivors at 0 HP become downed instead of dying immediately
 
 ### 3. Combat System (`js/game/combat.js`, `js/game/combatInteractive.js`)
 - **Interactive Combat**: Turn-based overlay with tactical actions
-  - Actions: Shoot, Aim (+25% hit), Burst (2 shots + bonus dmg), Guard (+3 def), Medkit, Retreat
+  - Actions: Shoot, Aim (+25% hit), Burst (2 shots + bonus dmg), Guard (+3 def), Medkit, Retreat, Revive
   - Auto-resolve option available for quick battles
   - Combat log tracks all actions and alien specials
+- **Revival System**: 
+  - Field Medics can revive downed allies (25-50% HP)
+  - Revive button in interactive combat
+  - Auto-revival in combat.js after combat rounds
+- **Advanced Abilities**:
+  - Living Shield: Guardian intercepts damage (50% chance)
+  - Blink Strike: Spectre counter-attack after phase
+  - Wraith: +50% damage after phasing
+  - Ethereal/Void: Enhanced phase mechanics
+  - Hivemind: Queen resurrects drones at 50% HP
 - **Field Combat**: Selected explorer vs aliens during exploration
 - **Base Defense**: ONLY GUARDS defend raids (0.7.1 hardcore mode)
   - Turrets assist guards with automated support (0.7.3)
@@ -136,16 +149,22 @@ js/
 - **Ammo System**: Consumed during combat (55% chance per attack), halved damage when depleted
 - **XP Rewards**: 12-25 XP per combat, survivors gain levels
 - **Hit Chance**: 75% base, 12% crit chance (1.6x damage multiplier)
+- **Per-Combat Flags**: _shieldUsed, _justPhased, _lifesaverUsed, _hivemindUsed track one-time abilities
 
-### 4. Alien Types (`js/constants.js`) - 8 unique types with special abilities
+### 4. Alien Types (`js/constants.js`) - 8 unique types with 40+ modifiers
 - **Drone** (HP 6-10, Atk 2-5): 25% dodge chance
 - **Lurker** (HP 8-14, Atk 3-6): +50% damage on first strike (ambush)
 - **Stalker** (HP 14-22, Atk 5-9): +2 damage per ally (pack tactics)
 - **Spitter** (HP 10-16, Atk 4-8): Ignores 50% armor (armor piercing)
 - **Brood** (HP 28-40, Atk 8-14): Regenerates 2-4 HP per turn
 - **Ravager** (HP 20-30, Atk 10-16): Takes 50% less damage (armored)
-- **Spectre** (HP 12-18, Atk 6-11): 40% chance to phase through attacks
+- **Spectre** (HP 12-18, Atk 6-11): 40% base phase with advanced modifiers:
+  - Ethereal: +10% phase chance
+  - Void: 60% phase, -2 HP drain per phase
+  - Wraith: +50% damage after phasing
+  - Blink Strike: Counter-attack after phase
 - **Hive Queen** (HP 35-50, Atk 12-20): Attacks twice per turn (multi-strike)
+  - Hivemind: Resurrects first dead drone at 50% HP once per combat
 
 ### 5. Hazard Rooms (`js/game/exploration.js`)
 - **Requirement**: Hazmat Suit equipped to clear
@@ -161,22 +180,37 @@ js/
 - **Equipment Wear**: Weapons/armor lose durability during expeditions
 - **Mission Tracking**: Active missions tracked in `state.missions` array
 
-### 6. Crafting System (`js/game.js`, `js/constants.js`)
+### 6. Crafting System (`js/game/crafting.js`, `js/constants.js`)
 - **Recipes**: Defined in `RECIPES` object in `constants.js`
 - **Resources**: scrap, energy, tech used for crafting
 - **Craftable Items**:
   - Consumables: Medkit (15 scrap), Ammo (10 scrap)
   - Systems: Filter (30s/20e), Generator (25s), Turret (75s/40e/3t)
   - Equipment: Light Armor (40s/3t), Heavy Armor (70s/5t), Pulse Rifle (55s/5t), Shotgun (65s/4t), Hazmat Suit (85s/6t)
-- **Durability**: Weapons and armor have durability, can be repaired for 0.5 scrap per point
+- **Durability**: Weapons and armor have durability, can be repaired for 0.4 scrap per point
+- **Inventor Ability**: Engineers have 30% chance when crafting equipment to:
+  - Consume 1 Weapon Part from inventory
+  - Grant 2-4 bonus Tech
+  - Shows "🔧 Inventor: Rare component extracted!" message
+- **Loot Rarity**: Items can drop in four quality tiers (Common, Uncommon, Rare, Very Rare)
+  - Keen Eye: +20% rarity chance (Scavenger uncommon)
+  - Treasure Hunter: +40% rarity chance (Scavenger rare)
 
-### 7. Resource Management (`js/game.js`)
+### 7. Resource Management (`js/game/tick.js`)
 - **Production**: Survivors + systems generate oxygen, food, energy, scrap
 - **Consumption**: Base consumption + per-survivor rates
 - **Critical States**:
   - Oxygen < 6: Base integrity damage, morale loss
   - Oxygen = 0: 2-4 HP damage per tick to all survivors
-  - Food = 0: Morale loss, 8% chance of starvation death per tick
+  - Food = 0: Morale loss, 6% chance of starvation death per tick
+- **System Failures**: Random breakdowns disable production
+  - 1% base chance per system per tick
+  - Failsafe ability: Reduces to 0.5% (Technician rare)
+  - Repair costs: 10-20 scrap, 5-10 energy
+- **Inventory Capacity**: 
+  - Base: 20 items
+  - Hoarder ability: +2 per instance
+  - UI shows (current/max) with color coding
 
 ### 8. Threat & Raids (`js/game/threat.js`)
 - **Threat Level**: Increases over time, reduced by guards

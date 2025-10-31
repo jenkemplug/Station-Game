@@ -2,7 +2,7 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.7.4 (Alien Diversity)
+**Current Version:** 0.8.0 (Advanced Systems)
 
 ##  Play Now
 
@@ -12,15 +12,23 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
 
 ### 🎮 Core Gameplay
 - **Click-to-Explore Map**: Click adjacent tiles to explore the derelict station
-- **Survivor Management**: Recruit, assign tasks, and level up survivors with unique skills
-- **Resource Management**: Balance oxygen, food, energy, and scrap production
-- **Interactive Combat System**: 
-  - Turn-based combat with tactical actions (Shoot, Aim, Burst, Guard, Medkit, Retreat)
+- **Survivor Classes & Abilities**: 8 unique classes with 40+ special abilities
+  - Each survivor gets a random class (Soldier, Medic, Engineer, Scout, Technician, Scientist, Guardian, Scavenger)
+  - Probabilistic ability system - survivors spawn with 0-5 abilities based on rarity tiers
+  - Color-coded rarity: Purple (Uncommon), Orange (Rare), Red (Very Rare)
+- **Advanced Combat Mechanics**:
+  - **Revival System**: Field Medics can revive downed allies (25-50% HP)
+  - **Living Shield**: Guardians intercept damage for teammates (50% chance)
+  - **Alien Special Abilities**: 40+ modifiers including phase mechanics, counter-attacks, resurrection
+  - Turn-based combat with tactical actions (Shoot, Aim, Burst, Guard, Medkit, Retreat, Revive)
   - **HARDCORE MODE**: Only guards defend during raids - no guards = instant game over
   - Raid defeat = permanent game over
   - **Retreat Option**: Escape from exploration encounters (chance-based on stats)
   - Combat log tracks all actions; active turn indicators
   - Auto-resolve option for quick battles
+- **Resource Management**: Balance oxygen, food, energy, and scrap production
+  - **System Failures**: Random breakdowns require repairs (1% base chance, 0.5% with Failsafe)
+  - **Inventory Capacity**: Base 20 slots, expandable with Hoarder ability (+2 per)
 - **XP & Progression**: Survivors gain experience and level up for better stats
 
 ### 🔧 Crafting & Equipment
@@ -30,6 +38,10 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
 - **Systems**: Auto-turrets (Filters/Generators are upgraded via the Systems panel)
 - **Durability System**: Equipment degrades and can be repaired
 - **Loadout Management**: Equip/unequip weapons and armor for each survivor via a modal
+- **Loot Rarity System**: Four quality tiers with improved durability and stats
+  - Keen Eye: +20% rarity chance (Scavenger ability)
+  - Treasure Hunter: +40% rarity chance (Scavenger ability)
+- **Inventor Ability**: Engineers can extract rare components (weapon parts → 2-4 tech, 30% chance)
 
 ### 🗺️ Exploration
 - **20x10 Tile Map**: Large station to explore with varied encounters
@@ -54,15 +66,24 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
 - **Revisitable**: Can return to clear hazards after obtaining a suit
 
 ### 👾 Threats
-- **Eight Alien Types** with unique abilities:
+- **Eight Alien Types** with unique base abilities:
   - **Drone**: Evasive scavenger (25% dodge)
   - **Lurker**: Ambush predator (+50% first strike)
   - **Stalker**: Pack hunter (+2 dmg per ally)
   - **Spitter**: Armor-piercing ranged attacker
   - **Brood**: Regenerating nest cluster (2-4 HP/turn)
   - **Ravager**: Armored brute (50% damage reduction)
-  - **Spectre**: Phase-shifting elite (40% avoidance)
-  - **Hive Queen**: Apex predator (double attacks)
+  - **Spectre**: Phase-shifting elite (40% avoidance) with advanced variants (Blink Strike, Ethereal, Wraith, Void)
+  - **Hive Queen**: Apex predator (double attacks) with Hivemind modifier (resurrects drones)
+- **40+ Alien Modifiers**: Each alien can spawn with special abilities
+  - Uncommon: +30% dodge, +20% damage, regeneration boosts
+  - Rare: Armor piercing, phase enhancements, pack tactics
+  - Very Rare: Triple attacks, party buffs, devastating combos
+- **Advanced Alien Mechanics**:
+  - Blink Strike: Counter-attack after phasing
+  - Ethereal/Void: Enhanced phase chances with unique effects
+  - Wraith: +50% damage after phasing
+  - Hivemind: Queen resurrects first dead drone at 50% HP
 - **Threat Level**: Increases over time, reduced by guards
 - **Base Raids**: **ONLY GUARDS DEFEND** - maintain a strong defense force or lose everything
 - **Guard Task**: Essential for survival - reduces threat and defends against raids

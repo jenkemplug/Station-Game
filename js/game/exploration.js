@@ -26,8 +26,35 @@ function handleTileEvent(idx) {
 
   if (t.type === 'resource') {
     // produce loot
-    const loot = pickLoot();
+    let qualityBonus = 0;
+    // 0.8.1 - Scout Keen Eye: +20% loot quality
+    if (explorer && hasAbility(explorer, 'keen')) {
+      qualityBonus += 0.20;
+    }
+    // 0.8.1 - Scavenger Treasure Hunter: rare items more often
+    if (explorer && hasAbility(explorer, 'treasure')) {
+      qualityBonus += 0.40;
+    }
+    
+    const loot = pickLoot(qualityBonus);
     const message = loot.onPickup(state);
+    
+    // 0.8.0 - Scavenger abilities for bonus loot
+    if (explorer) {
+      // Lucky Find - 15% chance for extra loot
+      if (hasAbility(explorer, 'lucky') && Math.random() < 0.15) {
+        const bonusLoot = pickLoot(qualityBonus);
+        bonusLoot.onPickup(state);
+        appendLog(`${explorer.name}'s Lucky Find triggered!`);
+      }
+      // Golden Nose - double loot rolls
+      if (hasAbility(explorer, 'goldnose')) {
+        const extraLoot = pickLoot(qualityBonus);
+        extraLoot.onPickup(state);
+        appendLog(`${explorer.name}'s Golden Nose finds exceptional loot!`);
+      }
+    }
+    
     appendLog(`Scavenged ${loot.type} at (${x},${y}): ${message}`);
     if (explorer) grantXp(explorer, BALANCE.XP_FROM_LOOT);
     t.type = 'empty';
@@ -87,5 +114,22 @@ function handleTileEvent(idx) {
     t.type = 'empty';
   } else {
     appendLog(`Empty corridor at (${x},${y}).`);
+  }
+  
+  // 0.8.0 - Scout Tracker: reveal adjacent alien tiles
+  if (explorer && hasAbility(explorer, 'tracker')) {
+    const adjacent = getAdjacentTiles(x, y, state.mapSize);
+    let revealed = 0;
+    for (const adj of adjacent) {
+      const adjTile = state.tiles[adj.idx];
+      if (!adjTile.scouted && adjTile.type === 'alien') {
+        adjTile.scouted = true;
+        state.explored.add(adj.idx);
+        revealed++;
+      }
+    }
+    if (revealed > 0) {
+      appendLog(`${explorer.name}'s Tracker sense reveals ${revealed} nearby alien presence(s).`);
+    }
   }
 }

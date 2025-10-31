@@ -9,6 +9,25 @@ function appendLog(text) {
   }
 }
 
+// Snapshot caches to avoid unnecessary DOM re-renders that break hover/focus
+let lastRenderedMapSnapshot = null;
+let lastRenderedInventorySnapshot = null;
+
+function computeMapSnapshot() {
+  try {
+    const parts = [state.mapSize.w, state.mapSize.h];
+    for (let i = 0; i < state.tiles.length; i++) {
+      const t = state.tiles[i];
+      const aliensAlive = (t.aliens && t.aliens.some(a => a && a.hp > 0)) ? 1 : 0;
+      parts.push(`${t.type}:${t.scouted?1:0}:${t.cleared?1:0}:${aliensAlive}`);
+    }
+    return parts.join('|');
+  } catch (e) {
+    // Fallback to force render on error
+    return String(Math.random());
+  }
+}
+
 function updateUI() {
   // resources
   el('res-oxygen').textContent = `O₂: ${Math.floor(state.resources.oxygen)}`;
@@ -29,11 +48,38 @@ function updateUI() {
   const costGen = BALANCE.UPGRADE_COSTS.generator.base + state.systems.generator * BALANCE.UPGRADE_COSTS.generator.perLevel;
   const costTurScrap = BALANCE.UPGRADE_COSTS.turret.scrap;
   const costTurEnergy = BALANCE.UPGRADE_COSTS.turret.energy;
-  el('sys-filter').textContent = `Cost: ${costFilter} scrap • Level ${state.systems.filter}`;
-  el('sys-generator').textContent = `Cost: ${costGen} scrap • Level ${state.systems.generator}`;
+  
+  // 0.8.0 - Show system failures and repair UI
+  const filterFailures = state.systemFailures.filter(f => f.type === 'filter').length;
+  const genFailures = state.systemFailures.filter(f => f.type === 'generator').length;
+  const turretFailures = state.systemFailures.filter(f => f.type === 'turret').length;
+  const hasFailures = filterFailures + genFailures + turretFailures > 0;
+  
+  el('sys-filter').textContent = `Cost: ${costFilter} scrap • Level ${state.systems.filter}` + (filterFailures > 0 ? ` ⚠️ ${filterFailures} failed` : '');
+  el('sys-generator').textContent = `Cost: ${costGen} scrap • Level ${state.systems.generator}` + (genFailures > 0 ? ` ⚠️ ${genFailures} failed` : '');
   el('sys-turret').textContent = state.systems.turret > 0
-    ? `Cost: ${costTurScrap}s/${costTurEnergy}e • ${state.systems.turret} turret(s)`
-    : `Cost: ${costTurScrap}s/${costTurEnergy}e • Offline`;
+    ? `Cost: ${costTurScrap}s/${costTurEnergy}e • ${state.systems.turret} turret(s)` + (turretFailures > 0 ? ` ⚠️ ${turretFailures} failed` : '')
+    : `Cost: ${costTurScrap}s/${costTurEnergy}e • Offline` + (turretFailures > 0 ? ` ⚠️ ${turretFailures} failed` : '');
+  
+  // Show/hide repair section
+  el('systemRepairs').style.display = hasFailures ? 'block' : 'none';
+  el('btnRepairFilter').style.display = filterFailures > 0 ? 'inline-block' : 'none';
+  el('btnRepairGenerator').style.display = genFailures > 0 ? 'inline-block' : 'none';
+  el('btnRepairTurret').style.display = turretFailures > 0 ? 'inline-block' : 'none';
+  
+  // Update repair button text with costs
+  if (filterFailures > 0) {
+    const costs = BALANCE.REPAIR_COSTS.filter;
+    el('btnRepairFilter').textContent = `Repair Filter (${costs.scrap}s/${costs.energy}e)`;
+  }
+  if (genFailures > 0) {
+    const costs = BALANCE.REPAIR_COSTS.generator;
+    el('btnRepairGenerator').textContent = `Repair Generator (${costs.scrap}s/${costs.energy}e)`;
+  }
+  if (turretFailures > 0) {
+    const costs = BALANCE.REPAIR_COSTS.turret;
+    el('btnRepairTurret').textContent = `Repair Turret (${costs.scrap}s/${costs.energy}e)`;
+  }
 
   // inventory
   renderInventory();
@@ -44,6 +90,8 @@ function updateUI() {
 
   // threats
   el('threatLevel').textContent = threatText();
+  // Clarify what threat means via tooltip
+  try { el('threatLevel').title = 'Threat reflects alien activity around the station. Higher threat means more and stronger raids. Guards and turrets slow threat growth.'; } catch(e) {}
   el('baseIntegrity').textContent = `${Math.max(0, Math.floor(state.baseIntegrity))}%`;
   const rcEl = document.getElementById('raidChance');
   if (rcEl) {
@@ -304,6 +352,29 @@ function renderSurvivors() {
       <div style="margin-top:6px" class="small">
         Skill: ${s.skill} • Exp: ${s.xp}/${s.nextXp} ${s.injured ? ' • Injured' : ''}
       </div>
+      ${(() => {
+        // 0.8.0 - Display class and abilities with tooltips
+        const classInfo = SURVIVOR_CLASSES.find(c => c.id === s.class);
+        const className = classInfo ? classInfo.name : (s.class || 'Unknown');
+        const classDesc = classInfo ? classInfo.desc : '';
+        let classDisplay = `<div style="margin-top:4px; font-size: 12px;"><span style="color: var(--class-common)" title="${classDesc}">Class: ${className}</span>`;
+        
+        if (s.abilities && s.abilities.length > 0) {
+          const abilityNames = s.abilities.map(abilityId => {
+            // Find the ability in SPECIAL_ABILITIES
+            for (const classKey in SPECIAL_ABILITIES) {
+              const found = SPECIAL_ABILITIES[classKey].find(a => a.id === abilityId);
+              if (found) {
+                return `<span style="color: ${found.color}" title="${found.effect}">${found.name}</span>`;
+              }
+            }
+            return abilityId;
+          });
+          classDisplay += ` • ${abilityNames.join(', ')}`;
+        }
+        classDisplay += '</div>';
+        return classDisplay;
+      })()}
       <div style="margin-top:4px; font-size: 11px; color: var(--muted);">
         Equipped: ${s.equipment.weapon?.name || 'None'} / ${s.equipment.armor?.name || 'None'}
       </div>
@@ -420,6 +491,13 @@ function renderLoadoutContent() {
 function renderMap() {
   const grid = el('mapGrid');
   const { w, h } = state.mapSize;
+  // Early-out if nothing relevant changed to prevent hover/focus flicker
+  const snapshot = computeMapSnapshot();
+  if (lastRenderedMapSnapshot === snapshot) {
+    return; // skip re-render
+  }
+  lastRenderedMapSnapshot = snapshot;
+
   grid.style.gridTemplateColumns = `repeat(${w},1fr)`;
   grid.innerHTML = '';
   for (let y = 0; y < h; y++) {
@@ -471,6 +549,34 @@ function renderMap() {
 
 function renderInventory() {
   const inv = el('inventory');
+  
+  // Update capacity display
+  const capacityEl = el('inventoryCapacity');
+  const maxCapacity = getInventoryCapacity();
+  const currentCount = state.inventory.length;
+  capacityEl.textContent = `(${currentCount}/${maxCapacity})`;
+  if (currentCount >= maxCapacity) {
+    capacityEl.style.color = 'var(--danger)';
+  } else if (currentCount >= maxCapacity * 0.8) {
+    capacityEl.style.color = 'var(--warning)';
+  } else {
+    capacityEl.style.color = 'var(--muted)';
+  }
+  
+  // Early-out to prevent hover/focus flicker: only re-render when inventory actually changes
+  const snapshot = (() => {
+    try {
+      return JSON.stringify(state.inventory.map(i => ({ id: i.id, t: i.type, n: i.name, d: i.durability, m: i.maxDurability })));
+    } catch (e) {
+      return String(Math.random());
+    }
+  })();
+
+  if (lastRenderedInventorySnapshot === snapshot) {
+    return; // no changes; keep DOM as-is to preserve hover state
+  }
+  lastRenderedInventorySnapshot = snapshot;
+
   inv.innerHTML = '';
   if (state.inventory.length === 0) {
     inv.textContent = 'No crafted items.';

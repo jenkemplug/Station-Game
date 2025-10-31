@@ -52,6 +52,14 @@
             <button id="btnUpgradeGen">Upgrade Generator</button>
             <button id="btnBuildTurret">Build Turret</button>
           </div>
+          <div id="systemRepairs" style="margin-top:8px;display:none">
+            <div class="small" style="color:var(--danger);margin-bottom:6px">⚠️ Failed systems require repair:</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button id="btnRepairFilter" style="display:none">Repair Filter</button>
+              <button id="btnRepairGenerator" style="display:none">Repair Generator</button>
+              <button id="btnRepairTurret" style="display:none">Repair Turret</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -97,7 +105,7 @@
       <div id="survivorList"></div>
     </div>
     <div class="panel">
-      <strong style="color:var(--accent)">Inventory</strong>
+      <strong style="color:var(--accent)">Inventory</strong> <span id="inventoryCapacity" class="small" style="color:var(--muted)"></span>
       <div class="inventory" id="inventory" style="margin-top:8px"></div>
       <div style="margin-top:8px" class="small">Tech: <span id="statTech">0</span> • Ammo: <span id="statAmmo">0</span></div>
       <div style="margin-top:10px">
@@ -121,7 +129,7 @@
   </aside>
 
   <footer>
-    <div>Version 0.7.4 — Alien Diversity</div>
+    <div>Version 0.8.0 — Survivor Specializations</div>
     <div>Autosave every 15s • Offline progress supported • Press Ctrl+D for debug panel</div>
   </footer>
 </div>
@@ -232,6 +240,7 @@
       <button id="btnActionBurst">Burst</button>
       <button id="btnActionGuard">Guard</button>
       <button id="btnActionMedkit">Use Medkit</button>
+      <button id="btnActionRevive" style="background:var(--success)">Revive</button>
       <button id="btnActionRetreat" class="danger">Retreat</button>
       <button id="btnActionAuto" style="margin-left:auto;">Auto-Resolve</button>
     </div>

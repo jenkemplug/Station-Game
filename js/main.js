@@ -13,6 +13,17 @@ function bindUI() {
   el('btnUpgradeFilter').onclick = upgradeFilter;
   el('btnUpgradeGen').onclick = upgradeGenerator;
   el('btnBuildTurret').onclick = buildTurret;
+  
+  // 0.8.0 - System repair buttons
+  el('btnRepairFilter').onclick = () => {
+    repairSystem('filter');
+  };
+  el('btnRepairGenerator').onclick = () => {
+    repairSystem('generator');
+  };
+  el('btnRepairTurret').onclick = () => {
+    repairSystem('turret');
+  };
 
   el('workbench').querySelectorAll('button').forEach(btn => {
     btn.onclick = (e) => {

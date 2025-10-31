@@ -49,7 +49,13 @@ function isExplorable(tile) {
 
 function exploreTile(idx) {
   const tile = state.tiles[idx];
-  const cost = getTileEnergyCost(tile);
+  let cost = getTileEnergyCost(tile);
+  
+  // 0.8.0 - Scout Pathfinder ability reduces energy cost
+  const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+  if (explorer && hasAbility(explorer, 'pathfinder')) {
+    cost = Math.floor(cost * 0.85); // -15% energy cost
+  }
 
   if (state.resources.energy < cost) {
     appendLog(`Insufficient energy (need ${cost}) to explore this sector.`);
@@ -61,9 +67,11 @@ function exploreTile(idx) {
   state.explored.add(idx);
   
   // Grant XP to the selected explorer
-  const explorer = state.survivors.find(s => s.id === selectedExplorerId);
   if (explorer) {
-    grantXp(explorer, BALANCE.XP_FROM_EXPLORE);
+    let xpGain = BALANCE.XP_FROM_EXPLORE;
+    // 0.8.0 - Scientist Studious ability
+    if (hasAbility(explorer, 'studious')) xpGain = Math.floor(xpGain * 1.15);
+    grantXp(explorer, xpGain);
   }
 
   handleTileEvent(idx);

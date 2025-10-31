@@ -1,6 +1,114 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.0] - 2025-10-30
+### Added - Advanced Survivor & Alien Systems
+- **8 Survivor Classes** with unique roles and bonuses:
+  - **Soldier**: Combat specialist (+15% combat damage, +5 max HP)
+  - **Medic**: Healing specialist with Field Medic ability (revives downed allies to 25-50% HP)
+  - **Engineer**: Systems expert (+20% production) with Inventor ability (30% chance to extract rare components for 2-4 tech)
+  - **Scout**: Exploration specialist (-20% exploration cost, +15% dodge)
+  - **Technician**: Crafting specialist (-15% crafting costs, +15% tech) with Failsafe ability (reduces system failures to 0.5%)
+  - **Scientist**: Research specialist (+25% tech gain, +20% XP gain)
+  - **Guardian**: Defense specialist (+20% defense) with Living Shield ability (50% chance to intercept damage for allies)
+  - **Scavenger**: Resource specialist (+25% loot) with Keen Eye (+20% rarity) and Treasure Hunter (+40% rarity)
+
+- **40+ Unique Survivor Abilities** (3-5 per class) with rarity tiers:
+  - **Uncommon** (12-15% spawn chance): Minor bonuses and utility effects
+  - **Rare** (6-8% spawn chance): Significant tactical advantages
+  - **Very Rare** (3% spawn chance): Powerful game-changing abilities
+  - Examples: Marksman (+10% hit), Veteran (+20% damage), Ghost (35% dodge), Field Medic (revival), Living Shield (damage intercept)
+
+- **40+ Unique Alien Modifiers** (5 per alien type) with escalating power:
+  - **Uncommon** (10-12% spawn chance): Small stat boosts
+  - **Rare** (5-6% spawn chance): Tactical modifications including advanced phase abilities
+  - **Very Rare** (2% spawn chance): Devastating combinations
+  - Advanced Spectre modifiers: Ethereal (+10% phase), Void (60% phase with -2 HP drain), Wraith (+50% damage after phase), Blink Strike (counter-attack)
+  - Queen modifiers: Hivemind (resurrects fallen drones at 50% HP once per combat)
+
+- **Revival/Downed State System**:
+  - Survivors at 0 HP become "downed" instead of dying immediately
+  - Field Medics can revive downed allies during interactive combat (Revive button)
+  - Auto-combat: Field Medics automatically attempt revival after combat rounds
+  - Downed survivors removed from combat but can be saved
+
+- **Inventory Capacity System**:
+  - Base capacity: 20 items
+  - Hoarder ability: +2 capacity per instance
+  - UI displays current/max capacity with color coding (green/yellow/red)
+  - Full inventory prevents looting
+
+- **Loot Rarity System**:
+  - Four quality tiers: Common, Uncommon, Rare, Very Rare
+  - Quality bonuses: Better durability, enhanced stats
+  - Keen Eye: +20% rarity chance (Scavenger uncommon)
+  - Treasure Hunter: +40% rarity chance (Scavenger rare)
+  - Color-coded loot messages
+
+- **System Failure Events**:
+  - Random system failures (1% base chance per system per tick)
+  - Failures disable system production until repaired
+  - Repair costs: 10-20 scrap, 5-10 energy
+  - Failsafe ability: Reduces failure chance to 0.5% (Technician rare)
+  - UI warnings and repair panel
+
+- **Color-Coded Rarity System**:
+  - Blue: Base class info and common abilities
+  - Purple: Uncommon abilities/modifiers
+  - Orange: Rare abilities/modifiers
+  - Red: Very rare abilities/modifiers
+
+### Changed
+- **Random Class Assignment**: Every recruited survivor gets a random class (equal probability)
+- **Probabilistic Abilities**: Survivors have chances to spawn with 0-5 special abilities based on rarity
+- **Enhanced Combat**: All combat calculations now factor in survivor abilities and alien modifiers
+  - Soldier abilities boost damage, accuracy, and critical hits
+  - Scout abilities provide evasion and energy efficiency
+  - Guardian abilities enhance defense with Living Shield interception
+  - Medic abilities enable revival and healing
+- **Production Bonuses**: Engineer abilities boost resource production (up to +30% with Overclock)
+- **Crafting Bonuses**: 
+  - Technician abilities reduce costs (-25% with Prodigy) and increase durability (+30%)
+  - Engineer Inventor ability extracts rare components (weapon parts → tech)
+- **Loot Bonuses**: Scavenger abilities provide extra loot rolls and improved quality (double rolls with Golden Nose)
+- **XP Bonuses**: Scientist abilities increase experience gain (+25% with Genius)
+- **Advanced Combat Mechanics**:
+  - Living Shield: Guardian intercepts damage for allies (50% chance)
+  - Blink Strike: Spectre counter-attacks after phasing
+  - Wraith: +50% damage bonus after successful phase
+  - Ethereal/Void: Enhanced phase chances with unique effects
+  - Hivemind: Queen resurrects first dead drone at 50% HP
+
+### UI Improvements
+- Survivor cards display class name (blue) and abilities with color-coded rarity
+- Combat overlay shows all survivor abilities and alien modifiers with tooltips
+- Downed status displayed with ⚠️ indicator in combat
+- Revive button appears for Field Medics when allies are downed
+- Inventory capacity shown as (current/max) with color coding
+- Dynamic panels expand to accommodate multiple modifiers per combatant
+- Recruitment log shows assigned class and abilities
+- System failure warnings and repair UI
+- All ability/modifier effects visible during combat
+
+### Balance
+- Ability spawn rates tuned for exciting but not overwhelming variance
+- Rare modifiers can stack on aliens for challenging elite encounters
+- Multiple ability combinations create diverse survivor playstyles
+- Class bonuses provide baseline identity, abilities add specialization
+- Revival system provides risk/reward for high-difficulty encounters
+- Inventory management encourages strategic equipment choices
+- System failures create maintenance challenges
+
+### Technical
+- Save version bumped to 1.10.0 with migration for old saves
+- SURVIVOR_CLASSES, SPECIAL_ABILITIES, and ALIEN_MODIFIERS in constants.js
+- Helper functions: hasAbility(), hasModifier(), applyAbilityDamageModifiers(), applyModifierStatEffects()
+- Downed state tracking: hp=0, downed=true
+- Per-combat flags: _shieldUsed, _justPhased, _lifesaverUsed, _hivemindUsed
+- CSS variables for rarity colors (--rarity-uncommon, --rarity-rare, --rarity-veryrare)
+- Integrated abilities into combat.js, combatInteractive.js, exploration.js, crafting.js, and tick.js
+- All 30+ abilities and 20+ modifiers fully functional in both combat modes
+
 ## [0.7.4] - 2025-10-30
 ### Added
 - **Four New Alien Types:**

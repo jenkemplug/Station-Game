@@ -1,15 +1,47 @@
 // Threat System
 // Handles threat level management and base raids
 
+// 0.8.0 - Helper: Roll for alien rare modifiers
+function rollAlienModifiers(alienType) {
+  const modifiers = [];
+  const mods = ALIEN_MODIFIERS[alienType];
+  if (!mods) return modifiers;
+
+  for (const mod of mods) {
+    if (Math.random() < mod.chance) {
+      modifiers.push(mod.id);
+    }
+  }
+  return modifiers;
+}
+
 function evaluateThreat() {
   // Threat drift: grows slowly; guards and turrets suppress it
   const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission).length;
   const turrets = state.systems.turret || 0;
+  const prevThreat = state.threat || 0;
   const threatChange = BALANCE.THREAT_GROWTH_BASE
     + Math.random() * BALANCE.THREAT_GROWTH_RAND
     - guards * BALANCE.GUARD_THREAT_REDUCTION
     - turrets * (BALANCE.TURRET_THREAT_REDUCTION || 0);
   state.threat = clamp(state.threat + threatChange, 0, 100);
+  
+  // Notify on notable threat changes with basic explanation (throttled)
+  try {
+    const nowMs = Date.now();
+    const lastNote = Number(state.lastThreatNoticeAt) || 0;
+    const throttleMs = 20000; // 20s between notices
+    const buckets = (v) => (v < 15 ? 'Low' : v < 35 ? 'Moderate' : v < 60 ? 'High' : 'Critical');
+    const prevBucket = buckets(prevThreat);
+    const newBucket = buckets(state.threat);
+    const crossedBucket = prevBucket !== newBucket;
+    const bigMove = Math.abs(state.threat - prevThreat) >= 2.5;
+    if ((crossedBucket || bigMove) && (nowMs - lastNote) > throttleMs) {
+      const dir = state.threat > prevThreat ? 'rising' : 'easing';
+      appendLog(`Threat ${dir} (${newBucket}). Higher threat increases raid odds; guards and turrets slow growth.`);
+      state.lastThreatNoticeAt = nowMs;
+    }
+  } catch (e) { /* noop */ }
 
   // Raid chance (0.7.3): base scaled by exploration + threat pressure, reduced by guards and turrets
   const totalTiles = Math.max(1, state.mapSize.w * state.mapSize.h);
@@ -21,6 +53,10 @@ function evaluateThreat() {
     + exploredTiles * (BALANCE.RAID_CHANCE_PER_TILE || 0)
     + kills * (BALANCE.RAID_CHANCE_PER_ALIEN_KILL || 0)
     + (state.threat / BALANCE.RAID_THREAT_DIVISOR) * (0.5 + 0.5 * explorationFactor);
+
+  // 0.8.x - Temporary pressure from recent retreats/casualties (decaying bonus)
+  state.raidPressure = Math.max(0, (state.raidPressure || 0) - 0.0002); // decay ~0.02/min
+  raidChance += (state.raidPressure || 0);
 
   // Defenders reduce incident likelihood
   const guardReduce = (BALANCE.RAID_CHANCE_REDUCTION_PER_GUARD || 0) * guards;
@@ -91,6 +127,10 @@ function resolveRaid() {
     const hMult = 1 + (state.threat || 0) / 120;
     const aMult = 1 + (state.threat || 0) / 150;
     hp = Math.round(hp * hMult);
+    
+    // 0.8.0 - Roll for rare modifiers
+    const modifiers = rollAlienModifiers(at.id);
+    
     raidAliens.push({
       id: `raid_${Date.now()}_${i}`,
       type: at.id,
@@ -102,6 +142,7 @@ function resolveRaid() {
       flavor: at.flavor,
       special: at.special,
       specialDesc: at.specialDesc,
+      modifiers: modifiers, // 0.8.0
       firstStrike: true
     });
   }

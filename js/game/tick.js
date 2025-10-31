@@ -8,18 +8,27 @@ function applyTick(isOffline = false) {
 
   activeSurvivors.forEach(s => {
     const levelBonus = 1 + (s.level - 1) * BALANCE.LEVEL_PRODUCTION_BONUS;
+    // 0.8.0 - Engineer production bonuses
+    let classBonus = 1;
+    if (hasAbility(s, 'efficient')) classBonus *= 1.15; // +15% system production
+    if (hasAbility(s, 'overclock')) classBonus *= 1.30; // +30% production (energy cost handled separately)
+    if (hasAbility(s, 'mastermind')) classBonus *= 1.25; // +25% all systems
+    
     switch (s.task) {
       case 'Oxygen':
-        prod.oxygen += (BALANCE.SURVIVOR_PROD.Oxygen.base + s.skill * BALANCE.SURVIVOR_PROD.Oxygen.perSkill) * levelBonus;
+        prod.oxygen += (BALANCE.SURVIVOR_PROD.Oxygen.base + s.skill * BALANCE.SURVIVOR_PROD.Oxygen.perSkill) * levelBonus * classBonus;
         break;
       case 'Food':
-        prod.food += (BALANCE.SURVIVOR_PROD.Food.base + s.skill * BALANCE.SURVIVOR_PROD.Food.perSkill) * levelBonus;
+        prod.food += (BALANCE.SURVIVOR_PROD.Food.base + s.skill * BALANCE.SURVIVOR_PROD.Food.perSkill) * levelBonus * classBonus;
         break;
       case 'Energy':
-        prod.energy += (BALANCE.SURVIVOR_PROD.Energy.base + s.skill * BALANCE.SURVIVOR_PROD.Energy.perSkill) * levelBonus;
+        prod.energy += (BALANCE.SURVIVOR_PROD.Energy.base + s.skill * BALANCE.SURVIVOR_PROD.Energy.perSkill) * levelBonus * classBonus;
         break;
       case 'Scrap':
-        prod.scrap += (BALANCE.SURVIVOR_PROD.Scrap.base + s.skill * BALANCE.SURVIVOR_PROD.Scrap.perSkill) * levelBonus;
+        let scrapBonus = classBonus;
+        // 0.8.0 - Scavenger Salvage Expert
+        if (hasAbility(s, 'salvage')) scrapBonus *= 1.25;
+        prod.scrap += (BALANCE.SURVIVOR_PROD.Scrap.base + s.skill * BALANCE.SURVIVOR_PROD.Scrap.perSkill) * levelBonus * scrapBonus;
         break;
       case 'Guard':
         /* reduces threat growth */ break;
@@ -101,6 +110,67 @@ function applyTick(isOffline = false) {
   
   // base integrity clamp
   state.baseIntegrity = clamp(state.baseIntegrity, -20, 100);
+  
+  // 0.8.0 - Scientist passive tech generation (Analytical, Genius)
+  const scientists = state.survivors.filter(s => !s.onMission);
+  for (const sci of scientists) {
+    if (hasAbility(sci, 'analytical') && state.secondsPlayed % 10 === 0) {
+      state.resources.tech += 1;
+    }
+    if (hasAbility(sci, 'genius') && state.secondsPlayed % 10 === 0) {
+      state.resources.tech += 2;
+    }
+    // Breakthrough: random tech burst (5% chance per tick when active)
+    if (hasAbility(sci, 'breakthrough') && Math.random() < 0.05) {
+      state.resources.tech += rand(1, 3);
+      appendLog(`${sci.name} achieves a research breakthrough!`);
+    }
+  }
+  
+  // 0.8.0 - Guardian morale bonuses
+  const guardians = state.survivors.filter(s => !s.onMission);
+  let moraleBonus = 0;
+  for (const g of guardians) {
+    if (hasAbility(g, 'rallying')) moraleBonus += 0.05; // +5% morale to all
+  }
+  if (moraleBonus > 0) {
+    state.survivors.forEach(s => {
+      s.morale = Math.min(100, s.morale + moraleBonus);
+    });
+  }
+  
+  // 0.8.0 - System failure events
+  if (!isOffline && state.secondsPlayed % 10 === 0) { // Check every 10 seconds
+    // Check for Failsafe ability (prevents or reduces failures)
+    const hasFailsafe = state.survivors.some(s => hasAbility(s, 'failsafe'));
+    const failureChance = hasFailsafe ? 0.005 : 0.01; // 1% base, 0.5% with failsafe
+    
+    // Filter failures
+    if (state.systems.filter > 0 && Math.random() < failureChance) {
+      state.systems.filter--;
+      state.systemFailures.push({ type: 'filter', time: state.secondsPlayed });
+      appendLog('⚠️ Air filter system failed! Oxygen production reduced.');
+    }
+    
+    // Generator failures
+    if (state.systems.generator > 0 && Math.random() < failureChance) {
+      state.systems.generator--;
+      state.systemFailures.push({ type: 'generator', time: state.secondsPlayed });
+      appendLog('⚠️ Generator system failed! Energy production reduced.');
+    }
+    
+    // Turret failures (more fragile - slightly higher chance)
+    if (state.systems.turret > 0 && Math.random() < failureChance * 1.5) {
+      state.systems.turret--;
+      state.systemFailures.push({ type: 'turret', time: state.secondsPlayed });
+      appendLog('⚠️ Turret system failed! Defense reduced.');
+    }
+    
+    // Limit failure log to last 20 entries
+    if (state.systemFailures.length > 20) {
+      state.systemFailures = state.systemFailures.slice(-20);
+    }
+  }
   
   // Remove dead survivors after tick and report deaths
   if (state.survivors.length > 0) {

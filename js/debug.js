@@ -44,6 +44,7 @@ function debugAddItem(itemType) {
       appendLog(`[DEBUG] Unknown item type: ${itemType}`);
       return;
   }
+  // Debug mode ignores capacity limits
   state.inventory.push(item);
   appendLog(`[DEBUG] Added ${item.name} to inventory`);
   updateUI();

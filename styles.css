@@ -10,6 +10,13 @@
   --success: #44ff44;
   --glass: rgba(255,255,255,0.02);
 
+  /* 0.8.0 - Rarity colors for classes/abilities/modifiers */
+  --class-common: #4a9eff;       /* Blue - base class */
+  --rarity-uncommon: #a78bfa;    /* Purple - uncommon abilities/mods */
+  --rarity-rare: #fb923c;        /* Orange - rare abilities/mods */
+  --rarity-veryrare: #ef4444;    /* Red - very rare abilities/mods */
+  --mod-alien: #ef4444;          /* Red - alien base modifiers */
+
   /* UI gradients */
   --card-gradient: linear-gradient(180deg, rgba(26,26,26,0.95), rgba(21,21,21,0.9));
   --header-gradient: linear-gradient(180deg, rgba(32,32,32,0.95), rgba(26,26,26,0.9));

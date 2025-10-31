@@ -20,13 +20,19 @@ let state = {
   explored: new Set(),
   inventory: [], // Changed to an array to support item durability
   nextItemId: 1,
+  inventoryCapacity: 20, // 0.8.1 - Base carry capacity
   equipment: { turrets: 0, bulkhead: 0 },
   systems: { filter: 0, generator: 0, turret: 0 },
+  systemFailures: [], // 0.8.1 - Track system failures
   threat: 8,
   baseIntegrity: 100,
   raidChance: 0, // 0.7.3 - replaces boardRisk
   lastRaidAt: 0, // 0.7.3 - cooldown tracking
   alienKills: 0, // 0.7.3 - used to scale raid chance
+  // 0.8.x - temporary pressure that boosts raid chance after retreats/casualties; decays over time
+  raidPressure: 0,
+  // 0.8.x - throttle threat change notifications
+  lastThreatNoticeAt: 0,
   journal: ["Station systems nominal. Maintain discipline."],
   missions: [], // active expeditions
   timeNow: Date.now(),

@@ -1,6 +1,26 @@
 // Survivor Management System
 // Handles recruitment, task assignment, equipment, XP, and survivor actions
 
+// 0.8.0 - Helper: Randomly assign survivor class
+function assignRandomClass() {
+  const classIndex = Math.floor(Math.random() * SURVIVOR_CLASSES.length);
+  return SURVIVOR_CLASSES[classIndex].id;
+}
+
+// 0.8.0 - Helper: Roll for special abilities based on class
+function rollAbilities(classId) {
+  const abilities = [];
+  const classAbilities = SPECIAL_ABILITIES[classId];
+  if (!classAbilities) return abilities;
+
+  for (const ability of classAbilities) {
+    if (Math.random() < ability.chance) {
+      abilities.push(ability.id);
+    }
+  }
+  return abilities;
+}
+
 function recruitSurvivor(name) {
   // Check recruitment cost
   const cost = getRecruitCost();
@@ -12,23 +32,52 @@ function recruitSurvivor(name) {
   // Only deduct cost if this is a manual recruitment (not from exploration)
   if (!name) state.resources.scrap -= cost;
 
+  // 0.8.0 - Assign random class and roll for abilities
+  const survivorClass = assignRandomClass();
+  const abilities = rollAbilities(survivorClass);
+
+  // 0.8.0 - Weighted skill distribution: mostly 1, some 2, rarely 3
+  let skill = 1;
+  const skillRoll = Math.random();
+  if (skillRoll < 0.70) skill = 1;      // 70% chance skill 1
+  else if (skillRoll < 0.95) skill = 2; // 25% chance skill 2
+  else skill = 3;                        // 5% chance skill 3
+
   const s = {
     id: state.nextSurvivorId++,
     name: name || getRandomName(),
     level: 1,
     xp: 0,
     nextXp: 50,
-    skill: rand(1, 6),
+    skill: skill,
     hp: 20,
     maxHp: 20,
     morale: 60,
     role: 'Idle',
     task: 'Idle',
     injured: false,
-    equipment: { weapon: null, armor: null }
+    equipment: { weapon: null, armor: null },
+    // 0.8.0 - New fields
+    class: survivorClass,
+    abilities: abilities
   };
   state.survivors.push(s);
-  appendLog(`${s.name} was recruited${!name ? ` (cost: ${cost} scrap)` : ''}.`);
+  
+  // Build recruitment log message
+  let logMsg = `${s.name} was recruited${!name ? ` (cost: ${cost} scrap)` : ''}.`;
+  const className = SURVIVOR_CLASSES.find(c => c.id === survivorClass)?.name || survivorClass;
+  logMsg += ` Class: ${className}`;
+  if (abilities.length > 0) {
+    const abilityNames = abilities.map(id => {
+      for (const classKey in SPECIAL_ABILITIES) {
+        const found = SPECIAL_ABILITIES[classKey].find(a => a.id === id);
+        if (found) return found.name;
+      }
+      return id;
+    });
+    logMsg += `. Abilities: ${abilityNames.join(', ')}`;
+  }
+  appendLog(logMsg);
   updateUI();
 }
 
@@ -128,11 +177,19 @@ function equipItemToSurvivor(survivorId, itemId) {
   if (item.type === 'armor' || item.type === 'heavyArmor' || item.type === 'hazmatSuit') slot = 'armor';
   if (!slot) { appendLog('That item cannot be equipped.'); return; }
 
-  // If slot already occupied, move current equipment back to inventory
+  // If slot already occupied, check if inventory has room for it
   if (slot === 'weapon' && s.equipment.weapon) {
+    if (!canAddToInventory()) {
+      appendLog('Inventory full - cannot swap equipment.');
+      return;
+    }
     state.inventory.push(s.equipment.weapon);
   }
   if (slot === 'armor' && s.equipment.armor) {
+    if (!canAddToInventory()) {
+      appendLog('Inventory full - cannot swap equipment.');
+      return;
+    }
     state.inventory.push(s.equipment.armor);
   }
 
@@ -153,6 +210,13 @@ function unequipFromSurvivor(survivorId, slot) {
   if (slot !== 'weapon' && slot !== 'armor') return;
   const eq = slot === 'weapon' ? s.equipment.weapon : s.equipment.armor;
   if (!eq) { appendLog('Nothing to unequip.'); return; }
+  
+  // Check capacity before unequipping
+  if (!canAddToInventory()) {
+    appendLog('Inventory full - cannot unequip item.');
+    return;
+  }
+  
   state.inventory.push(eq);
   if (slot === 'weapon') s.equipment.weapon = null; else s.equipment.armor = null;
   appendLog(`${s.name} unequipped ${eq.name}.`);
