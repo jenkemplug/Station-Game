@@ -1,4 +1,4 @@
-const VERSION = '0.8.11';
+const VERSION = '0.8.12';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -134,7 +134,7 @@ const BALANCE = {
     Energy: { base: 0.7, perSkill: 0.04 },
     Scrap: { base: 0.6, perSkill: 0.03 },
     IdleOxygen: 0.04,
-    FoodYieldFactor: 0.6,
+    FoodYieldFactor: 0.95, // 0.8.11 - Increased from 0.6 to make food ~15% worse than oxygen
     // 0.8.8 - Energy consumption rebalanced to per-survivor basis
     PassiveEnergyDrainPerSurvivor: 0.18,  // Base energy per survivor
     PassiveEnergyDrainPerTurret: 0.05,    // Turret energy cost (increased from 0.03)
@@ -280,7 +280,7 @@ const SURVIVOR_CLASSES = [
   { 
     id: 'scientist', 
     name: 'Scientist', 
-    desc: 'Research specialist: +15-30% XP, alien analysis',
+    desc: 'Research specialist: +15-30% XP, powerful tech abilities',
     bonuses: { 
       xp: [1.15, 1.30],         // +15-30% XP gain
       analysis: [1.15, 1.25]    // +15-25% analysis bonus

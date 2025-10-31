@@ -75,10 +75,13 @@ function applyTick(isOffline = false) {
     prod.oxygen *= (BALANCE.OXYGEN_PENALTY_NO_ENERGY || 0.1);
   }
   
+  // 0.8.11 - Apply FoodYieldFactor to production before storing for UI display
+  prod.food *= BALANCE.SURVIVOR_PROD.FoodYieldFactor;
+  
   // apply
   state.production = prod;
   state.resources.oxygen += prod.oxygen;
-  state.resources.food += prod.food * BALANCE.SURVIVOR_PROD.FoodYieldFactor;
+  state.resources.food += prod.food;
   state.resources.energy += prod.energy;
   state.resources.scrap += prod.scrap;
   

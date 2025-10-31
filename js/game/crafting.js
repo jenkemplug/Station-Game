@@ -210,19 +210,26 @@ function repairItem(itemId) {
     return;
   }
 
-  let repairCost = Math.ceil((item.maxDurability - item.durability) * BALANCE.REPAIR_COST_PER_POINT);
+  let baseCost = Math.ceil((item.maxDurability - item.durability) * BALANCE.REPAIR_COST_PER_POINT);
   
-  // 0.8.10 - Engineer class bonus: repair cost reduction (rolled 0.75-0.85 = 15-25% reduction)
-  const activeEngineers = state.survivors.filter(s => !s.onMission && s.class === 'engineer' && s.classBonuses && s.classBonuses.repair);
-  if (activeEngineers.length > 0) {
-    // Use the best Engineer's bonus
-    const bestRepairBonus = Math.min(...activeEngineers.map(e => e.classBonuses.repair));
-    repairCost = Math.ceil(repairCost * bestRepairBonus);
-  }
+  // 0.8.11 - Engineer class bonus: repair cost reduction (additive stacking)
+  const activeEngineers = state.survivors.filter(s => !s.onMission && s.class === 'engineer');
+  let costReductionAdd = 0;
   
-  // 0.8.0 - Engineer Quick Fix ability: -20% repair costs (stacks with class bonus)
-  const hasQuickFix = state.survivors.some(s => !s.onMission && hasAbility(s, 'quickfix'));
-  if (hasQuickFix) repairCost = Math.ceil(repairCost * 0.80);
+  activeEngineers.forEach(eng => {
+    if (eng.classBonuses && eng.classBonuses.repair) {
+      // classBonuses.repair is stored as multiplier (0.75-0.85), convert to reduction
+      costReductionAdd += (1 - eng.classBonuses.repair); // e.g., 0.80 -> 0.20 (20% reduction)
+    }
+  });
+  
+  // 0.8.11 - Engineer Quick Fix ability: -20% repair costs (additive stacking)
+  const quickFixCount = state.survivors.filter(s => !s.onMission && hasAbility(s, 'quickfix')).length;
+  costReductionAdd += quickFixCount * 0.20;
+  
+  // Apply cost reduction (cap at 90% reduction)
+  const costMult = Math.max(0.1, 1 - costReductionAdd);
+  const repairCost = Math.ceil(baseCost * costMult);
   
   if (state.resources.scrap < repairCost) {
     appendLog(`Not enough scrap to repair. Need ${repairCost}.`);

@@ -1,8 +1,31 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.12] - 2025-10-31
+### Fixed - Balance & Mechanics
+- **Item Repair Cost Stacking**: Fixed repair costs to use additive stacking like all other bonuses
+  - **Before**: Only used best Engineer's bonus (multiplicative)
+  - **After**: All Engineers' repair bonuses stack additively, Quick Fix stacks additively
+  - Example: 2 Engineers (20% each) + Quick Fix = 60% total reduction (was ~36% before)
+  - Consistent with crafting costs, production bonuses, and all other systems
+  - Capped at 90% reduction to prevent exploits
+
+### Changed - Balance Adjustments
+- **Food Production Buffed**: FoodYieldFactor increased from 0.6 to 0.95 (58% buff)
+  - **Before**: Food production was ~43% as efficient as oxygen (too weak)
+  - **After**: Food production now ~87% as efficient as oxygen (~13% worse)
+  - Example at skill 5: Food now +1.05/s vs Oxygen +1.4/s (was +0.66/s vs +1.4/s)
+  - Makes food management more reasonable without trivializing the resource
+  - Food consumption remains unchanged (0.05 base + 0.22 per survivor)
+
 ## [0.8.11] - 2025-10-31
 ### Fixed - Balance & Mechanics
+- **Food Production Display Bug**: Fixed UI showing incorrect food production rate
+  - **Issue**: Food production shown as higher than actual (e.g., +1.1/s displayed but only +0.66/s applied)
+  - **Cause**: FoodYieldFactor (0.6) was applied to resources but not to UI display value
+  - **Fix**: Now applies FoodYieldFactor before storing in `state.production.food`
+  - UI now accurately reflects actual food gain rate
+
 - **Scientist XP Bonuses**: Fixed Genius (+25%) and Studious (+15%) ability bonuses not applying
   - Previously only class bonus was applied to XP gains
   - **Changed to additive stacking** for consistency with other bonuses
@@ -38,6 +61,13 @@ All notable changes to the Derelict Station project will be documented in this f
   - Each stat line now shows total bonus including level where applicable
 
 ### Changed - Balance Adjustments
+- **Food Production Buffed**: FoodYieldFactor increased from 0.6 to 0.95 (58% buff)
+  - **Before**: Food production was ~43% as efficient as oxygen (too weak)
+  - **After**: Food production now ~85% as efficient as oxygen (~15% worse)
+  - Example at skill 5: Food now +1.05/s vs Oxygen +1.4/s (was +0.66/s vs +1.4/s)
+  - Makes food management more reasonable without trivializing the resource
+  - Food consumption remains unchanged (0.05 base + 0.22 per survivor)
+
 - **Tech Generation Nerfed**: Analytical and Genius passive tech generation significantly reduced
   - Analytical: Changed from +1 tech per 10 seconds to +1 tech per 60 seconds (6x slower)
   - Genius: Changed from +2 tech per 10 seconds to +2 tech per 60 seconds (6x slower)

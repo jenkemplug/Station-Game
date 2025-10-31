@@ -2,9 +2,17 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.8.11 (Advanced Systems)
+**Current Version:** 0.8.12 (Advanced Systems)
 
-### 🆕 Latest Updates (v0.8.11)
+### 🆕 Latest Updates (v0.8.12)
+- **Food Production Buffed**: 58% increase to food yield (0.6 → 0.95 multiplier)
+  - Food now ~15% worse than oxygen instead of ~57% worse
+  - Makes food management viable without trivializing the resource
+- **Item Repair Stacking Fixed**: Repair cost reductions now stack additively
+  - Multiple Engineers with Quick Fix now properly combine bonuses
+  - Consistent with all other bonus systems in the game
+
+### 🆕 Previous Updates (v0.8.11)
 - **Additive Stacking System**: ALL bonuses now stack additively for consistency and balance
   - Multiple survivors with the same class/abilities stack predictably
   - Production, combat, healing, crafting, XP gains all use unified formula
