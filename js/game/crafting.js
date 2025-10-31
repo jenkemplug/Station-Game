@@ -8,22 +8,23 @@ function craft(item) {
     return;
   }
   
-  // 0.8.10 - Technician class bonus: crafting cost reduction (rolled 0.80-0.90 = 10-20% reduction)
-  let costMult = 1;
+  // 0.8.11 - Technician class bonus: crafting cost reduction (additive stacking)
+  let costReduction = 0; // Additive reduction (0.10 = 10% reduction)
   const technicians = state.survivors.filter(s => !s.onMission);
   
-  // Apply best Technician's class bonus first
+  // Apply all Technician class bonuses additively
   const techsWithBonus = technicians.filter(t => t.class === 'technician' && t.classBonuses && t.classBonuses.crafting);
-  if (techsWithBonus.length > 0) {
-    const bestCraftingBonus = Math.min(...techsWithBonus.map(t => t.classBonuses.crafting));
-    costMult *= bestCraftingBonus;
+  for (const tech of techsWithBonus) {
+    costReduction += (1 - tech.classBonuses.crafting); // e.g., 0.85 -> 0.15 reduction
   }
   
-  // 0.8.0 - Technician abilities reduce crafting costs (stack with class bonus)
+  // 0.8.11 - Technician abilities reduce crafting costs (additive stacking)
   for (const t of technicians) {
-    if (hasAbility(t, 'resourceful')) costMult *= 0.90; // -10% cost
-    if (hasAbility(t, 'prodigy')) costMult *= 0.75; // -25% cost
+    if (hasAbility(t, 'resourceful')) costReduction += 0.10; // -10% cost
+    if (hasAbility(t, 'prodigy')) costReduction += 0.25; // -25% cost
   }
+  
+  const costMult = Math.max(0.1, 1 - costReduction); // Cap at 90% reduction
   const scrapCost = Math.ceil((r.scrap || 0) * costMult);
   const energyCost = Math.ceil((r.energy || 0) * costMult);
   const techCost = Math.ceil((r.tech || 0) * costMult);
@@ -51,13 +52,14 @@ function craft(item) {
   state.resources.energy -= energyCost;
   state.resources.tech -= techCost;
   
-  // 0.8.0 - Technician Recycler ability: 25% chance to refund materials
-  const hasRecycler = technicians.some(t => hasAbility(t, 'recycler'));
-  if (hasRecycler && Math.random() < 0.25) {
+  // 0.8.11 - Technician Recycler ability: 25% chance per Recycler to refund materials
+  const recyclerCount = technicians.filter(t => hasAbility(t, 'recycler')).length;
+  const refundChance = recyclerCount * 0.25; // 25% per Recycler, stacks
+  if (recyclerCount > 0 && Math.random() < refundChance) {
     state.resources.scrap += scrapCost;
     state.resources.energy += energyCost;
     state.resources.tech += techCost;
-    appendLog('Recycler: Materials refunded!');
+    appendLog(`♻️ Recycler: Materials refunded! (${Math.floor(refundChance * 100)}% chance)`);
   }
   
   r.result();
@@ -77,21 +79,22 @@ function craft(item) {
     }
   }
   
-  // 0.8.10 - Technician class + ability durability bonuses
-  const hasDurable = technicians.some(t => hasAbility(t, 'durable'));
-  const hasProdigy = technicians.some(t => hasAbility(t, 'prodigy'));
+  // 0.8.11 - Technician class + ability durability bonuses (additive stacking)
+  let durabilityAdd = 0; // Additive bonus (0.20 = +20%)
   
-  // Apply Technician class durability bonus
-  let durabilityMult = 1;
+  // Apply all Technician class durability bonuses additively
   const techsWithDurability = technicians.filter(t => t.class === 'technician' && t.classBonuses && t.classBonuses.durability);
-  if (techsWithDurability.length > 0) {
-    const bestDurabilityBonus = Math.max(...techsWithDurability.map(t => t.classBonuses.durability));
-    durabilityMult *= bestDurabilityBonus;
+  for (const tech of techsWithDurability) {
+    durabilityAdd += (tech.classBonuses.durability - 1); // e.g., 1.15 -> 0.15
   }
   
-  // Apply Technician ability bonuses (stack with class bonus)
-  if (hasDurable) durabilityMult *= 1.2; // +20%
-  if (hasProdigy) durabilityMult *= 1.3; // +30%
+  // Apply Technician ability bonuses (additive stacking)
+  for (const t of technicians) {
+    if (hasAbility(t, 'durable')) durabilityAdd += 0.20; // +20%
+    if (hasAbility(t, 'prodigy')) durabilityAdd += 0.30; // +30%
+  }
+  
+  const durabilityMult = 1 + durabilityAdd;
   
   if (durabilityMult > 1) {
     const lastItem = state.inventory[state.inventory.length - 1];

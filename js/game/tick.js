@@ -8,35 +8,37 @@ function applyTick(isOffline = false) {
 
   activeSurvivors.forEach(s => {
     const levelBonus = 1 + (s.level - 1) * BALANCE.LEVEL_PRODUCTION_BONUS;
-    // 0.8.10 - Apply Engineer class production bonus
-    let classBonus = 1;
+    // 0.8.11 - Apply Engineer class production bonus (additive per survivor)
+    let classBonus = 0;
     if (s.classBonuses && s.classBonuses.production) {
-      classBonus *= s.classBonuses.production;
+      classBonus += (s.classBonuses.production - 1); // e.g., 1.20 -> 0.20
     }
-    // 0.8.0 - Engineer production bonuses (abilities)
-    if (hasAbility(s, 'efficient')) classBonus *= 1.15; // +15% system production
-    if (hasAbility(s, 'overclock')) classBonus *= 1.30; // +30% production (energy cost handled separately)
-    if (hasAbility(s, 'mastermind')) classBonus *= 1.25; // +25% all systems
+    // 0.8.11 - Engineer production bonuses (abilities, additive)
+    if (hasAbility(s, 'efficient')) classBonus += 0.15; // +15% system production
+    if (hasAbility(s, 'overclock')) classBonus += 0.30; // +30% production (energy cost handled separately)
+    if (hasAbility(s, 'mastermind')) classBonus += 0.25; // +25% all systems
+    
+    const finalBonus = 1 + classBonus;
     
     switch (s.task) {
       case 'Oxygen':
-        prod.oxygen += (BALANCE.SURVIVOR_PROD.Oxygen.base + s.skill * BALANCE.SURVIVOR_PROD.Oxygen.perSkill) * levelBonus * classBonus;
+        prod.oxygen += (BALANCE.SURVIVOR_PROD.Oxygen.base + s.skill * BALANCE.SURVIVOR_PROD.Oxygen.perSkill) * levelBonus * finalBonus;
         break;
       case 'Food':
-        prod.food += (BALANCE.SURVIVOR_PROD.Food.base + s.skill * BALANCE.SURVIVOR_PROD.Food.perSkill) * levelBonus * classBonus;
+        prod.food += (BALANCE.SURVIVOR_PROD.Food.base + s.skill * BALANCE.SURVIVOR_PROD.Food.perSkill) * levelBonus * finalBonus;
         break;
       case 'Energy':
-        prod.energy += (BALANCE.SURVIVOR_PROD.Energy.base + s.skill * BALANCE.SURVIVOR_PROD.Energy.perSkill) * levelBonus * classBonus;
+        prod.energy += (BALANCE.SURVIVOR_PROD.Energy.base + s.skill * BALANCE.SURVIVOR_PROD.Energy.perSkill) * levelBonus * finalBonus;
         break;
       case 'Scrap':
         let scrapBonus = classBonus;
-        // 0.8.10 - Scavenger class bonus for scrap
+        // 0.8.11 - Scavenger class bonus for scrap (additive)
         if (s.classBonuses && s.classBonuses.scrap) {
-          scrapBonus *= s.classBonuses.scrap;
+          scrapBonus += (s.classBonuses.scrap - 1); // e.g., 1.25 -> 0.25
         }
-        // 0.8.0 - Scavenger Salvage Expert (ability)
-        if (hasAbility(s, 'salvage')) scrapBonus *= 1.25;
-        prod.scrap += (BALANCE.SURVIVOR_PROD.Scrap.base + s.skill * BALANCE.SURVIVOR_PROD.Scrap.perSkill) * levelBonus * scrapBonus;
+        // 0.8.11 - Scavenger Salvage Expert (ability, additive)
+        if (hasAbility(s, 'salvage')) scrapBonus += 0.25;
+        prod.scrap += (BALANCE.SURVIVOR_PROD.Scrap.base + s.skill * BALANCE.SURVIVOR_PROD.Scrap.perSkill) * levelBonus * (1 + scrapBonus);
         break;
       case 'Guard':
         /* reduces threat growth */ break;
@@ -48,20 +50,17 @@ function applyTick(isOffline = false) {
     }
   });
   
-  // 0.8.10 - Calculate system production bonuses from Engineer class bonus + abilities
-  let systemBonus = 1;
+  // 0.8.11 - Systems contribute base production (bonuses like Overclock/Mastermind are global)
+  // Note: Only Overclock and Mastermind abilities should boost system production globally
+  // Regular Engineer class production bonuses are localized to their own tasks
+  let systemBonusAdd = 0; // Additive bonus from abilities that boost all systems
   activeSurvivors.forEach(s => {
-    // Apply Engineer class production bonus to systems
-    if (s.classBonuses && s.classBonuses.production) {
-      systemBonus *= s.classBonuses.production;
-    }
-    // Apply Engineer abilities
-    if (hasAbility(s, 'efficient')) systemBonus *= 1.15; // +15% system production
-    if (hasAbility(s, 'overclock')) systemBonus *= 1.30; // +30% system production
-    if (hasAbility(s, 'mastermind')) systemBonus *= 1.25; // +25% all systems
+    if (hasAbility(s, 'overclock')) systemBonusAdd += 0.30; // +30% system production (global ability)
+    if (hasAbility(s, 'mastermind')) systemBonusAdd += 0.25; // +25% all systems (global ability)
   });
+  const systemBonus = 1 + systemBonusAdd;
   
-  // systems contribute (with Engineer bonuses)
+  // systems contribute (only with global abilities, not class bonuses)
   prod.oxygen += state.systems.filter * 1.2 * BALANCE.SYSTEM_FILTER_MULT * systemBonus;
   prod.energy += state.systems.generator * 1.4 * BALANCE.SYSTEM_GENERATOR_MULT * systemBonus;
   
@@ -148,19 +147,14 @@ function applyTick(isOffline = false) {
   
   // base integrity clamp
   state.baseIntegrity = clamp(state.baseIntegrity, -20, 100);
-  if (state.baseIntegrity <= 0) {
-    state.gameOver = true;
-    triggerGameOver('Base integrity compromised. All systems have failed.');
-    return;
-  }
   
-  // 0.8.0 - Scientist passive tech generation (Analytical, Genius)
+  // 0.8.11 - Scientist passive tech generation (Analytical, Genius) - nerfed to every 60s
   const scientists = state.survivors.filter(s => !s.onMission);
   for (const sci of scientists) {
-    if (hasAbility(sci, 'analytical') && state.secondsPlayed % 10 === 0) {
+    if (hasAbility(sci, 'analytical') && state.secondsPlayed % 60 === 0) {
       state.resources.tech += 1;
     }
-    if (hasAbility(sci, 'genius') && state.secondsPlayed % 10 === 0) {
+    if (hasAbility(sci, 'genius') && state.secondsPlayed % 60 === 0) {
       state.resources.tech += 2;
     }
     // Breakthrough: random tech burst (5% chance per tick when active)
@@ -182,11 +176,24 @@ function applyTick(isOffline = false) {
     });
   }
   
-  // 0.8.0 - System failure events
+  // 0.8.11 - System failure events with Overclock/Failsafe modifiers
   if (!isOffline && state.secondsPlayed % 10 === 0) { // Check every 10 seconds
-    // Check for Failsafe ability (prevents or reduces failures)
-    const hasFailsafe = state.survivors.some(s => hasAbility(s, 'failsafe'));
-    const failureChance = hasFailsafe ? 0.005 : 0.01; // 1% base, 0.5% with failsafe
+    const activeSurvivors = state.survivors.filter(s => !s.onMission);
+    
+    // Calculate failure rate modifiers (additive stacking)
+    let failureRateMod = 1.0; // Base multiplier
+    const overclockCount = activeSurvivors.filter(s => hasAbility(s, 'overclock')).length;
+    const failsafeCount = activeSurvivors.filter(s => hasAbility(s, 'failsafe')).length;
+    
+    // Overclock increases failure rate by +50% each (additive)
+    failureRateMod += overclockCount * 0.5;
+    // Failsafe reduces failure rate by -50% each (additive)
+    failureRateMod -= failsafeCount * 0.5;
+    // Clamp to minimum 10% failure rate
+    failureRateMod = Math.max(0.1, failureRateMod);
+    
+    const baseFailureChance = 0.01; // 1% base chance per system
+    const failureChance = baseFailureChance * failureRateMod;
     
     // Filter failures
     if (state.systems.filter > 0 && Math.random() < failureChance) {
@@ -229,8 +236,7 @@ function applyTick(isOffline = false) {
   }
   
   // 0.8.4 - Game over if all survivors die
-  if (state.survivors.length === 0 && state.secondsPlayed > 10) {
-    state.gameOver = true;
+  if (state.survivors.length === 0) {
     triggerGameOver('All survivors have perished. The station is lost. Game Over.');
     return;
   }

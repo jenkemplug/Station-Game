@@ -506,10 +506,17 @@ function playerUseMedkit() {
   }
   let heal = rand(BALANCE.COMBAT_ACTIONS.MedkitHeal[0], BALANCE.COMBAT_ACTIONS.MedkitHeal[1]);
   
-  // 0.8.0 - Medic Triage: +25% healing
+  // 0.8.11 - Medic class bonus + Triage ability (additive)
+  let healBonusAdd = 0;
+  if (s.classBonuses && s.classBonuses.healing) {
+    healBonusAdd += (s.classBonuses.healing - 1);
+  }
   if (hasAbility(s, 'triage')) {
-    heal = Math.floor(heal * 1.25);
-    logCombat(`${s.name}'s Triage expertise maximizes healing!`);
+    healBonusAdd += 0.25; // +25% healing
+  }
+  if (healBonusAdd > 0) {
+    heal = Math.floor(heal * (1 + healBonusAdd));
+    if (healBonusAdd >= 0.25) logCombat(`${s.name}'s medical expertise maximizes healing!`);
   }
   
   s.hp = Math.min(s.maxHp, s.hp + heal);
@@ -549,7 +556,20 @@ function playerRevive() {
   
   // Revive the first downed ally (in real implementation, could add targeting UI)
   const target = downedAllies[0];
-  const reviveHP = rand(Math.floor(target.maxHp * 0.25), Math.floor(target.maxHp * 0.50));
+  let reviveHP = rand(Math.floor(target.maxHp * 0.25), Math.floor(target.maxHp * 0.50));
+  
+  // 0.8.11 - Apply Medic class bonus + Triage to revival healing (additive)
+  let healBonusAdd = 0;
+  if (s.classBonuses && s.classBonuses.healing) {
+    healBonusAdd += (s.classBonuses.healing - 1);
+  }
+  if (hasAbility(s, 'triage')) {
+    healBonusAdd += 0.25;
+  }
+  if (healBonusAdd > 0) {
+    reviveHP = Math.floor(reviveHP * (1 + healBonusAdd));
+  }
+  
   target.hp = reviveHP;
   target.downed = false;
   
@@ -576,9 +596,9 @@ function playerRetreat() {
   retreatChance += s.skill * BALANCE.RETREAT_SKILL_BONUS;
   retreatChance += s.level * BALANCE.RETREAT_LEVEL_BONUS;
   
-  // 0.8.10 - Scout class bonus: +20-30% retreat chance
+  // 0.8.11 - Scout class bonus: +20-30% retreat chance (additive)
   if (s.classBonuses && s.classBonuses.retreat) {
-    retreatChance *= s.classBonuses.retreat;
+    retreatChance += (s.classBonuses.retreat - 1); // e.g., 1.25 -> +0.25
   }
   
   // Apply alien type penalty/bonus

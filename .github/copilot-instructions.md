@@ -3,7 +3,7 @@
 ## Project Overview
 This is a browser-based survival/management game where players manage a space station, survivors, and resources while facing alien threats. The project uses vanilla JavaScript, HTML, and CSS with no external dependencies.
 
-**Current Version:** 0.8.10 (Advanced Systems)
+**Current Version:** 0.8.11 (Advanced Systems)
 
 ## Architecture
 

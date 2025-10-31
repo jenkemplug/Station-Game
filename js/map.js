@@ -71,11 +71,9 @@ function exploreTile(idx) {
   tile.scouted = true;
   state.explored.add(idx);
   
-  // Grant XP to the selected explorer
+  // Grant XP to the selected explorer (bonuses applied in grantXp - 0.8.11 additive stacking)
   if (explorer) {
-    let xpGain = BALANCE.XP_FROM_EXPLORE;
-    // 0.8.0 - Scientist Studious ability
-    if (hasAbility(explorer, 'studious')) xpGain = Math.floor(xpGain * 1.15);
+    const xpGain = BALANCE.XP_FROM_EXPLORE;
     grantXp(explorer, xpGain);
   }
 

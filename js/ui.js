@@ -475,43 +475,46 @@ function renderSurvivors() {
         classDisplay += '</div>';
         
         // 0.8.10 - Display total bonuses (level + class + abilities)
+        // Note: Level bonus ONLY applies to production tasks (Oxygen, Food, Energy, Scrap)
         const levelBonus = 1 + (s.level - 1) * BALANCE.LEVEL_PRODUCTION_BONUS;
         const levelPct = Math.round((levelBonus - 1) * 100);
         
         let bonusLines = [];
         
-        // Production bonus (Engineer class + abilities, excluding level)
-        let prodBonus = 1;
-        if (s.classBonuses && s.classBonuses.production) prodBonus *= s.classBonuses.production;
-        if (hasAbility(s, 'efficient')) prodBonus *= 1.15;
-        if (hasAbility(s, 'overclock')) prodBonus *= 1.30;
-        if (hasAbility(s, 'mastermind')) prodBonus *= 1.25;
-        if (prodBonus > 1) {
-          bonusLines.push(`Production: +${Math.round((prodBonus - 1) * 100)}%`);
+        // Production bonus (Engineer class + abilities, PLUS level) - 0.8.11 additive
+        let prodBonusAdd = 0;
+        if (s.classBonuses && s.classBonuses.production) prodBonusAdd += (s.classBonuses.production - 1);
+        if (hasAbility(s, 'efficient')) prodBonusAdd += 0.15;
+        if (hasAbility(s, 'overclock')) prodBonusAdd += 0.30;
+        if (hasAbility(s, 'mastermind')) prodBonusAdd += 0.25;
+        // Level bonus applies to production
+        prodBonusAdd += (levelBonus - 1);
+        if (prodBonusAdd > 0) {
+          bonusLines.push(`Production: +${Math.round(prodBonusAdd * 100)}%`);
         }
         
-        // Scrap bonus (Scavenger class + abilities, excluding level)
-        let scrapBonus = 1;
-        if (s.classBonuses && s.classBonuses.scrap) scrapBonus *= s.classBonuses.scrap;
-        if (hasAbility(s, 'salvage')) scrapBonus *= 1.25;
-        if (scrapBonus > 1) {
-          bonusLines.push(`Scrap: +${Math.round((scrapBonus - 1) * 100)}%`);
+        // Scrap bonus (Scavenger class + abilities, excluding level) - 0.8.11 additive
+        let scrapBonusAdd = 0;
+        if (s.classBonuses && s.classBonuses.scrap) scrapBonusAdd += (s.classBonuses.scrap - 1);
+        if (hasAbility(s, 'salvage')) scrapBonusAdd += 0.25;
+        if (scrapBonusAdd > 0) {
+          bonusLines.push(`Scrap: +${Math.round(scrapBonusAdd * 100)}%`);
         }
         
-        // Combat bonus (Soldier class + abilities)
-        let combatBonus = 1;
-        if (s.classBonuses && s.classBonuses.combat) combatBonus *= s.classBonuses.combat;
-        if (hasAbility(s, 'veteran')) combatBonus *= 1.2;
-        if (combatBonus > 1) {
-          bonusLines.push(`Combat: +${Math.round((combatBonus - 1) * 100)}%`);
+        // Combat bonus (Soldier class + abilities) - 0.8.11 additive
+        let combatBonusAdd = 0;
+        if (s.classBonuses && s.classBonuses.combat) combatBonusAdd += (s.classBonuses.combat - 1);
+        if (hasAbility(s, 'veteran')) combatBonusAdd += 0.20;
+        if (combatBonusAdd > 0) {
+          bonusLines.push(`Combat: +${Math.round(combatBonusAdd * 100)}%`);
         }
         
-        // Healing bonus (Medic class + abilities)
-        let healingBonus = 1;
-        if (s.classBonuses && s.classBonuses.healing) healingBonus *= s.classBonuses.healing;
-        if (hasAbility(s, 'triage')) healingBonus *= 1.25;
-        if (healingBonus > 1) {
-          bonusLines.push(`Healing: +${Math.round((healingBonus - 1) * 100)}%`);
+        // Healing bonus (Medic class + abilities) - 0.8.11 additive
+        let healingBonusAdd = 0;
+        if (s.classBonuses && s.classBonuses.healing) healingBonusAdd += (s.classBonuses.healing - 1);
+        if (hasAbility(s, 'triage')) healingBonusAdd += 0.25;
+        if (healingBonusAdd > 0) {
+          bonusLines.push(`Healing: +${Math.round(healingBonusAdd * 100)}%`);
         }
         
         // Defense (Guardian/Soldier class + abilities + armor)
@@ -537,15 +540,15 @@ function renderSurvivors() {
           bonusLines.push(`Dodge: ${Math.round(dodgeChance * 100)}%`);
         }
         
-        // Exploration cost (Scout class + abilities)
-        let explorationCost = 1;
-        if (s.classBonuses && s.classBonuses.exploration) explorationCost *= s.classBonuses.exploration;
-        if (hasAbility(s, 'pathfinder')) explorationCost *= 0.85;
-        if (explorationCost < 1) {
-          bonusLines.push(`Exploration: ${Math.round((1 - explorationCost) * 100)}% cheaper`);
+        // Exploration cost (Scout class + abilities) - Note: multiplicative is okay for cost reduction
+        let explorationCostMult = 1;
+        if (s.classBonuses && s.classBonuses.exploration) explorationCostMult *= s.classBonuses.exploration;
+        if (hasAbility(s, 'pathfinder')) explorationCostMult *= 0.85;
+        if (explorationCostMult < 1) {
+          bonusLines.push(`Exploration: ${Math.round((1 - explorationCostMult) * 100)}% cheaper`);
         }
         
-        // Loot quality (Scavenger class + abilities)
+        // Loot quality (Scavenger class + abilities) - already additive
         let lootBonus = 0;
         if (s.classBonuses && s.classBonuses.loot) lootBonus += (s.classBonuses.loot - 1);
         if (hasAbility(s, 'keen')) lootBonus += 0.20;
@@ -554,22 +557,22 @@ function renderSurvivors() {
           bonusLines.push(`Loot: +${Math.round(lootBonus * 100)}% quality`);
         }
         
-        // Crafting cost (Technician class + abilities)
-        let craftingCost = 1;
-        if (s.classBonuses && s.classBonuses.crafting) craftingCost *= s.classBonuses.crafting;
-        if (hasAbility(s, 'resourceful')) craftingCost *= 0.90;
-        if (hasAbility(s, 'prodigy')) craftingCost *= 0.75;
-        if (craftingCost < 1) {
-          bonusLines.push(`Crafting: ${Math.round((1 - craftingCost) * 100)}% cheaper`);
+        // Crafting cost (Technician class + abilities) - Note: multiplicative for cost display
+        let craftingCostMult = 1;
+        if (s.classBonuses && s.classBonuses.crafting) craftingCostMult *= s.classBonuses.crafting;
+        if (hasAbility(s, 'resourceful')) craftingCostMult *= 0.90;
+        if (hasAbility(s, 'prodigy')) craftingCostMult *= 0.75;
+        if (craftingCostMult < 1) {
+          bonusLines.push(`Crafting: ${Math.round((1 - craftingCostMult) * 100)}% cheaper`);
         }
         
-        // Durability (Technician class + abilities)
-        let durabilityBonus = 1;
-        if (s.classBonuses && s.classBonuses.durability) durabilityBonus *= s.classBonuses.durability;
-        if (hasAbility(s, 'durable')) durabilityBonus *= 1.2;
-        if (hasAbility(s, 'prodigy')) durabilityBonus *= 1.3;
-        if (durabilityBonus > 1) {
-          bonusLines.push(`Durability: +${Math.round((durabilityBonus - 1) * 100)}%`);
+        // Durability (Technician class + abilities) - 0.8.11 additive
+        let durabilityBonusAdd = 0;
+        if (s.classBonuses && s.classBonuses.durability) durabilityBonusAdd += (s.classBonuses.durability - 1);
+        if (hasAbility(s, 'durable')) durabilityBonusAdd += 0.20;
+        if (hasAbility(s, 'prodigy')) durabilityBonusAdd += 0.30;
+        if (durabilityBonusAdd > 0) {
+          bonusLines.push(`Durability: +${Math.round(durabilityBonusAdd * 100)}%`);
         }
         
         // Morale (Guardian class)
@@ -577,17 +580,17 @@ function renderSurvivors() {
           bonusLines.push(`Morale: +${Math.round((s.classBonuses.morale - 1) * 100)}% aura`);
         }
         
-        // XP bonus (Scientist class, excluding level)
-        let xpBonus = 1;
-        if (s.classBonuses && s.classBonuses.xp) xpBonus *= s.classBonuses.xp;
-        if (hasAbility(s, 'studious')) xpBonus *= 1.15;
-        if (xpBonus > 1) {
-          bonusLines.push(`XP: +${Math.round((xpBonus - 1) * 100)}%`);
+        // XP bonus (Scientist class + abilities, excluding level) - 0.8.11 additive
+        let xpBonusAdd = 0;
+        if (s.classBonuses && s.classBonuses.xp) xpBonusAdd += (s.classBonuses.xp - 1);
+        if (hasAbility(s, 'studious')) xpBonusAdd += 0.15;
+        if (hasAbility(s, 'genius')) xpBonusAdd += 0.25;
+        if (xpBonusAdd > 0) {
+          bonusLines.push(`XP: +${Math.round(xpBonusAdd * 100)}%`);
         }
         
-        if (bonusLines.length > 0 || levelPct > 0) {
+        if (bonusLines.length > 0) {
           classDisplay += `<div style="font-size: 11px; color: var(--muted); margin-top: 2px;">`;
-          if (levelPct > 0) classDisplay += `Level: +${levelPct}% • `;
           classDisplay += bonusLines.join(' • ');
           classDisplay += `</div>`;
         }
@@ -925,22 +928,23 @@ function renderExpeditionSurvivorSelect() {
 
 // 0.8.1 - Render workbench with dynamic crafting costs
 function renderWorkbench() {
-  // 0.8.10 - Calculate cost multiplier from Technician class bonuses + abilities
-  let costMult = 1;
+  // 0.8.11 - Calculate cost multiplier from Technician class bonuses + abilities (additive stacking)
+  let costReduction = 0;
   const technicians = state.survivors.filter(s => !s.onMission);
   
-  // Apply best Technician's class bonus first
+  // Apply all Technician class bonuses additively
   const techsWithBonus = technicians.filter(t => t.class === 'technician' && t.classBonuses && t.classBonuses.crafting);
-  if (techsWithBonus.length > 0) {
-    const bestCraftingBonus = Math.min(...techsWithBonus.map(t => t.classBonuses.crafting));
-    costMult *= bestCraftingBonus;
+  for (const tech of techsWithBonus) {
+    costReduction += (1 - tech.classBonuses.crafting); // e.g., 0.85 -> 0.15 reduction
   }
   
-  // Apply Technician abilities (stack with class bonus)
+  // Apply Technician abilities (additive stacking)
   for (const t of technicians) {
-    if (hasAbility(t, 'resourceful')) costMult *= 0.90; // -10% cost
-    if (hasAbility(t, 'prodigy')) costMult *= 0.75; // -25% cost
+    if (hasAbility(t, 'resourceful')) costReduction += 0.10; // -10% cost
+    if (hasAbility(t, 'prodigy')) costReduction += 0.25; // -25% cost
   }
+  
+  const costMult = Math.max(0.1, 1 - costReduction); // Cap at 90% reduction
 
   const key = `v1:${costMult.toFixed(3)}`;
   // Skip rerendering if costs haven't changed

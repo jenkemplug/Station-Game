@@ -2,7 +2,19 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.8.10 (Advanced Systems)
+**Current Version:** 0.8.11 (Advanced Systems)
+
+### 🆕 Latest Updates (v0.8.11)
+- **Additive Stacking System**: ALL bonuses now stack additively for consistency and balance
+  - Multiple survivors with the same class/abilities stack predictably
+  - Production, combat, healing, crafting, XP gains all use unified formula
+- **Production Localization**: Engineer bonuses only affect their own tasks (Overclock/Mastermind remain global)
+- **Overclock Rework**: Now increases system failure rate (+50%) instead of energy consumption
+  - Creates interesting risk/reward: high production vs. repair costs
+  - Synergizes with Failsafe ability for balanced gameplay
+- **Scavenger Improvements**: Scrap bonuses now apply to expeditions and scrap task production
+- **XP System Fixes**: Scientist abilities (Genius/Studious) now properly apply to all XP sources
+- **Tech Generation Nerf**: Analytical/Genius passive tech reduced from every 10s to every 60s
 
 ##  Play Now
 

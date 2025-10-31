@@ -1,6 +1,63 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.11] - 2025-10-31
+### Fixed - Balance & Mechanics
+- **Scientist XP Bonuses**: Fixed Genius (+25%) and Studious (+15%) ability bonuses not applying
+  - Previously only class bonus was applied to XP gains
+  - **Changed to additive stacking** for consistency with other bonuses
+  - Example: Scientist with +20% class bonus and Studious now gets 0.9 × (1 + 0.20 + 0.15) = 1.215× XP
+  - **Removed double-application** of XP bonuses in combat.js and map.js
+
+- **Multiple Survivor Bonus Stacking**: **ALL bonuses now stack additively** for consistency
+  - **Combat Damage**: Soldier class + Veteran + Berserker stack additively
+  - **Engineer Production**: Multiple Engineers' bonuses stack additively **only for their own tasks**
+  - **Technician Crafting**: Multiple Technicians' cost reductions stack additively
+  - **Technician Durability**: Multiple Technicians' durability bonuses stack additively
+  - **Technician Recycler**: Multiple Recycler abilities stack (25% per Technician, up to 100%)
+  - **Medic Healing**: Class bonus + Triage stack additively
+  - **Scavenger Scrap/Loot**: All bonuses stack additively, now applies to expeditions and scrap task
+  - **Scout Retreat**: Retreat chance bonuses now additive instead of multiplicative
+  - More predictable and rewarding for specializing with multiple class members
+
+- **Production Localization**: Fixed Engineer bonuses incorrectly boosting all systems globally
+  - **Before**: One Engineer's class bonus boosted ALL Filter/Generator production
+  - **After**: Engineer class/Efficient bonuses only affect their own assigned task
+  - **Global abilities preserved**: Overclock and Mastermind still boost all systems (intended design)
+  - This prevents stacking multiple Engineers from creating excessive passive income
+
+- **Scavenger Scrap Bonuses**: Extended scrap bonus to cover all scrap-generating activities
+  - Now applies to: Exploration loot, Scrap task production, and **Expedition rewards**
+  - Previously expeditions ignored Scavenger bonuses entirely
+  - Consistent reward scaling across all gameplay modes
+
+- **UI Clarity**: Removed misleading "Level: +X%" display
+  - Level bonuses now properly integrated into specific stat displays
+  - **Level affects**: Production tasks (+5% per level) and Combat damage (+0.5 per level)
+  - **Level does NOT affect**: XP gain, healing, crafting, or most other bonuses
+  - Each stat line now shows total bonus including level where applicable
+
+### Changed - Balance Adjustments
+- **Tech Generation Nerfed**: Analytical and Genius passive tech generation significantly reduced
+  - Analytical: Changed from +1 tech per 10 seconds to +1 tech per 60 seconds (6x slower)
+  - Genius: Changed from +2 tech per 10 seconds to +2 tech per 60 seconds (6x slower)
+  - Still provides steady tech income but at a more balanced rate
+  - Breakthrough ability unchanged (still 5% chance per tick for burst tech)
+
+- **Overclock Rework**: Changed from energy consumption penalty to system failure rate increase
+  - **Before**: Systems produce +30% but consume +10% more energy
+  - **After**: Systems produce +30% but increase failure rate by +50%
+  - Creates more interesting risk/reward: high production vs. repair costs
+  - **Stacks additively**: 2× Overclock = +60% production, +100% failure rate (2× base rate)
+  - **Failsafe counterplay**: Failsafe reduces failure rate by -50%, can offset Overclock's downside
+  - Example: 1 Overclock + 1 Failsafe = +30% production, normal failure rate (balanced trade)
+
+### Technical Notes
+- **Additive Stacking Formula**: All bonuses now use `finalValue = baseValue × (1 + bonus1 + bonus2 + ...)`
+- **System Failure Rate**: Base 1% per system per 10s check, modified by abilities
+  - Failure rate = base × (1.0 + 0.5×Overclocks - 0.5×Failsafes), minimum 10%
+  - Example rates: 0 abilities = 1%, 1 Overclock = 1.5%, 1 Failsafe = 0.5%, both = 1%
+
 ## [0.8.10] - 2025-10-31
 ### Added - Class Bonus Ranges
 - **Randomized Class Bonuses**: All survivor classes now have rolled bonus values within ranges

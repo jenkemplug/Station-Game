@@ -141,12 +141,20 @@ function assignTask(id, newTask) {
 function grantXp(survivor, amount) {
   if (!survivor || survivor.hp <= 0) return;
 
-  let xpMult = BALANCE.XP_MULT;
+  let xpMult = BALANCE.XP_MULT; // Base global multiplier (0.9)
+  let xpBonusAdd = 0; // 0.8.11 - Additive XP bonuses
   
-  // 0.8.10 - Use rolled class bonus for XP (Scientist)
+  // 0.8.11 - Use rolled class bonus for XP (Scientist, additive)
   if (survivor.classBonuses && survivor.classBonuses.xp) {
-    xpMult *= survivor.classBonuses.xp;
+    xpBonusAdd += (survivor.classBonuses.xp - 1); // e.g., 1.20 -> 0.20
   }
+  
+  // 0.8.11 - Add ability XP bonuses (Scientist abilities, additive)
+  if (hasAbility(survivor, 'studious')) xpBonusAdd += 0.15; // +15% XP
+  if (hasAbility(survivor, 'genius')) xpBonusAdd += 0.25; // +25% XP
+  
+  // Apply base mult and additive bonuses
+  xpMult *= (1 + xpBonusAdd);
 
   const gained = Math.round(amount * xpMult);
   survivor.xp += gained;
@@ -189,11 +197,14 @@ function useMedkit(id) {
   }
   state.inventory.splice(medkitIndex, 1);
   
-  // 0.8.10 - Use rolled Medic class bonus for healing
+  // 0.8.11 - Use rolled Medic class bonus for healing (additive with abilities)
   let healAmount = 10;
+  let healBonusAdd = 0;
   if (s.classBonuses && s.classBonuses.healing) {
-    healAmount = Math.floor(healAmount * s.classBonuses.healing);
+    healBonusAdd += (s.classBonuses.healing - 1);
   }
+  if (hasAbility(s, 'triage')) healBonusAdd += 0.25; // +25% healing
+  healAmount = Math.floor(healAmount * (1 + healBonusAdd));
   
   s.hp = Math.min(s.maxHp, s.hp + healAmount);
   s.injured = false;

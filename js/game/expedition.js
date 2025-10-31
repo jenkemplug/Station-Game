@@ -54,8 +54,17 @@ function tickMissions() {
         let report = `${m.name} completed. `;
         if (success) {
           grantXp(survivor, BALANCE.XP_FROM_EXPEDITION_SUCCESS);
-          const scrapFound = rand(BALANCE.EXPEDITION_REWARDS.scrap[0], BALANCE.EXPEDITION_REWARDS.scrap[1]);
+          let scrapFound = rand(BALANCE.EXPEDITION_REWARDS.scrap[0], BALANCE.EXPEDITION_REWARDS.scrap[1]);
           const techFound = rand(BALANCE.EXPEDITION_REWARDS.tech[0], BALANCE.EXPEDITION_REWARDS.tech[1]);
+          
+          // 0.8.11 - Apply Scavenger scrap bonus to expeditions (additive)
+          let scrapBonusAdd = 0;
+          if (survivor.classBonuses && survivor.classBonuses.scrap) {
+            scrapBonusAdd += (survivor.classBonuses.scrap - 1); // e.g., 1.25 -> 0.25
+          }
+          if (hasAbility(survivor, 'salvage')) scrapBonusAdd += 0.25; // +25% scrap
+          scrapFound = Math.floor(scrapFound * (1 + scrapBonusAdd));
+          
           state.resources.scrap += scrapFound;
           state.resources.tech += techFound;
           report += `Found ${scrapFound} scrap and ${techFound} tech. `;

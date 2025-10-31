@@ -14,26 +14,28 @@ function hasModifier(alien, modifierId) {
 // 0.8.10 - Helper: Apply survivor ability effects to damage
 function applyAbilityDamageModifiers(survivor, baseDamage, context = {}) {
   let damage = baseDamage;
+  let damageAdd = 0; // 0.8.11 - Additive stacking
   
-  // 0.8.10 - Soldier class bonus (rolled value): combat damage
+  // 0.8.11 - Soldier class bonus (additive): combat damage
   if (survivor.classBonuses && survivor.classBonuses.combat) {
-    damage *= survivor.classBonuses.combat;
+    damageAdd += (survivor.classBonuses.combat - 1); // e.g., 1.15 -> 0.15
   }
   
-  // Soldier abilities
-  if (hasAbility(survivor, 'veteran')) damage *= 1.2; // +20% damage
-  if (hasAbility(survivor, 'berserker') && survivor.hp < survivor.maxHp * 0.3) damage *= 1.3; // +30% below 30% HP
+  // Soldier abilities (additive)
+  if (hasAbility(survivor, 'veteran')) damageAdd += 0.20; // +20% damage
+  if (hasAbility(survivor, 'berserker') && survivor.hp < survivor.maxHp * 0.3) damageAdd += 0.30; // +30% below 30% HP
   
-  // Guardian abilities
-  if (hasAbility(survivor, 'last') && context.allyCount === 1) damage *= 1.5; // +50% when alone
+  // Guardian abilities (additive)
+  if (hasAbility(survivor, 'last') && context.allyCount === 1) damageAdd += 0.50; // +50% when alone
   
   // Guardian Commander: +10% to nearby allies (implemented by checking party for commanders)
   if (context.fighters) {
     const hasCommander = context.fighters.some(f => f !== survivor && f.hp > 0 && hasAbility(f, 'commander'));
-    if (hasCommander) damage = Math.floor(damage * 1.10);
+    if (hasCommander) damageAdd += 0.10;
   }
   
-  return Math.round(damage);
+  damage = Math.round(damage * (1 + damageAdd));
+  return damage;
 }
 
 // 0.8.10 - Helper: Apply survivor ability effects to hit/crit chance
@@ -586,13 +588,10 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
     }
   }
   
-  // survivors gain xp
+  // survivors gain xp (bonuses applied in grantXp - 0.8.11 additive stacking)
   for (const s of fighters) {
     if (s.hp > 0) {
-      let xpGain = rand(BALANCE.COMBAT_XP_RANGE[0], BALANCE.COMBAT_XP_RANGE[1]);
-      // 0.8.0 - Scientist Studious and Genius abilities
-      if (hasAbility(s, 'studious')) xpGain = Math.floor(xpGain * 1.15);
-      if (hasAbility(s, 'genius')) xpGain = Math.floor(xpGain * 1.25);
+      const xpGain = rand(BALANCE.COMBAT_XP_RANGE[0], BALANCE.COMBAT_XP_RANGE[1]);
       grantXp(s, xpGain);
     }
   }

@@ -1,4 +1,4 @@
-const VERSION = '0.8.10';
+const VERSION = '0.8.11';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -249,7 +249,7 @@ const SURVIVOR_CLASSES = [
   { 
     id: 'engineer', 
     name: 'Engineer', 
-    desc: 'Systems expert: +15-30% production, -20% repair costs, overclock systems',
+    desc: 'Systems expert: +15-30% production, -15-25% repair costs, overclock systems',
     bonuses: { 
       production: [1.15, 1.30],  // +15-30% production
       repair: [0.75, 0.85]       // 15-25% repair cost reduction (multiply cost by this)
@@ -259,7 +259,7 @@ const SURVIVOR_CLASSES = [
   { 
     id: 'scout', 
     name: 'Scout', 
-    desc: 'Exploration specialist: -10-20% energy cost, 15-25% dodge, +25% retreat',
+    desc: 'Exploration specialist: -10-20% energy cost, 15-25% dodge, +20-30% retreat',
     bonuses: { 
       exploration: [0.80, 0.90],  // 10-20% energy cost reduction
       dodge: [1.15, 1.25],        // +15-25% dodge
@@ -274,7 +274,6 @@ const SURVIVOR_CLASSES = [
     bonuses: { 
       crafting: [0.80, 0.90],     // 10-20% crafting cost reduction
       durability: [1.15, 1.25],   // +15-25% durability
-      tech: [1.10, 1.20]          // +10-20% tech gains
     },
     color: 'var(--class-common)'
   },
@@ -329,8 +328,8 @@ const SPECIAL_ABILITIES = {
   engineer: [
     { id: 'efficient', name: 'Efficient', rarity: 'uncommon', chance: 0.15, effect: '+15% system production', color: '#a78bfa' },
     { id: 'quickfix', name: 'Quick Fix', rarity: 'uncommon', chance: 0.12, effect: '-20% repair costs', color: '#a78bfa' },
-    { id: 'overclock', name: 'Overclock', rarity: 'rare', chance: 0.08, effect: 'Systems produce +30% but consume +10%', color: '#fb923c' },
-    { id: 'failsafe', name: 'Failsafe', rarity: 'rare', chance: 0.06, effect: 'Prevent critical system failures', color: '#fb923c' },
+    { id: 'overclock', name: 'Overclock', rarity: 'rare', chance: 0.08, effect: 'Systems produce +30% but +50% failure rate', color: '#fb923c' },
+    { id: 'failsafe', name: 'Failsafe', rarity: 'rare', chance: 0.06, effect: 'Reduce system failure rate by 50%', color: '#fb923c' },
     { id: 'mastermind', name: 'Mastermind', rarity: 'veryrare', chance: 0.03, effect: 'All systems +25% efficiency', color: '#ef4444' }
   ],
   scout: [
@@ -343,16 +342,16 @@ const SPECIAL_ABILITIES = {
   technician: [
     { id: 'resourceful', name: 'Resourceful', rarity: 'uncommon', chance: 0.15, effect: '-10% crafting costs', color: '#a78bfa' },
     { id: 'durable', name: 'Durable Craft', rarity: 'uncommon', chance: 0.12, effect: 'Crafted items +20% durability', color: '#a78bfa' },
-    { id: 'recycler', name: 'Recycler', rarity: 'rare', chance: 0.08, effect: '25% chance refund materials', color: '#fb923c' },
+    { id: 'recycler', name: 'Recycler', rarity: 'rare', chance: 0.08, effect: '25% chance to refund materials', color: '#fb923c' },
     { id: 'inventor', name: 'Inventor', rarity: 'rare', chance: 0.06, effect: 'Chance to craft rare components', color: '#fb923c' },
     { id: 'prodigy', name: 'Prodigy', rarity: 'veryrare', chance: 0.03, effect: '-25% costs, +30% durability', color: '#ef4444' }
   ],
   scientist: [
-    { id: 'analytical', name: 'Analytical', rarity: 'uncommon', chance: 0.15, effect: '+1 tech per 10 ticks', color: '#a78bfa' },
+    { id: 'analytical', name: 'Analytical', rarity: 'uncommon', chance: 0.15, effect: '+1 tech per 60s', color: '#a78bfa' },
     { id: 'studious', name: 'Studious', rarity: 'uncommon', chance: 0.12, effect: '+15% XP gain', color: '#a78bfa' },
     { id: 'xenobiologist', name: 'Xenobiologist', rarity: 'rare', chance: 0.08, effect: 'Alien kills grant tech', color: '#fb923c' },
     { id: 'breakthrough', name: 'Breakthrough', rarity: 'rare', chance: 0.06, effect: 'Random tech bursts', color: '#fb923c' },
-    { id: 'genius', name: 'Genius', rarity: 'veryrare', chance: 0.03, effect: '+2 tech/10 ticks, +25% XP', color: '#ef4444' }
+    { id: 'genius', name: 'Genius', rarity: 'veryrare', chance: 0.03, effect: '+2 tech/60s, +25% XP', color: '#ef4444' }
   ],
   guardian: [
     { id: 'stalwart', name: 'Stalwart', rarity: 'uncommon', chance: 0.15, effect: '+3 defense when guarding', color: '#a78bfa' },
