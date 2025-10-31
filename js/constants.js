@@ -1,4 +1,4 @@
-const VERSION = '0.8.6';
+const VERSION = '0.8.7';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -247,7 +247,7 @@ const SURVIVOR_CLASSES = [
   { 
     id: 'scientist', 
     name: 'Scientist', 
-    desc: 'Research specialist: +15-25% XP, passive tech generation, alien analysis',
+    desc: 'Research specialist: +15-25% XP, alien analysis',
     bonuses: { xp: 1.15, analysis: 1.2 },  // 0.8.6 - Removed base tech bonus, only from abilities now
     color: 'var(--class-common)'
   },

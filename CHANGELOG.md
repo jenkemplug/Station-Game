@@ -1,6 +1,22 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.7] - 2025-10-30
+### Changed
+- **UI Polish**: Consumption text alignment improved (2px right margin for better visual balance)
+
+### Verified
+- **Comprehensive Ability Audit**: All 40 class abilities across 8 classes confirmed working
+  - Soldier (5): marksman, tactical, veteran, berserker, commander
+  - Medic (5): triage, stabilize/fieldmedic, adrenaline, lifesaver, miracle
+  - Engineer (5): efficient, quickfix, overclock, failsafe, mastermind
+  - Scout (5): pathfinder, keen, evasive, tracker, ghost
+  - Technician (5): resourceful, durable, recycler, inventor, prodigy
+  - Scientist (5): analytical, studious, xenobiologist, breakthrough, genius
+  - Guardian (5): stalwart, rallying, shield, last, fortress
+  - Scavenger (5): lucky, salvage, hoarder, treasure, goldnose
+- **Efficient ability confirmed working**: +15% production to both survivor tasks (tick.js line 13) and system production (line 46)
+
 ## [0.8.6] - 2025-10-30
 ### Added
 - **Resource Consumption Display**: Base panel now shows consumption rates under production rates in grayish-red text
