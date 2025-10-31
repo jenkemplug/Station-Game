@@ -1,6 +1,27 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.1] - 2025-10-30
+### Added
+- **Dynamic Workbench Costs**: Crafting recipes now display reduced costs when Technician abilities (Resourceful, Prodigy) are active
+- Original costs shown with strikethrough when discounts apply
+
+### Changed
+- **Normalized Exploration Costs**: All tile types now cost uniform 15 energy to explore (prevents revealing room types via energy cost differences)
+- Pathfinder ability (-15%) still applies for Scouts
+
+### Fixed
+- **System Failures Save/Load**: `systemFailures` now properly saved and loaded from save files
+- **Downed State Persistence**: Survivor `downed` status now correctly saved across game sessions
+- **Inventory Capacity Save**: `inventoryCapacity` now properly saved and restored
+- **Reset Game**: Added missing state fields (`systemFailures`, `inventoryCapacity`, `alienKills`, `raidPressure`, `lastThreatNoticeAt`) to reset function
+
+### Technical
+- Save version: 1.10.1
+- Added `renderWorkbench()` function for dynamic cost calculation
+- Workbench buttons now rendered via JavaScript instead of static HTML
+- Improved save/load robustness for all 0.8.0 features
+
 ## [0.8.0] - 2025-10-30
 ### Added - Advanced Survivor & Alien Systems
 - **8 Survivor Classes** with unique roles and bonuses:

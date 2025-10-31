@@ -70,7 +70,7 @@ function initTiles() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '1.10.1', // 0.8.1 - Threat notices, raid pressure
+  _version: '1.10.1', // 0.8.1 - Threat notices, raid pressure, system failures save
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
@@ -84,8 +84,10 @@ function makeSaveSnapshot() {
     baseTile: state.baseTile,
     explored: Array.from(state.explored || []),
     inventory: state.inventory,
+    inventoryCapacity: state.inventoryCapacity,
     equipment: state.equipment,
     systems: state.systems,
+    systemFailures: state.systemFailures,
     threat: state.threat,
     baseIntegrity: state.baseIntegrity,
   raidChance: state.raidChance,
@@ -152,9 +154,11 @@ function loadGame() {
           state.inventory = []; // Reset inventory for old save formats
         }
         state.nextItemId = parsed.nextItemId || 1;
+        state.inventoryCapacity = Number(parsed.inventoryCapacity) || 20;
 
         state.equipment = Object.assign({}, state.equipment, parsed.equipment || {});
         state.systems = Object.assign({}, state.systems, parsed.systems || {});
+        state.systemFailures = Array.isArray(parsed.systemFailures) ? parsed.systemFailures : [];
         state.threat = Number(parsed.threat) || state.threat;
     state.baseIntegrity = Number(parsed.baseIntegrity) || state.baseIntegrity;
   // raidChance is derived; load if present else default 0
@@ -189,6 +193,7 @@ function loadGame() {
           role: s.role || 'Idle',
           task: s.task || 'Idle',
           injured: !!s.injured,
+          downed: !!s.downed, // 0.8.0 - Revival system
           equipment: s.equipment || { weapon: null, armor: null },
           // 0.8.0 - Migration: add class/abilities for old saves
           class: s.class || assignRandomClass(),

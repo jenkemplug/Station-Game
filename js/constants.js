@@ -1,4 +1,4 @@
-const VERSION = '0.8.0';
+const VERSION = '0.8.1';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -33,13 +33,14 @@ const BALANCE = {
     queen: -0.15      // nearly impossible to escape
   },
   // Map & exploration costs (click-to-explore only)
+  // 0.8.1 - Normalized to uniform 15 energy to prevent revealing tile types
   TILE_ENERGY_COST: {
-    hazard: 25,
-    alien: 18,
-    resource: 12,
+    hazard: 15,
+    alien: 15,
+    resource: 15,
     module: 15,
-    survivor: 10,
-    empty: 8
+    survivor: 15,
+    empty: 15
   },
   SURVIVOR_RECRUIT_CHANCE: 0.85,
   HAZARD_DURABILITY_LOSS: [12, 20],

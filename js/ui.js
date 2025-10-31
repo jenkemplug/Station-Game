@@ -129,6 +129,9 @@ function updateUI() {
   el('statTech').textContent = state.resources.tech;
   el('statAmmo').textContent = state.resources.ammo;
 
+  // 0.8.1 - Render workbench with dynamic costs
+  renderWorkbench();
+
   renderExpeditionSurvivorSelect();
   renderExplorerSelect();
 }
@@ -685,4 +688,69 @@ function renderExpeditionSurvivorSelect() {
   dropdown.appendChild(button);
   dropdown.appendChild(content);
   cont.appendChild(dropdown);
+}
+
+// 0.8.1 - Render workbench with dynamic crafting costs
+function renderWorkbench() {
+  // Calculate cost multiplier from Technician abilities
+  let costMult = 1;
+  const technicians = state.survivors.filter(s => !s.onMission);
+  for (const t of technicians) {
+    if (hasAbility(t, 'resourceful')) costMult *= 0.90; // -10% cost
+    if (hasAbility(t, 'prodigy')) costMult *= 0.75; // -25% cost
+  }
+  
+  const workbench = el('workbench');
+  if (!workbench) return;
+  
+  // Define recipes with their display info
+  const recipes = [
+    { item: 'medkit', label: 'Assemble Medkit', scrap: 15, energy: 0, tech: 0 },
+    { item: 'ammo', label: 'Manufacture Ammo', scrap: 10, energy: 0, tech: 0 },
+    { item: 'turret', label: 'Construct Auto-Turret', scrap: 75, energy: 40, tech: 0 },
+    { item: 'armor', label: 'Craft Light Armor', scrap: 40, energy: 0, tech: 3 },
+    { item: 'rifle', label: 'Build Pulse Rifle', scrap: 55, energy: 0, tech: 5 },
+    { item: 'heavyArmor', label: 'Craft Heavy Armor', scrap: 70, energy: 0, tech: 5 },
+    { item: 'shotgun', label: 'Build Shotgun', scrap: 65, energy: 0, tech: 4 },
+    { item: 'hazmatSuit', label: 'Craft Hazmat Suit', scrap: 85, energy: 0, tech: 6 }
+  ];
+  
+  // Rebuild workbench buttons
+  workbench.innerHTML = '';
+  recipes.forEach(r => {
+    const button = document.createElement('button');
+    button.dataset.item = r.item;
+    
+    // Calculate actual costs with multiplier
+    const scrapCost = Math.ceil(r.scrap * costMult);
+    const energyCost = Math.ceil(r.energy * costMult);
+    const techCost = Math.ceil(r.tech * costMult);
+    
+    // Build cost string
+    let costParts = [];
+    if (scrapCost > 0) costParts.push(`Scrap ${scrapCost}`);
+    if (energyCost > 0) costParts.push(`Energy ${energyCost}`);
+    if (techCost > 0) costParts.push(`Tech ${techCost}`);
+    
+    const costStr = costParts.length > 0 ? ` (${costParts.join(', ')})` : '';
+    
+    // Show original cost if different (discount applied)
+    if (costMult < 1) {
+      let originalParts = [];
+      if (r.scrap > 0) originalParts.push(`${r.scrap}`);
+      if (r.energy > 0) originalParts.push(`${r.energy}`);
+      if (r.tech > 0) originalParts.push(`${r.tech}`);
+      button.innerHTML = `${r.label}${costStr} <span style="text-decoration:line-through;color:var(--muted);font-size:11px">${originalParts.join('/')}</span>`;
+    } else {
+      button.textContent = `${r.label}${costStr}`;
+    }
+    
+    button.onclick = () => {
+      craft(r.item);
+      saveGame('action');
+      updateUI();
+    };
+    
+    workbench.appendChild(button);
+  });
 }

@@ -25,13 +25,7 @@ function bindUI() {
     repairSystem('turret');
   };
 
-  el('workbench').querySelectorAll('button').forEach(btn => {
-    btn.onclick = (e) => {
-      craft(btn.dataset.item);
-      saveGame('action');
-      updateUI();
-    };
-  });
+  // 0.8.1 - Workbench buttons now dynamically rendered in renderWorkbench()
 
   // Bind inventory action buttons
   el('btnAutoSalvage').onclick = () => {
@@ -126,6 +120,7 @@ function resetGame() {
   state.explored = new Set();
   state.inventory = [];
   state.nextItemId = 1;
+  state.inventoryCapacity = 20;
   state.equipment = {
     turrets: 0,
     bulkhead: 0
@@ -135,11 +130,15 @@ function resetGame() {
     generator: 0,
     turret: 0
   };
+  state.systemFailures = [];
   state.threat = 8;
   state.baseIntegrity = 100;
   state.raidChance = 0;
   state.lastRaidAt = 0;
   state.raidCooldownMs = 0;
+  state.alienKills = 0;
+  state.raidPressure = 0;
+  state.lastThreatNoticeAt = 0;
   state.journal = ["Station systems nominal. Maintain discipline."];
   state.missions = [];
   initTiles();

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Derelict Station — Expanded Idle</title>
-  <link rel="stylesheet" href="styles.css?v=0.8.0">
+  <link rel="stylesheet" href="styles.css?v=0.8.1">
 </head>
 <body>
 <div class="wrap">
@@ -116,20 +116,13 @@
     <div class="panel">
       <strong class="small">Workbench</strong>
       <div id="workbench" style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
-        <button data-item="medkit">Assemble Medkit (Scrap 15)</button>
-        <button data-item="ammo">Manufacture Ammo (Scrap 10)</button>
-        <button data-item="turret">Construct Auto-Turret (Scrap 75, Energy 40)</button>
-        <button data-item="armor">Craft Light Armor (Scrap 40, Tech 3)</button>
-        <button data-item="rifle">Build Pulse Rifle (Scrap 55, Tech 5)</button>
-        <button data-item="heavyArmor">Craft Heavy Armor (Scrap 70, Tech 5)</button>
-        <button data-item="shotgun">Build Shotgun (Scrap 65, Tech 4)</button>
-        <button data-item="hazmatSuit">Craft Hazmat Suit (Scrap 85, Tech 6)</button>
+        <!-- Buttons dynamically rendered by renderWorkbench() in ui.js -->
       </div>
     </div>
   </aside>
 
   <footer>
-    <div>Version 0.8.0 — Survivor Specializations</div>
+    <div>Version 0.8.1 — Balance & Polish</div>
     <div>Autosave every 15s • Offline progress supported • Press Ctrl+D for debug panel</div>
   </footer>
 </div>
@@ -207,24 +200,24 @@
   </div>
 </div>
 
-<script src="js/constants.js?v=0.8.0"></script>
-<script src="js/state.js?v=0.8.0"></script>
-<script src="js/utils.js?v=0.8.0"></script>
-<script src="js/names.js?v=0.8.0"></script>
-<script src="js/map.js?v=0.8.0"></script>
-<script src="js/ui.js?v=0.8.0"></script>
+<script src="js/constants.js?v=0.8.1"></script>
+<script src="js/state.js?v=0.8.1"></script>
+<script src="js/utils.js?v=0.8.1"></script>
+<script src="js/names.js?v=0.8.1"></script>
+<script src="js/map.js?v=0.8.1"></script>
+<script src="js/ui.js?v=0.8.1"></script>
   <!-- Modular game system -->
-  <script src="js/game/save.js?v=0.8.0"></script>
-  <script src="js/game/survivor.js?v=0.8.0"></script>
-  <script src="js/game/combat.js?v=0.8.0"></script>
-  <script src="js/game/exploration.js?v=0.8.0"></script>
-  <script src="js/game/crafting.js?v=0.8.0"></script>
-  <script src="js/game/expedition.js?v=0.8.0"></script>
-  <script src="js/game/threat.js?v=0.8.0"></script>
-  <script src="js/game/tick.js?v=0.8.0"></script>
+  <script src="js/game/save.js?v=0.8.1"></script>
+  <script src="js/game/survivor.js?v=0.8.1"></script>
+  <script src="js/game/combat.js?v=0.8.1"></script>
+  <script src="js/game/exploration.js?v=0.8.1"></script>
+  <script src="js/game/crafting.js?v=0.8.1"></script>
+  <script src="js/game/expedition.js?v=0.8.1"></script>
+  <script src="js/game/threat.js?v=0.8.1"></script>
+  <script src="js/game/tick.js?v=0.8.1"></script>
   <!-- End modular game system -->
-<script src="js/debug.js?v=0.8.0"></script>
-<script src="js/main.js?v=0.8.0"></script>
+<script src="js/debug.js?v=0.8.1"></script>
+<script src="js/main.js?v=0.8.1"></script>
 
 <!-- Interactive Combat Overlay -->
 <div id="combatOverlay" class="modal-overlay" style="display:none;">
@@ -259,6 +252,6 @@
   </div>
 </div>
 <!-- Interactive combat logic -->
-<script src="js/game/combatInteractive.js?v=0.8.0"></script>
+<script src="js/game/combatInteractive.js?v=0.8.1"></script>
 </body>
 </html>
