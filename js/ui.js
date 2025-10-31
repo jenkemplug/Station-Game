@@ -14,6 +14,10 @@ let lastRenderedMapSnapshot = null;
 let lastRenderedInventorySnapshot = null;
 // 0.8.2 - Avoid rerendering workbench every tick
 let lastRenderedWorkbenchKey = null;
+// 0.8.5 - Snapshots for all UI panels to prevent focus loss
+let lastRenderedResourceSnapshot = null;
+let lastRenderedSystemSnapshot = null;
+let lastRenderedThreatSnapshot = null;
 
 function computeMapSnapshot() {
   try {
@@ -31,58 +35,84 @@ function computeMapSnapshot() {
 }
 
 function updateUI() {
-  // resources
-  el('res-oxygen').textContent = `O₂: ${Math.floor(state.resources.oxygen)}`;
-  el('res-food').textContent = `Food: ${Math.floor(state.resources.food)}`;
-  el('res-energy').textContent = `Energy: ${Math.floor(state.resources.energy)}`;
-  el('res-scrap').textContent = `Scrap: ${Math.floor(state.resources.scrap)}`;
-  el('res-oxygen-rate').textContent = `${state.production.oxygen.toFixed(1)}/s`;
-  el('res-food-rate').textContent = `${state.production.food.toFixed(1)}/s`;
-  el('res-energy-rate').textContent = `${state.production.energy.toFixed(1)}/s`;
-  el('res-scrap-rate').textContent = `${state.production.scrap.toFixed(1)}/s`;
+  // 0.8.5 - Only update resources if they've changed
+  const resourceSnapshot = JSON.stringify({
+    oxygen: Math.floor(state.resources.oxygen),
+    food: Math.floor(state.resources.food),
+    energy: Math.floor(state.resources.energy),
+    scrap: Math.floor(state.resources.scrap),
+    oxygenRate: state.production.oxygen.toFixed(1),
+    foodRate: state.production.food.toFixed(1),
+    energyRate: state.production.energy.toFixed(1),
+    scrapRate: state.production.scrap.toFixed(1)
+  });
+  
+  if (lastRenderedResourceSnapshot !== resourceSnapshot) {
+    lastRenderedResourceSnapshot = resourceSnapshot;
+    el('res-oxygen').textContent = `O₂: ${Math.floor(state.resources.oxygen)}`;
+    el('res-food').textContent = `Food: ${Math.floor(state.resources.food)}`;
+    el('res-energy').textContent = `Energy: ${Math.floor(state.resources.energy)}`;
+    el('res-scrap').textContent = `Scrap: ${Math.floor(state.resources.scrap)}`;
+    el('res-oxygen-rate').textContent = `${state.production.oxygen.toFixed(1)}/s`;
+    el('res-food-rate').textContent = `${state.production.food.toFixed(1)}/s`;
+    el('res-energy-rate').textContent = `${state.production.energy.toFixed(1)}/s`;
+    el('res-scrap-rate').textContent = `${state.production.scrap.toFixed(1)}/s`;
+  }
 
   // survivors
   el('survivorCount').textContent = state.survivors.length;
   renderSurvivors();
 
-  // systems (show upgrade costs before level)
-  const costFilter = BALANCE.UPGRADE_COSTS.filter.base + state.systems.filter * BALANCE.UPGRADE_COSTS.filter.perLevel;
-  const costGen = BALANCE.UPGRADE_COSTS.generator.base + state.systems.generator * BALANCE.UPGRADE_COSTS.generator.perLevel;
-  // 0.8.4 - Scale turret costs by 10% per existing turret
-  const turretScalingFactor = 1 + (state.systems.turret * 0.10);
-  const costTurScrap = Math.ceil(BALANCE.UPGRADE_COSTS.turret.scrap * turretScalingFactor);
-  const costTurEnergy = Math.ceil(BALANCE.UPGRADE_COSTS.turret.energy * turretScalingFactor);
-  
-  // 0.8.0 - Show system failures and repair UI
+  // 0.8.5 - Only update systems panel if values changed
   const filterFailures = state.systemFailures.filter(f => f.type === 'filter').length;
   const genFailures = state.systemFailures.filter(f => f.type === 'generator').length;
   const turretFailures = state.systemFailures.filter(f => f.type === 'turret').length;
   const hasFailures = filterFailures + genFailures + turretFailures > 0;
   
-  el('sys-filter').textContent = `Cost: ${costFilter} scrap • Level ${state.systems.filter}` + (filterFailures > 0 ? ` ⚠️ Failed` : '');
-  el('sys-generator').textContent = `Cost: ${costGen} scrap • Level ${state.systems.generator}` + (genFailures > 0 ? ` ⚠️ Failed` : '');
-  el('sys-turret').textContent = state.systems.turret > 0
-    ? `Cost: ${costTurScrap}s/${costTurEnergy}e • ${state.systems.turret} turret(s)` + (turretFailures > 0 ? ` ⚠️ ${turretFailures} failed` : '')
-    : `Cost: ${costTurScrap}s/${costTurEnergy}e • Offline` + (turretFailures > 0 ? ` ⚠️ ${turretFailures} failed` : '');
+  const systemSnapshot = JSON.stringify({
+    filter: state.systems.filter,
+    generator: state.systems.generator,
+    turret: state.systems.turret,
+    filterFail: filterFailures,
+    genFail: genFailures,
+    turretFail: turretFailures
+  });
   
-  // Show/hide repair section
-  el('systemRepairs').style.display = hasFailures ? 'block' : 'none';
-  el('btnRepairFilter').style.display = filterFailures > 0 ? 'inline-block' : 'none';
-  el('btnRepairGenerator').style.display = genFailures > 0 ? 'inline-block' : 'none';
-  el('btnRepairTurret').style.display = turretFailures > 0 ? 'inline-block' : 'none';
+  if (lastRenderedSystemSnapshot !== systemSnapshot) {
+    lastRenderedSystemSnapshot = systemSnapshot;
+    
+    const costFilter = BALANCE.UPGRADE_COSTS.filter.base + state.systems.filter * BALANCE.UPGRADE_COSTS.filter.perLevel;
+    const costGen = BALANCE.UPGRADE_COSTS.generator.base + state.systems.generator * BALANCE.UPGRADE_COSTS.generator.perLevel;
+    // 0.8.4 - Scale turret costs by 10% per existing turret
+    const turretScalingFactor = 1 + (state.systems.turret * 0.10);
+    const costTurScrap = Math.ceil(BALANCE.UPGRADE_COSTS.turret.scrap * turretScalingFactor);
+    const costTurEnergy = Math.ceil(BALANCE.UPGRADE_COSTS.turret.energy * turretScalingFactor);
   
-  // Update repair button text with costs
-  if (filterFailures > 0) {
-    const costs = BALANCE.REPAIR_COSTS.filter;
-    el('btnRepairFilter').textContent = `Repair Filter (${costs.scrap}s/${costs.energy}e)`;
-  }
-  if (genFailures > 0) {
-    const costs = BALANCE.REPAIR_COSTS.generator;
-    el('btnRepairGenerator').textContent = `Repair Generator (${costs.scrap}s/${costs.energy}e)`;
-  }
-  if (turretFailures > 0) {
-    const costs = BALANCE.REPAIR_COSTS.turret;
-    el('btnRepairTurret').textContent = `Repair Turret (${costs.scrap}s/${costs.energy}e)`;
+    el('sys-filter').textContent = `Cost: ${costFilter} scrap • Level ${state.systems.filter}` + (filterFailures > 0 ? ` ⚠️ Failed` : '');
+    el('sys-generator').textContent = `Cost: ${costGen} scrap • Level ${state.systems.generator}` + (genFailures > 0 ? ` ⚠️ Failed` : '');
+    el('sys-turret').textContent = state.systems.turret > 0
+      ? `Cost: ${costTurScrap}s/${costTurEnergy}e • ${state.systems.turret} turret(s)` + (turretFailures > 0 ? ` ⚠️ ${turretFailures} failed` : '')
+      : `Cost: ${costTurScrap}s/${costTurEnergy}e • Offline` + (turretFailures > 0 ? ` ⚠️ ${turretFailures} failed` : '');
+    
+    // Show/hide repair section
+    el('systemRepairs').style.display = hasFailures ? 'block' : 'none';
+    el('btnRepairFilter').style.display = filterFailures > 0 ? 'inline-block' : 'none';
+    el('btnRepairGenerator').style.display = genFailures > 0 ? 'inline-block' : 'none';
+    el('btnRepairTurret').style.display = turretFailures > 0 ? 'inline-block' : 'none';
+    
+    // Update repair button text with costs
+    if (filterFailures > 0) {
+      const costs = BALANCE.REPAIR_COSTS.filter;
+      el('btnRepairFilter').textContent = `Repair Filter (${costs.scrap}s/${costs.energy}e)`;
+    }
+    if (genFailures > 0) {
+      const costs = BALANCE.REPAIR_COSTS.generator;
+      el('btnRepairGenerator').textContent = `Repair Generator (${costs.scrap}s/${costs.energy}e)`;
+    }
+    if (turretFailures > 0) {
+      const costs = BALANCE.REPAIR_COSTS.turret;
+      el('btnRepairTurret').textContent = `Repair Turret (${costs.scrap}s/${costs.energy}e)`;
+    }
   }
 
   // inventory
@@ -92,46 +122,62 @@ function updateUI() {
   renderMap();
   el('mapInfo').textContent = `Explored: ${state.explored.size}/${state.mapSize.w * state.mapSize.h}`;
 
-  // threats
-  el('threatLevel').textContent = threatText();
-  // Clarify what threat means via tooltip
-  try { el('threatLevel').title = 'Threat reflects alien activity around the station. Higher threat means more and stronger raids. Guards and turrets slow threat growth.'; } catch(e) {}
-  el('baseIntegrity').textContent = `${Math.max(0, Math.floor(state.baseIntegrity))}%`;
-  const rcEl = document.getElementById('raidChance');
-  if (rcEl) {
-    const pct = (Number(state.raidChance) || 0) * 100;
-    // Show two decimals so small chances are visible (e.g., 0.05%)
-    rcEl.textContent = `${pct.toFixed(2)}%`;
-  }
-  // Raid cooldown indicator (only show when active)
-  const cdRow = document.getElementById('raidCooldownRow');
-  const cdSpan = document.getElementById('raidCooldown');
-  if (cdRow && cdSpan) {
-    const last = Number(state.lastRaidAt) || 0;
-    const dur = Number(state.raidCooldownMs) || 0;
-    const now = Date.now();
-    const remMs = Math.max(0, (last + dur) - now);
-    if (last > 0 && dur > 0 && remMs > 0) {
-      // format remaining time as mm:ss or hh:mm:ss
-      const totalSec = Math.ceil(remMs / 1000);
-      const h = Math.floor(totalSec / 3600);
-      const m = Math.floor((totalSec % 3600) / 60);
-      const s = totalSec % 60;
-      const pad = (n) => String(n).padStart(2, '0');
-      cdSpan.textContent = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-      cdRow.style.display = '';
-    } else {
-      cdRow.style.display = 'none';
+  // 0.8.5 - Only update threat panel if values changed
+  const last = Number(state.lastRaidAt) || 0;
+  const dur = Number(state.raidCooldownMs) || 0;
+  const now = Date.now();
+  const remMs = Math.max(0, (last + dur) - now);
+  const totalSec = Math.ceil(remMs / 1000);
+  
+  const threatSnapshot = JSON.stringify({
+    threat: Math.round(Math.max(0, Math.min(100, Number(state.threat) || 0))),
+    integrity: Math.max(0, Math.floor(state.baseIntegrity)),
+    raidChance: ((Number(state.raidChance) || 0) * 100).toFixed(2),
+    cooldownSec: totalSec,
+    tech: state.resources.tech,
+    ammo: state.resources.ammo,
+    journal: state.journal.slice(-5).join(' '),
+    played: state.secondsPlayed
+  });
+  
+  if (lastRenderedThreatSnapshot !== threatSnapshot) {
+    lastRenderedThreatSnapshot = threatSnapshot;
+    
+    el('threatLevel').textContent = threatText();
+    // Clarify what threat means via tooltip
+    try { el('threatLevel').title = 'Threat reflects alien activity around the station. Higher threat means more and stronger raids. Guards and turrets slow threat growth.'; } catch(e) {}
+    el('baseIntegrity').textContent = `${Math.max(0, Math.floor(state.baseIntegrity))}%`;
+    const rcEl = document.getElementById('raidChance');
+    if (rcEl) {
+      const pct = (Number(state.raidChance) || 0) * 100;
+      // Show two decimals so small chances are visible (e.g., 0.05%)
+      rcEl.textContent = `${pct.toFixed(2)}%`;
     }
+    // Raid cooldown indicator (only show when active)
+    const cdRow = document.getElementById('raidCooldownRow');
+    const cdSpan = document.getElementById('raidCooldown');
+    if (cdRow && cdSpan) {
+      if (last > 0 && dur > 0 && remMs > 0) {
+        // format remaining time as mm:ss or hh:mm:ss
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        const pad = (n) => String(n).padStart(2, '0');
+        cdSpan.textContent = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+        cdRow.style.display = '';
+      } else {
+        cdRow.style.display = 'none';
+      }
+    }
+    
+    // journal
+    el('journal').textContent = state.journal.slice(-5).join(' ');
+    el('timePlayed').textContent = `Played: ${formatTime(state.secondsPlayed)}`;
+
+    // (loot preview removed)
+    el('statTech').textContent = state.resources.tech;
+    el('statAmmo').textContent = state.resources.ammo;
   }
-
-  // journal
-  el('journal').textContent = state.journal.slice(-5).join(' ');
-  el('timePlayed').textContent = `Played: ${formatTime(state.secondsPlayed)}`;
-
-  // (loot preview removed)
-  el('statTech').textContent = state.resources.tech;
-  el('statAmmo').textContent = state.resources.ammo;
 
   // 0.8.1 - Render workbench with dynamic costs
   renderWorkbench();

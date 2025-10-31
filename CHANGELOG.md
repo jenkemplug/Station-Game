@@ -1,6 +1,24 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.5] - 2025-10-30
+### Fixed
+- **Focus Loss Bug**: Fixed critical bug where all panels (survivors, base systems, map) lost focus every second on live deployment
+  - Root cause: `updateUI()` was unconditionally updating DOM every tick, even when values hadn't changed
+  - Added snapshot tracking for resource panel (oxygen, food, energy, scrap, production rates)
+  - Added snapshot tracking for systems panel (filters, generators, turrets, failures, repair buttons)
+  - Added snapshot tracking for threat panel (threat level, base integrity, raid chance, cooldown, tech, ammo, journal, time played)
+  - UI now only updates specific panels when their underlying data actually changes
+  - Prevents DOM manipulation from interrupting user interactions with dropdowns, buttons, and inputs
+  - Works correctly in both local and production environments
+
+### Technical
+- Added `lastRenderedResourceSnapshot`, `lastRenderedSystemSnapshot`, `lastRenderedThreatSnapshot` global variables
+- Modified `updateUI()` to use JSON.stringify() snapshots for change detection on all panels
+- Each panel section wrapped in conditional update blocks to minimize DOM manipulation
+- Preserves existing snapshot optimizations for survivors, map, inventory, workbench, and dropdown menus
+- VERSION bumped to 0.8.5
+
 ## [0.8.4] - 2025-10-30
 ### Added
 - **Game Over on Total Party Wipe**: All survivors dying from any cause now triggers game over
