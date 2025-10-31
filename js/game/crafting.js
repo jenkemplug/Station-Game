@@ -111,13 +111,19 @@ function upgradeGenerator() {
 }
 
 function buildTurret() {
-  const cost = BALANCE.UPGRADE_COSTS.turret.scrap;
-  if (state.resources.scrap < cost || state.resources.energy < BALANCE.UPGRADE_COSTS.turret.energy) {
+  // 0.8.4 - Scale turret costs by 10% per existing turret
+  const baseCost = BALANCE.UPGRADE_COSTS.turret.scrap;
+  const baseEnergy = BALANCE.UPGRADE_COSTS.turret.energy;
+  const scalingFactor = 1 + (state.systems.turret * 0.10);
+  const cost = Math.ceil(baseCost * scalingFactor);
+  const energyCost = Math.ceil(baseEnergy * scalingFactor);
+  
+  if (state.resources.scrap < cost || state.resources.energy < energyCost) {
     appendLog('Not enough resources to build turret.');
     return;
   }
   state.resources.scrap -= cost;
-  state.resources.energy -= BALANCE.UPGRADE_COSTS.turret.energy;
+  state.resources.energy -= energyCost;
   state.systems.turret++;
   appendLog('Auto-turret deployed.');
   updateUI();

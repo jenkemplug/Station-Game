@@ -1,6 +1,29 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.4] - 2025-10-30
+### Added
+- **Game Over on Total Party Wipe**: All survivors dying from any cause now triggers game over
+  - Applies to starvation, asphyxiation, combat defeats, and any other death causes
+  - Prevents impossible-to-recover scenarios
+
+### Changed
+- **Capitalized Inventory Item Names**: All items in inventory now display with capitalized names (e.g., "Medkit" instead of "medkit")
+- **Scout Energy Cost Tooltips**: Map tile tooltips now show reduced energy costs when a Scout with Pathfinder ability is selected as explorer (-15% cost displayed in real-time)
+- **Scaling Turret Costs**: Each additional turret now costs 10% more than the previous one
+  - Base cost: 75 scrap / 40 energy
+  - 2nd turret: 83 scrap / 44 energy
+  - 3rd turret: 91 scrap / 48 energy
+  - And so on... makes turret spam less viable in late game
+
+### Technical
+- Added game over check in `applyTick()` to detect when `state.survivors.length === 0`
+- Updated `renderInventory()` to capitalize item display names
+- Enhanced `renderMap()` to calculate explorer-specific energy costs with Pathfinder bonus
+- Modified `buildTurret()` with 10% scaling factor per existing turret
+- Updated UI to display scaled turret costs in real-time
+- VERSION bumped to 0.8.4
+
 ## [0.8.3] - 2025-10-30
 ### Fixed
 - **Combat UI Updates**: Fixed combat engagement UI not updating correctly after each action

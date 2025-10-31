@@ -48,8 +48,10 @@ function updateUI() {
   // systems (show upgrade costs before level)
   const costFilter = BALANCE.UPGRADE_COSTS.filter.base + state.systems.filter * BALANCE.UPGRADE_COSTS.filter.perLevel;
   const costGen = BALANCE.UPGRADE_COSTS.generator.base + state.systems.generator * BALANCE.UPGRADE_COSTS.generator.perLevel;
-  const costTurScrap = BALANCE.UPGRADE_COSTS.turret.scrap;
-  const costTurEnergy = BALANCE.UPGRADE_COSTS.turret.energy;
+  // 0.8.4 - Scale turret costs by 10% per existing turret
+  const turretScalingFactor = 1 + (state.systems.turret * 0.10);
+  const costTurScrap = Math.ceil(BALANCE.UPGRADE_COSTS.turret.scrap * turretScalingFactor);
+  const costTurEnergy = Math.ceil(BALANCE.UPGRADE_COSTS.turret.energy * turretScalingFactor);
   
   // 0.8.0 - Show system failures and repair UI
   const filterFailures = state.systemFailures.filter(f => f.type === 'filter').length;
@@ -524,19 +526,27 @@ function renderMap() {
         tile.classList.add('explorable');
         // Add click handler for explorable tiles
         tile.onclick = () => exploreTile(idx);
+        
+        // Calculate energy cost with explorer bonuses
+        const baseCost = getTileEnergyCost(t);
+        const explorer = state.survivors.find(s => s.id === selectedExplorerId);
+        let actualCost = baseCost;
+        if (explorer && hasAbility(explorer, 'pathfinder')) {
+          actualCost = Math.ceil(baseCost * 0.85); // -15% cost for Pathfinder
+        }
+        
         // Show energy cost in tooltip
-        const cost = getTileEnergyCost(t);
         if (state.explored.has(idx) && t.cleared === false) {
           tile.classList.add('revisitable');
           if (t.type === 'hazard') {
-            tile.title = `Hazard room (needs Hazmat Suit) - Energy: ${cost}`;
+            tile.title = `Hazard room (needs Hazmat Suit) - Energy: ${actualCost}`;
           } else if (t.type === 'alien') {
-            tile.title = `Aliens remain - Energy: ${cost}`;
+            tile.title = `Aliens remain - Energy: ${actualCost}`;
           } else {
-            tile.title = `Click to re-explore (Energy: ${cost})`;
+            tile.title = `Click to re-explore (Energy: ${actualCost})`;
           }
         } else {
-          tile.title = `Click to explore (Energy: ${cost})`;
+          tile.title = `Click to explore (Energy: ${actualCost})`;
         }
       } else if (state.explored.has(idx)) {
         tile.title = `${t.type} (Explored)`;
@@ -594,7 +604,10 @@ function renderInventory() {
     if (item.durability !== undefined) {
       durabilityInfo = ` (${item.durability}/${item.maxDurability})`;
     }
-    node.textContent = `${item.name || item.type}${durabilityInfo}`;
+    // Capitalize first letter of item name
+    const displayName = item.name || item.type;
+    const capitalizedName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+    node.textContent = `${capitalizedName}${durabilityInfo}`;
     if (item.durability < item.maxDurability) {
       const repairButton = document.createElement('button');
       repairButton.textContent = 'Repair';

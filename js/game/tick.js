@@ -185,6 +185,12 @@ function applyTick(isOffline = false) {
     if (state.survivors.length !== beforeCount) updateUI();
   }
   
+  // 0.8.4 - Game over if all survivors die
+  if (state.survivors.length === 0) {
+    triggerGameOver('All survivors have perished. The station is lost. Game Over.');
+    return;
+  }
+  
   if (!isOffline) state.secondsPlayed++;
   state.lastTick = Date.now();
 }

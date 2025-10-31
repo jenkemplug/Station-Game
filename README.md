@@ -2,7 +2,7 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.8.0 (Advanced Systems)
+**Current Version:** 0.8.4 (Polish & Balance)
 
 ##  Play Now
 
