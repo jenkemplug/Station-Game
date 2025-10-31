@@ -1,4 +1,4 @@
-const VERSION = '0.7.2';
+const VERSION = '0.7.3';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -6,14 +6,18 @@ const MAX_LOG = 300;
 const BALANCE = {
   // Interactive combat
   COMBAT_ACTIONS: {
-    Aim: { accuracyBonus: 0.2 },
-    Burst: { dmgBonus: [2, 4], accuracyPenalty: 0.1, ammoMult: 2 },
-    Guard: { defenseBonus: 2 },
-    MedkitHeal: [8, 14]
+    Aim: { accuracyBonus: 0.25 },
+    Burst: { dmgBonus: [3, 6], accuracyPenalty: 0.05, ammoMult: 2 },
+    Guard: { defenseBonus: 3 },
+    MedkitHeal: [10, 18]
   },
-  BASE_HIT_CHANCE: 0.7,
-  CRIT_CHANCE: 0.1,
-  CRIT_MULT: 1.5,
+  BASE_HIT_CHANCE: 0.75,
+  CRIT_CHANCE: 0.12,
+  CRIT_MULT: 1.6,
+  // Turret combat (0.7.3)
+  TURRET_BASE_DAMAGE: 8,
+  TURRET_HIT_CHANCE: 0.85,
+  TURRET_THREAT_REDUCTION: 0.15,
   // Retreat mechanics (0.7.2)
   RETREAT_BASE_CHANCE: 0.50,
   RETREAT_SKILL_BONUS: 0.03, // per skill point
@@ -61,6 +65,15 @@ const BALANCE = {
   RAID_BASE_CHANCE: 0.004,
   RAID_THREAT_DIVISOR: 3500,
   RAID_MAX_CHANCE: 0.07,
+  // 0.7.3 – Defensive reduction to raid chance (absolute)
+  RAID_CHANCE_REDUCTION_PER_GUARD: 0.0025,
+  RAID_CHANCE_REDUCTION_PER_TURRET: 0.002,
+  // 0.7.3 – Additive pressure from exploration and alien kills
+  RAID_CHANCE_PER_TILE: 0.00003, // ~0.6% at 200 tiles fully explored
+  RAID_CHANCE_PER_ALIEN_KILL: 0.0005, // 0.05% per alien kill
+  // 0.7.3 – Raid cooldown to keep raids impactful and infrequent
+  RAID_MIN_INTERVAL_SEC: 900,  // 15 minutes
+  RAID_MAX_INTERVAL_SEC: 1200, // 20 minutes
   TURRET_POWER_PER: 15,
   RAID_ATTACK_RANGE: [6, 28],
   THREAT_REDUCE_ON_REPEL: 4,
@@ -133,8 +146,6 @@ const LOOT_TABLE = [
   { type: 'rifle', weight: 2, desc: 'Pulse Rifle components', onPickup: (s) => { s.inventory.push({ id: s.nextItemId++, type: 'rifle', name: 'Pulse Rifle', durability: 100, maxDurability: 100 }); return 'Pulse Rifle recovered.'; } },
   { type: 'heavyArmor', weight: 1, desc: 'Heavy Armor plating', onPickup: (s) => { s.inventory.push({ id: s.nextItemId++, type: 'heavyArmor', name: 'Heavy Armor', durability: 200, maxDurability: 200 }); return 'Heavy Armor recovered.'; } },
   { type: 'shotgun', weight: 2, desc: 'Shotgun components', onPickup: (s) => { s.inventory.push({ id: s.nextItemId++, type: 'shotgun', name: 'Shotgun', durability: 80, maxDurability: 80 }); return 'Shotgun recovered.'; } },
-  { type: 'filter', weight: 0.5, desc: 'A filter module', onPickup: (s) => { s.systems.filter++; return 'Filter module recovered.'; } },
-  { type: 'generator', weight: 0.5, desc: 'A micro-generator', onPickup: (s) => { s.systems.generator++; return 'Micro-generator recovered.'; } },
   { type: 'hazmatSuit', weight: 0.1, desc: 'A hazmat suit', onPickup: (s) => { s.inventory.push({ id: s.nextItemId++, type: 'hazmatSuit', name: 'Hazmat Suit', durability: 150, maxDurability: 150 }); return 'Hazmat Suit recovered.'; } }
 ];
 
@@ -146,8 +157,6 @@ const ALIEN_TYPES = [
 ];
 
 const RECIPES = {
-  filter: { scrap: 30, energy: 20, tech: 0, result: () => { state.systems.filter++; appendLog('Filter upgraded (fabricated).'); } },
-  generator: { scrap: 25, energy: 0, result: () => { state.systems.generator++; appendLog('Micro-generator assembled.'); } },
   medkit: { scrap: 15, energy: 0, result: () => { state.inventory.push({ id: state.nextItemId++, type: 'medkit' }); appendLog('Medkit crafted.'); } },
   ammo: { scrap: 10, energy: 0, result: () => { state.resources.ammo += rand(4, 10); appendLog('Ammo manufactured.'); } },
   turret: { scrap: 75, energy: 40, tech: 3, result: () => { state.systems.turret++; appendLog('Auto-turret constructed.'); } },

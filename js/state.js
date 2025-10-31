@@ -24,7 +24,9 @@ let state = {
   systems: { filter: 0, generator: 0, turret: 0 },
   threat: 8,
   baseIntegrity: 100,
-  boardRisk: 0,
+  raidChance: 0, // 0.7.3 - replaces boardRisk
+  lastRaidAt: 0, // 0.7.3 - cooldown tracking
+  alienKills: 0, // 0.7.3 - used to scale raid chance
   journal: ["Station systems nominal. Maintain discipline."],
   missions: [], // active expeditions
   timeNow: Date.now(),

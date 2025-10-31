@@ -1,5 +1,40 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
+## [0.7.3] - 2025-10-30
+### Added
+- **Turret Support in Raids:** Auto-turrets now actively participate in base defense during raids.
+  - Turrets take automatic actions between the defenders' and enemies' turns (Aim/Shoot/Burst only).
+  - Uses new turret balance constants: base damage, hit chance, and crit interactions.
+- **Raid Chance Display:** Replaced legacy Boarding Risk with a new Raid Chance indicator.
+  - Displayed as a per-minute probability and updated each tick.
+  - Visible with one decimal place for small early-game values.
+
+### Changed
+- **Combat Rebalance (less punishing):**
+  - Rifles: +8 damage (up from +6), Shotguns: +6–12 variable damage (up from +4–10).
+  - Armor: Light +3, Heavy +6, Hazmat +3 (up from +2/+4/+2).
+  - Base hit chance increased to 75%; crit chance to 12%; crit multiplier to 1.6x.
+- **Threat & Raids:**
+  - Raid chance now increases with exploration and alien kills in addition to threat.
+  - Guards and turrets both reduce raid chance.
+  - The displayed Raid Chance is per minute; the game converts it to a per-tick probability for rolls.
+  - Raids are now infrequent but impactful: a randomized cooldown (15–20 minutes) between raids, and tougher raid groups at higher threat (more enemies, heavier types favored, slight stat scaling).
+- **Map Visuals:**
+  - Revisitable tiles (uncleared hazards/aliens) have a distinct color for clarity.
+
+### Removed
+- Removed Filter Module and Micro Generator as craftables and as loot; use system upgrades via the Systems panel instead.
+
+### Fixed
+- Interactive combat defeat message no longer incorrectly states "Retreat" when survivors die.
+- Recreated and wired `js/game/threat.js` after accidental removal; evaluated each tick.
+
+### Technical
+- New constants: `RAID_CHANCE_REDUCTION_PER_GUARD`, `RAID_CHANCE_REDUCTION_PER_TURRET`,
+  `RAID_CHANCE_PER_TILE`, `RAID_CHANCE_PER_ALIEN_KILL`, `TURRET_BASE_DAMAGE`, `TURRET_HIT_CHANCE`.
+- State additions: `state.raidChance` (UI) and `state.alienKills` (scaling input).
+- Save snapshot `_version` bumped to 1.9.1; includes `raidChance` and `alienKills`.
+
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

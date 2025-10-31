@@ -2,7 +2,7 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.7.2 (Quality of Life)
+**Current Version:** 0.7.3 (Turrets & Balance)
 
 ##  Play Now
 
@@ -27,7 +27,7 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
 - **Weapons**: Pulse Rifles and Shotguns for combat advantages
 - **Armor**: Light Armor, Heavy Armor, and Hazmat Suits for protection
 - **Consumables**: Medkits and ammo manufacturing
-- **Systems**: Oxygen filters, generators, and auto-turrets
+- **Systems**: Auto-turrets (Filters/Generators are upgraded via the Systems panel)
 - **Durability System**: Equipment degrades and can be repaired
 - **Loadout Management**: Equip/unequip weapons and armor for each survivor via a modal
 

@@ -55,7 +55,7 @@ function initTiles() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '1.9.0',
+  _version: '1.9.1',
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
@@ -73,7 +73,10 @@ function makeSaveSnapshot() {
     systems: state.systems,
     threat: state.threat,
     baseIntegrity: state.baseIntegrity,
-    boardRisk: state.boardRisk,
+  raidChance: state.raidChance,
+  lastRaidAt: state.lastRaidAt,
+  raidCooldownMs: state.raidCooldownMs,
+  alienKills: state.alienKills,
     journal: state.journal,
     missions: state.missions,
     timeNow: Date.now()
@@ -137,7 +140,11 @@ function loadGame() {
         state.systems = Object.assign({}, state.systems, parsed.systems || {});
         state.threat = Number(parsed.threat) || state.threat;
         state.baseIntegrity = Number(parsed.baseIntegrity) || state.baseIntegrity;
-        state.boardRisk = Number(parsed.boardRisk) || state.boardRisk;
+  // raidChance is derived; load if present else default 0
+  state.raidChance = Number(parsed.raidChance) || 0;
+  state.lastRaidAt = Number(parsed.lastRaidAt) || 0;
+  state.raidCooldownMs = Number(parsed.raidCooldownMs) || 0;
+  state.alienKills = Number(parsed.alienKills) || 0;
         state.journal = Array.isArray(parsed.journal) ? parsed.journal : state.journal;
         state.missions = Array.isArray(parsed.missions) ? parsed.missions : state.missions;
         state.timeNow = parsed.timeNow || Date.now();

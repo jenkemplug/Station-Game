@@ -54,7 +54,7 @@ function interactiveEncounterAtTile(idx) {
   openCombatOverlay();
 }
 
-function interactiveRaidCombat(aliens, guards) {
+function interactiveRaidCombat(aliens, guards, turretCount = 0) {
   // Only guards defend the base (0.7.1 - hardcore mode)
   if (!guards || guards.length === 0) {
     appendLog('No guards available: raid overwhelms the base.');
@@ -67,6 +67,8 @@ function interactiveRaidCombat(aliens, guards) {
     idx: null,
     partyIds: defenders,
     aliens,
+    turrets: Math.max(0, Number(turretCount) || 0),
+    turretsState: Array.from({ length: Math.max(0, Number(turretCount) || 0) }, () => ({ aimed: false })),
     turn: 1,
     aimed: {},
     log: [],
@@ -99,6 +101,10 @@ function renderCombatUI() {
     return `<div class="card-like" ${activeClass}><strong>${s.name}${isActive ? ' ⬅' : ''}</strong><div class="small">HP ${s.hp}/${s.maxHp}</div><div class="small">${weap} • ${armor}</div></div>`;
   }).join('');
 
+  const turretHtml = (currentCombat.turrets && currentCombat.turrets > 0)
+    ? `<div class="card-like small"><strong>Auto-Turrets</strong><div class="small">${currentCombat.turrets} unit(s) ready</div></div>`
+    : '';
+
   const alienHtml = aliens.map(a => {
     const alive = a.hp > 0;
     return `<div class="card-like ${alive ? '' : 'small'}"><strong>${a.name}</strong><div class="small">HP ${Math.max(0,a.hp)}/${a.maxHp}</div></div>`;
@@ -110,7 +116,8 @@ function renderCombatUI() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div>
         <div style="margin-bottom:6px"><strong>Team</strong> <span class="small">Turn ${currentCombat.turn}</span></div>
-        ${partyHtml || '<div class="small">No combatants</div>'}
+  ${partyHtml || '<div class="small">No combatants</div>'}
+  ${turretHtml}
       </div>
       <div>
         <div style="margin-bottom:6px"><strong>Hostiles</strong></div>
@@ -156,8 +163,8 @@ function computeSurvivorDamage(s) {
   // use existing calculateAttackDamage if available
   let base = 2 + s.skill + (s.level * BALANCE.LEVEL_ATTACK_BONUS);
   const w = s.equipment.weapon?.type;
-  if (w === 'rifle') base += 6;
-  else if (w === 'shotgun') base += rand(4, 10);
+    if (w === 'rifle') base += 8;
+    else if (w === 'shotgun') base += rand(6, 12);
   return base;
 }
 
@@ -170,13 +177,70 @@ function advanceToNextSurvivor() {
   const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
   currentCombat.activePartyIdx++;
   if (currentCombat.activePartyIdx >= party.length) {
-    // All survivors acted, trigger enemy turn
+    // All survivors acted — turrets fire, then enemy turn
     currentCombat.activePartyIdx = 0;
+    turretPhase();
     enemyTurn();
   } else {
     const nextSurvivor = party[currentCombat.activePartyIdx];
     logCombat(`${nextSurvivor.name}'s turn.`);
     renderCombatUI();
+  }
+}
+
+function turretPhase() {
+  if (!currentCombat || !currentCombat.turrets || currentCombat.turrets <= 0) return;
+  const aliens = currentCombat.aliens.filter(a => a.hp > 0);
+  if (aliens.length === 0) return;
+  logCombat('— Turret Support —');
+  for (let i = 0; i < currentCombat.turrets; i++) {
+    const aliveAliens = currentCombat.aliens.filter(a => a.hp > 0);
+    if (aliveAliens.length === 0) break;
+    const tState = currentCombat.turretsState[i] || { aimed: false };
+    // Decide action: aim if not aimed (35%), else burst (35%) or shoot
+    if (!tState.aimed && Math.random() < 0.35) {
+      tState.aimed = true;
+      logCombat(`Auto-Turret #${i + 1} acquiring target...`);
+      continue;
+    }
+    const doBurst = Math.random() < 0.35;
+    turretAttack(i, doBurst ? 'burst' : 'shoot', tState);
+    // reset aim after firing
+    tState.aimed = false;
+    currentCombat.turretsState[i] = tState;
+  }
+}
+
+function turretAttack(idx, action, tState) {
+  const target = currentCombat.aliens.find(a => a.hp > 0);
+  if (!target) return;
+  const shots = action === 'burst' ? (BALANCE.COMBAT_ACTIONS.Burst.ammoMult || 2) : 1;
+  for (let s = 0; s < shots; s++) {
+    let hitChance = BALANCE.TURRET_HIT_CHANCE;
+    if (tState && tState.aimed) hitChance += BALANCE.COMBAT_ACTIONS.Aim.accuracyBonus;
+    hitChance = clamp(hitChance, 0.05, 0.98);
+    const hit = Math.random() < hitChance;
+    if (!hit) {
+      logCombat(`Auto-Turret #${idx + 1} missed.`);
+      continue;
+    }
+    let dmg = BALANCE.TURRET_BASE_DAMAGE;
+    if (action === 'burst') {
+      const r = BALANCE.COMBAT_ACTIONS.Burst.dmgBonus;
+      dmg += rand(r[0], r[1]);
+    }
+    // Apply small variance and crit
+    if (Math.random() < BALANCE.CRIT_CHANCE) {
+      dmg = Math.floor(dmg * BALANCE.CRIT_MULT);
+      logCombat(`Auto-Turret #${idx + 1} scores a CRITICAL hit!`);
+    }
+    const dealt = rand(Math.max(1, dmg - 1), dmg + 2);
+    target.hp -= dealt;
+    logCombat(`Auto-Turret #${idx + 1} hits ${target.name} for ${dealt}.`);
+    if (target.hp <= 0) {
+      logCombat(`${target.name} neutralized by automated fire.`);
+      state.alienKills = (state.alienKills || 0) + 1;
+    }
   }
 }
 
@@ -217,6 +281,7 @@ function playerShoot(action = 'shoot') {
       if (target.hp <= 0) {
         logCombat(`${target.name} eliminated.`);
         appendLog(`${target.name} downed.`);
+        state.alienKills = (state.alienKills || 0) + 1;
         // Loot on kill
         const loot = pickLoot();
         loot.onPickup(state);
@@ -329,7 +394,7 @@ function enemyTurn() {
     // Pick a random survivor to attack
     const targ = aliveParty[rand(0, aliveParty.length - 1)];
     if (!targ) break;
-    const defense = (targ._guardBonus || 0) + (targ.equipment.armor?.type === 'armor' ? 2 : targ.equipment.armor?.type === 'heavyArmor' ? 4 : targ.equipment.armor?.type === 'hazmatSuit' ? 2 : 0);
+    const defense = (targ._guardBonus || 0) + (targ.equipment.armor?.type === 'armor' ? 3 : targ.equipment.armor?.type === 'heavyArmor' ? 6 : targ.equipment.armor?.type === 'hazmatSuit' ? 3 : 0);
     const aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
     const taken = Math.max(0, aDmg - defense);
     targ.hp -= taken;
@@ -382,8 +447,8 @@ function endCombat(win) {
       appendLog('Raid repelled. Recovered scrap from wreckage.');
     }
   } else {
-    logCombat('Defeat. Fall back.');
-    appendLog('Engagement failed. Retreat.');
+    logCombat('Defeat.');
+    appendLog(isRaid ? 'Raid failed. Defenses overwhelmed.' : 'Engagement failed.');
     // Remove dead
     state.survivors = state.survivors.filter(x => x.hp > 0);
     

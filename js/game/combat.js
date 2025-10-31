@@ -6,9 +6,9 @@ function calculateAttackDamage(survivor) {
   
   // Apply weapon bonuses
   if (survivor.equipment.weapon?.type === 'rifle') {
-    baseAtk += 6;
+     baseAtk += 8;
   } else if (survivor.equipment.weapon?.type === 'shotgun') {
-    baseAtk += rand(4, 10); // Shotgun has variable damage
+     baseAtk += rand(6, 12); // Shotgun has variable damage
   }
   
   return baseAtk;
@@ -17,11 +17,11 @@ function calculateAttackDamage(survivor) {
 function calculateDefense(survivor) {
   let defense = 0;
   if (survivor.equipment.armor?.type === 'armor') {
-    defense += 2; // Light Armor
+     defense += 3; // Light Armor
   } else if (survivor.equipment.armor?.type === 'heavyArmor') {
-    defense += 4; // Heavy Armor
+     defense += 6; // Heavy Armor
   } else if (survivor.equipment.armor?.type === 'hazmatSuit') {
-    defense += 2; // Hazmat Suit (some protection)
+     defense += 3; // Hazmat Suit (some protection)
   }
   return defense;
 }
@@ -109,6 +109,7 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       
       if (target.hp <= 0) {
         appendLog(`${target.name} downed.`);
+        state.alienKills = (state.alienKills || 0) + 1;
         // loot on kill
         const loot = pickLoot();
         loot.onPickup(state);

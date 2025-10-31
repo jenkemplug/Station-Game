@@ -275,6 +275,12 @@ button:disabled {
   background: rgba(74,158,255,0.05);
 }
 
+.tile.revisitable {
+  border-color: rgba(255,170,0,0.4);
+  background: rgba(255,170,0,0.06);
+  color: var(--warning);
+}
+
 .tile.explorable:hover {
   background: rgba(74,158,255,0.1);
   transform: scale(1.05);
@@ -293,6 +299,14 @@ button:disabled {
   color: var(--accent);
   font-weight: 600;
   border-color: rgba(74,158,255,0.2);
+}
+
+/* Ensure revisitable tiles stand out, even when also marked explored/explorable */
+.tile.explored.revisitable,
+.tile.explorable.revisitable {
+  background: rgba(255,68,68,0.10);
+  border-color: rgba(255,68,68,0.40);
+  color: var(--danger);
 }
 
 .tile.base {

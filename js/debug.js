@@ -182,7 +182,7 @@ function debugUpgradeSystems() {
 
 function debugResetThreat() {
   state.threat = 0;
-  state.boardRisk = 0;
+  state.raidChance = 0;
   appendLog('[DEBUG] Threat level reset to 0');
   updateUI();
 }

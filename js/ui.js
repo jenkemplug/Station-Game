@@ -24,10 +24,16 @@ function updateUI() {
   el('survivorCount').textContent = state.survivors.length;
   renderSurvivors();
 
-  // systems
-  el('sys-filter').textContent = `Level ${state.systems.filter}`;
-  el('sys-generator').textContent = `Level ${state.systems.generator}`;
-  el('sys-turret').textContent = state.systems.turret > 0 ? `${state.systems.turret} turret(s)` : 'Offline';
+  // systems (show upgrade costs before level)
+  const costFilter = BALANCE.UPGRADE_COSTS.filter.base + state.systems.filter * BALANCE.UPGRADE_COSTS.filter.perLevel;
+  const costGen = BALANCE.UPGRADE_COSTS.generator.base + state.systems.generator * BALANCE.UPGRADE_COSTS.generator.perLevel;
+  const costTurScrap = BALANCE.UPGRADE_COSTS.turret.scrap;
+  const costTurEnergy = BALANCE.UPGRADE_COSTS.turret.energy;
+  el('sys-filter').textContent = `Cost: ${costFilter} scrap • Level ${state.systems.filter}`;
+  el('sys-generator').textContent = `Cost: ${costGen} scrap • Level ${state.systems.generator}`;
+  el('sys-turret').textContent = state.systems.turret > 0
+    ? `Cost: ${costTurScrap}s/${costTurEnergy}e • ${state.systems.turret} turret(s)`
+    : `Cost: ${costTurScrap}s/${costTurEnergy}e • Offline`;
 
   // inventory
   renderInventory();
@@ -39,7 +45,33 @@ function updateUI() {
   // threats
   el('threatLevel').textContent = threatText();
   el('baseIntegrity').textContent = `${Math.max(0, Math.floor(state.baseIntegrity))}%`;
-  el('boardRisk').textContent = `${Math.round(state.boardRisk * 100)}%`;
+  const rcEl = document.getElementById('raidChance');
+  if (rcEl) {
+    const pct = (Number(state.raidChance) || 0) * 100;
+    // Show one decimal so small chances are visible (e.g., 0.1%)
+    rcEl.textContent = `${pct.toFixed(1)}%`;
+  }
+  // Raid cooldown indicator (only show when active)
+  const cdRow = document.getElementById('raidCooldownRow');
+  const cdSpan = document.getElementById('raidCooldown');
+  if (cdRow && cdSpan) {
+    const last = Number(state.lastRaidAt) || 0;
+    const dur = Number(state.raidCooldownMs) || 0;
+    const now = Date.now();
+    const remMs = Math.max(0, (last + dur) - now);
+    if (last > 0 && dur > 0 && remMs > 0) {
+      // format remaining time as mm:ss or hh:mm:ss
+      const totalSec = Math.ceil(remMs / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      const pad = (n) => String(n).padStart(2, '0');
+      cdSpan.textContent = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+      cdRow.style.display = '';
+    } else {
+      cdRow.style.display = 'none';
+    }
+  }
 
   // journal
   el('journal').textContent = state.journal.slice(-5).join(' ');
@@ -412,6 +444,7 @@ function renderMap() {
         // Show energy cost in tooltip
         const cost = getTileEnergyCost(t);
         if (state.explored.has(idx) && t.cleared === false) {
+          tile.classList.add('revisitable');
           if (t.type === 'hazard') {
             tile.title = `Hazard room (needs Hazmat Suit) - Energy: ${cost}`;
           } else if (t.type === 'alien') {

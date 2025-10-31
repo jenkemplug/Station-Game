@@ -67,9 +67,6 @@ function bindUI() {
     if (k === 'r') {
       recruitSurvivor();
     }
-    if (k === 'f') {
-      craft('filter');
-    }
 
   });
 
@@ -129,7 +126,9 @@ function resetGame() {
   };
   state.threat = 8;
   state.baseIntegrity = 100;
-  state.boardRisk = 0;
+  state.raidChance = 0;
+  state.lastRaidAt = 0;
+  state.raidCooldownMs = 0;
   state.journal = ["Station systems nominal. Maintain discipline."];
   state.missions = [];
   initTiles();
