@@ -1,4 +1,4 @@
-const VERSION = '0.7.3';
+const VERSION = '0.7.4';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -23,10 +23,14 @@ const BALANCE = {
   RETREAT_SKILL_BONUS: 0.03, // per skill point
   RETREAT_LEVEL_BONUS: 0.02, // per level
   RETREAT_ALIEN_PENALTY: {
-    lurker: 0,
-    stalker: -0.05,
-    brood: -0.10,
-    spectre: 0.05 // easier to escape from stealthy enemies
+    drone: 0.05,      // easy to escape from
+    lurker: 0,        // neutral
+    stalker: -0.05,   // harder to escape
+    spitter: -0.02,   // ranged attacker
+    brood: -0.10,     // very hard to escape
+    ravager: -0.08,   // armored and persistent
+    spectre: 0.05,    // easier to slip away from stealthy enemies
+    queen: -0.15      // nearly impossible to escape
   },
   // Map & exploration costs (click-to-explore only)
   TILE_ENERGY_COST: {
@@ -150,10 +154,49 @@ const LOOT_TABLE = [
 ];
 
 const ALIEN_TYPES = [
-  { id: 'lurker', name: 'Lurker', hpRange: [10, 16], attackRange: [4, 7], stealth: 0.4, flavor: 'A pale, elongated organism that hides in vents.' },
-  { id: 'stalker', name: 'Stalker', hpRange: [16, 25], attackRange: [6, 10], stealth: 0.2, flavor: 'Moves in small coordinated packs, aggressive.' },
-  { id: 'brood', name: 'Brood', hpRange: [32, 45], attackRange: [10, 16], stealth: 0.05, flavor: 'A nesting cluster — dangerous and territorial.' },
-  { id: 'spectre', name: 'Spectre', hpRange: [12, 20], attackRange: [5, 9], stealth: 0.7, flavor: 'An elusive lifeform that strikes from darkness.' },
+  // Early game threats
+  { id: 'lurker', name: 'Lurker', hpRange: [8, 14], attackRange: [3, 6], stealth: 0.4, 
+    flavor: 'A pale, elongated organism that hides in vents.',
+    special: 'ambush', // First attack deals +50% damage if at full HP
+    specialDesc: 'Ambush: First strike deals bonus damage' },
+  
+  { id: 'drone', name: 'Drone', hpRange: [6, 10], attackRange: [2, 5], stealth: 0.3,
+    flavor: 'Small, fast-moving scavenger. Weak but evasive.',
+    special: 'dodge', // 25% chance to evade attacks
+    specialDesc: 'Evasive: 25% chance to dodge attacks' },
+  
+  // Mid game threats
+  { id: 'stalker', name: 'Stalker', hpRange: [14, 22], attackRange: [5, 9], stealth: 0.2, 
+    flavor: 'Moves in small coordinated packs, aggressive.',
+    special: 'pack', // +2 damage for each other living alien
+    specialDesc: 'Pack Hunter: Stronger when allies present' },
+  
+  { id: 'spitter', name: 'Spitter', hpRange: [10, 16], attackRange: [4, 8], stealth: 0.15,
+    flavor: 'Ranged attacker that sprays corrosive bile from distance.',
+    special: 'piercing', // Ignores 50% of armor
+    specialDesc: 'Armor Piercing: Bypasses half of armor' },
+  
+  // Late game threats
+  { id: 'brood', name: 'Brood', hpRange: [28, 40], attackRange: [8, 14], stealth: 0.05, 
+    flavor: 'A nesting cluster — dangerous and territorial.',
+    special: 'regeneration', // Heals 2-4 HP per turn
+    specialDesc: 'Regeneration: Recovers HP each turn' },
+  
+  { id: 'ravager', name: 'Ravager', hpRange: [20, 30], attackRange: [10, 16], stealth: 0.1,
+    flavor: 'Heavily armored brute with crushing limbs.',
+    special: 'armored', // Takes 50% less damage from all attacks
+    specialDesc: 'Armored Carapace: Resistant to damage' },
+  
+  // Elite threats
+  { id: 'spectre', name: 'Spectre', hpRange: [12, 18], attackRange: [6, 11], stealth: 0.7, 
+    flavor: 'An elusive lifeform that strikes from darkness.',
+    special: 'phase', // 40% chance to avoid all damage
+    specialDesc: 'Phase Shift: Frequently phases out of reality' },
+  
+  { id: 'queen', name: 'Hive Queen', hpRange: [35, 50], attackRange: [12, 20], stealth: 0,
+    flavor: 'Massive apex predator. Commands the hive.',
+    special: 'multistrike', // Attacks twice per turn
+    specialDesc: 'Multi-Strike: Attacks twice each turn' }
 ];
 
 const RECIPES = {

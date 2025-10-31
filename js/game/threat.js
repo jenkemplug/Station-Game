@@ -60,18 +60,28 @@ function resolveRaid() {
   const scale = Math.floor(state.threat / 20);
   const alienCount = Math.min(7, baseCount + Math.max(1, Math.floor(scale * 0.8)));
   const raidAliens = [];
-  // Weighted type selection favoring stronger aliens at higher threat
+  // Weighted type selection favoring stronger aliens at higher threat (0.7.4 - 8 alien types)
   const pickType = () => {
     const t = state.threat || 0;
     const weights = [
-      { id: 'lurker', idx: 0, w: t < 40 ? 5 : 2 },
-      { id: 'stalker', idx: 1, w: t < 40 ? 3 : 5 },
-      { id: 'brood', idx: 2, w: t < 60 ? 1 : 4 },
-      { id: 'spectre', idx: 3, w: 2 }
+      { id: 'drone', w: t < 20 ? 6 : t < 40 ? 3 : 1 },
+      { id: 'lurker', w: t < 30 ? 5 : t < 50 ? 3 : 1 },
+      { id: 'stalker', w: t < 40 ? 3 : t < 70 ? 5 : 3 },
+      { id: 'spitter', w: t < 50 ? 2 : t < 70 ? 4 : 3 },
+      { id: 'brood', w: t < 60 ? 1 : t < 80 ? 4 : 5 },
+      { id: 'ravager', w: t < 60 ? 0 : t < 80 ? 3 : 5 },
+      { id: 'spectre', w: t < 70 ? 0 : 3 },
+      { id: 'queen', w: t < 90 ? 0 : 2 }
     ];
     const total = weights.reduce((s, x) => s + x.w, 0);
     let r = Math.random() * total;
-    for (const w of weights) { r -= w.w; if (r <= 0) return ALIEN_TYPES[w.idx]; }
+    for (const w of weights) { 
+      r -= w.w; 
+      if (r <= 0) {
+        const alienType = ALIEN_TYPES.find(a => a.id === w.id);
+        return alienType || ALIEN_TYPES[0];
+      }
+    }
     return ALIEN_TYPES[0];
   };
   for (let i = 0; i < alienCount; i++) {
@@ -89,7 +99,10 @@ function resolveRaid() {
       maxHp: hp,
       attack: Math.round(rand(at.attackRange[0], at.attackRange[1]) * aMult),
       stealth: at.stealth,
-      flavor: at.flavor
+      flavor: at.flavor,
+      special: at.special,
+      specialDesc: at.specialDesc,
+      firstStrike: true
     });
   }
 

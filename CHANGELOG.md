@@ -1,5 +1,50 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
+
+## [0.7.4] - 2025-10-30
+### Added
+- **Four New Alien Types:**
+  - **Drone**: Weak but evasive scavenger (25% dodge chance)
+  - **Spitter**: Ranged attacker with armor-piercing corrosive bile (ignores 50% armor)
+  - **Ravager**: Heavily armored brute (takes 50% less damage from all attacks)
+  - **Hive Queen**: Massive apex predator (attacks twice per turn)
+- **Unique Alien Mechanics:**
+  - **Ambush (Lurker)**: First strike deals +50% damage
+  - **Dodge (Drone)**: 25% chance to evade attacks completely
+  - **Pack Tactics (Stalker)**: +2 damage per living ally
+  - **Armor Piercing (Spitter)**: Ignores 50% of defender armor
+  - **Regeneration (Brood)**: Heals 2-4 HP per turn
+  - **Armored Carapace (Ravager)**: Takes 50% reduced damage
+  - **Phase Shift (Spectre)**: 40% chance to phase through attacks
+  - **Multi-Strike (Queen)**: Attacks twice each turn
+- **Expanded Name Pool**: Added 150+ new names across all categories
+  - More cultural diversity (Russian, African, Arabic names)
+  - Enhanced sci-fi names (mythological, military ranks, natural phenomena)
+  - More technology-inspired names (programming terms, protocols)
+  - More engineering names (tools, materials, job roles)
+
+### Changed
+- **Randomized Starter Survivors**: Initial two survivors now have randomly generated names (Elias and Marta added to name pool)
+- **Rebalanced All Aliens**: Adjusted HP and attack ranges across all 8 types for better difficulty progression
+- **Smart Raid Composition**: Raids now spawn aliens appropriate to threat level
+  - Low threat (0-20): Drones and Lurkers
+  - Mid threat (20-50): Stalkers and Spitters  
+  - High threat (50-80): Broods and Ravagers
+  - Very high threat (80+): Spectres and Queens
+- **Retreat Penalties Updated**: Added retreat difficulty modifiers for all new alien types
+- **Enhanced Combat Feedback**: Combat log now displays alien special abilities when triggered
+- **Alien UI**: Interactive combat overlay shows each alien's special ability
+
+### Fixed
+- Starter survivors are now free (no longer charges scrap for initial two recruits)
+- Reduced notification panel height by 50% for better UI layout and less scrolling
+
+### Technical
+- Extended ALIEN_TYPES with 4 new entries (8 total)
+- Added special mechanics handling to both auto-resolve and interactive combat systems
+- Updated spawn weights in threat.js for balanced raid progression
+- All alien special abilities fully functional in both combat modes
+
 ## [0.7.3] - 2025-10-30
 ### Added
 - **Turret Support in Raids:** Auto-turrets now actively participate in base defense during raids.

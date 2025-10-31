@@ -40,7 +40,10 @@ function spawnAlienEncounter(idx) {
       maxHp: hp,
       attack: rand(at.attackRange[0], at.attackRange[1]),
       stealth: at.stealth,
-      flavor: at.flavor
+      flavor: at.flavor,
+      special: at.special,
+      specialDesc: at.specialDesc,
+      firstStrike: true // Track if alien has attacked yet (for ambush)
     });
   }
   appendLog(`Encountered ${t.aliens.length} alien(s) in this sector.`);
@@ -85,6 +88,14 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
   
   // simplistic round-based combat
   while (aliens.some(a => a.hp > 0) && fighters.some(f => f.hp > 0)) {
+    // Alien regeneration phase (brood special)
+    for (const a of aliens) {
+      if (a.hp <= 0 || a.special !== 'regeneration') continue;
+      const healAmount = rand(2, 4);
+      a.hp = Math.min(a.maxHp, a.hp + healAmount);
+      if (healAmount > 0) appendLog(`${a.name} regenerates ${healAmount} HP.`);
+    }
+    
     // survivors attack
     for (const s of fighters) {
       if (s.hp <= 0) continue;
@@ -103,7 +114,22 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         if (Math.random() < BALANCE.AMMO_CONSUME_CHANCE) state.resources.ammo = Math.max(0, state.resources.ammo - 1);
       }
       
-      const dmg = rand(Math.max(1, baseAtk - 1), baseAtk + 2);
+      let dmg = rand(Math.max(1, baseAtk - 1), baseAtk + 2);
+      
+      // Apply alien special defenses
+      if (target.special === 'dodge' && Math.random() < 0.25) {
+        appendLog(`${target.name} dodges ${s.name}'s attack!`);
+        continue;
+      }
+      if (target.special === 'phase' && Math.random() < 0.40) {
+        appendLog(`${target.name} phases out, avoiding damage!`);
+        continue;
+      }
+      if (target.special === 'armored') {
+        dmg = Math.floor(dmg * 0.5);
+        appendLog(`${target.name}'s armor absorbs damage.`);
+      }
+      
       target.hp -= dmg;
       appendLog(`${s.name} hits ${target.name} for ${dmg} dmg.`);
       
@@ -119,18 +145,44 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
     // aliens attack back
     for (const a of aliens) {
       if (a.hp <= 0) continue;
-      // choose random survivor alive
-      const targ = fighters.find(x => x.hp > 0);
-      if (!targ) break;
       
-      const aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
-      const defense = calculateDefense(targ);
+      // Multi-strike special (queen)
+      const attackCount = (a.special === 'multistrike') ? 2 : 1;
       
-      targ.hp -= Math.max(0, aDmg - defense);
-      appendLog(`${a.name} strikes ${targ.name} for ${Math.max(0, aDmg - defense)} dmg.`);
-      
-      if (targ.hp <= 0) {
-        appendLog(`${targ.name} incapacitated in combat.`);
+      for (let strike = 0; strike < attackCount; strike++) {
+        // choose random survivor alive
+        const targ = fighters.find(x => x.hp > 0);
+        if (!targ) break;
+        
+        let aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
+        
+        // Apply alien special attack modifiers
+        if (a.special === 'ambush' && a.firstStrike) {
+          aDmg = Math.floor(aDmg * 1.5);
+          a.firstStrike = false;
+          appendLog(`${a.name} ambushes from the shadows!`);
+        }
+        if (a.special === 'pack') {
+          const allyCount = aliens.filter(al => al.hp > 0 && al !== a).length;
+          aDmg += allyCount * 2;
+          if (allyCount > 0) appendLog(`${a.name} is empowered by pack tactics.`);
+        }
+        
+        let defense = calculateDefense(targ);
+        
+        // Piercing special (spitter) - ignore 50% of armor
+        if (a.special === 'piercing') {
+          defense = Math.floor(defense * 0.5);
+          appendLog(`${a.name} sprays corrosive bile!`);
+        }
+        
+        targ.hp -= Math.max(0, aDmg - defense);
+        appendLog(`${a.name} strikes ${targ.name} for ${Math.max(0, aDmg - defense)} dmg.`);
+        
+        if (targ.hp <= 0) {
+          appendLog(`${targ.name} incapacitated in combat.`);
+          break; // Don't continue multi-strike on dead target
+        }
       }
     }
     

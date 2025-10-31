@@ -31,7 +31,10 @@ function interactiveEncounterAtTile(idx) {
       maxHp: hp,
       attack: rand(at.attackRange[0], at.attackRange[1]),
       stealth: at.stealth,
-      flavor: at.flavor
+      flavor: at.flavor,
+      special: at.special,
+      specialDesc: at.specialDesc,
+      firstStrike: true
     });
   }
   const explorer = state.survivors.find(s => s.id === selectedExplorerId);
@@ -107,7 +110,8 @@ function renderCombatUI() {
 
   const alienHtml = aliens.map(a => {
     const alive = a.hp > 0;
-    return `<div class="card-like ${alive ? '' : 'small'}"><strong>${a.name}</strong><div class="small">HP ${Math.max(0,a.hp)}/${a.maxHp}</div></div>`;
+    const special = a.specialDesc ? `<div class="small" style="color:var(--accent)">${a.specialDesc}</div>` : '';
+    return `<div class="card-like ${alive ? '' : 'small'}"><strong>${a.name}</strong><div class="small">HP ${Math.max(0,a.hp)}/${a.maxHp}</div>${special}</div>`;
   }).join('');
 
   const combatLogHtml = currentCombat.log.map(l => `<div class="small" style="color:var(--muted)">${l}</div>`).join('');
@@ -224,6 +228,17 @@ function turretAttack(idx, action, tState) {
       logCombat(`Auto-Turret #${idx + 1} missed.`);
       continue;
     }
+    
+    // Check alien special defenses
+    if (target.special === 'dodge' && Math.random() < 0.25) {
+      logCombat(`${target.name} evades auto-turret fire!`);
+      continue;
+    }
+    if (target.special === 'phase' && Math.random() < 0.40) {
+      logCombat(`${target.name} phases through turret fire!`);
+      continue;
+    }
+    
     let dmg = BALANCE.TURRET_BASE_DAMAGE;
     if (action === 'burst') {
       const r = BALANCE.COMBAT_ACTIONS.Burst.dmgBonus;
@@ -234,7 +249,14 @@ function turretAttack(idx, action, tState) {
       dmg = Math.floor(dmg * BALANCE.CRIT_MULT);
       logCombat(`Auto-Turret #${idx + 1} scores a CRITICAL hit!`);
     }
-    const dealt = rand(Math.max(1, dmg - 1), dmg + 2);
+    let dealt = rand(Math.max(1, dmg - 1), dmg + 2);
+    
+    // Apply armored special
+    if (target.special === 'armored') {
+      dealt = Math.floor(dealt * 0.5);
+      logCombat(`${target.name}'s armor deflects turret fire!`);
+    }
+    
     target.hp -= dealt;
     logCombat(`Auto-Turret #${idx + 1} hits ${target.name} for ${dealt}.`);
     if (target.hp <= 0) {
@@ -264,6 +286,18 @@ function playerShoot(action = 'shoot') {
     if (Math.random() < BALANCE.AMMO_CONSUME_CHANCE) state.resources.ammo = Math.max(0, state.resources.ammo - 1);
     const hit = rollHitChance(s) && !(action === 'aim' && i>0);
     if (hit) {
+      // Check alien special defenses before applying damage
+      if (target.special === 'dodge' && Math.random() < 0.25) {
+        logCombat(`${target.name} dodges the attack!`);
+        appendLog(`${target.name} dodges!`);
+        continue;
+      }
+      if (target.special === 'phase' && Math.random() < 0.40) {
+        logCombat(`${target.name} phases out of reality!`);
+        appendLog(`${target.name} phases out!`);
+        continue;
+      }
+      
       let dmg = computeSurvivorDamage(s);
       if (action === 'burst') {
         const r = BALANCE.COMBAT_ACTIONS.Burst.dmgBonus;
@@ -274,7 +308,15 @@ function playerShoot(action = 'shoot') {
         dmg = Math.floor(dmg * BALANCE.CRIT_MULT);
         logCombat(`${s.name} scores a CRITICAL hit on ${target.name}!`);
       }
-      const dealt = rand(Math.max(1, dmg - 1), dmg + 2);
+      
+      let dealt = rand(Math.max(1, dmg - 1), dmg + 2);
+      
+      // Apply armored special
+      if (target.special === 'armored') {
+        dealt = Math.floor(dealt * 0.5);
+        logCombat(`${target.name}'s carapace absorbs damage!`);
+      }
+      
       target.hp -= dealt;
       logCombat(`${s.name} hits ${target.name} for ${dealt} damage.`);
       appendLog(`${s.name} hits ${target.name} for ${dealt}.`);
@@ -390,18 +432,55 @@ function enemyTurn() {
   if (aliveParty.length === 0) return endCombat(false);
 
   logCombat(`— Enemy Turn —`);
+  
+  // Regeneration phase (brood special)
   for (const a of aliveAliens) {
-    // Pick a random survivor to attack
-    const targ = aliveParty[rand(0, aliveParty.length - 1)];
-    if (!targ) break;
-    const defense = (targ._guardBonus || 0) + (targ.equipment.armor?.type === 'armor' ? 3 : targ.equipment.armor?.type === 'heavyArmor' ? 6 : targ.equipment.armor?.type === 'hazmatSuit' ? 3 : 0);
-    const aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
-    const taken = Math.max(0, aDmg - defense);
-    targ.hp -= taken;
-    logCombat(`${a.name} strikes ${targ.name} for ${taken} damage.`);
-    appendLog(`${a.name} strikes ${targ.name} for ${taken}.`);
-    if (targ.hp <= 0) {
-      logCombat(`${targ.name} has fallen.`);
+    if (a.special === 'regeneration') {
+      const healAmount = rand(2, 4);
+      a.hp = Math.min(a.maxHp, a.hp + healAmount);
+      logCombat(`${a.name} regenerates ${healAmount} HP!`);
+    }
+  }
+  
+  for (const a of aliveAliens) {
+    // Multi-strike special (queen)
+    const attackCount = (a.special === 'multistrike') ? 2 : 1;
+    
+    for (let strike = 0; strike < attackCount; strike++) {
+      // Pick a random survivor to attack
+      const targ = aliveParty[rand(0, aliveParty.length - 1)];
+      if (!targ || targ.hp <= 0) break;
+      
+      let aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
+      
+      // Apply alien special attack modifiers
+      if (a.special === 'ambush' && a.firstStrike) {
+        aDmg = Math.floor(aDmg * 1.5);
+        a.firstStrike = false;
+        logCombat(`${a.name} ambushes from the shadows!`);
+      }
+      if (a.special === 'pack') {
+        const allyCount = aliveAliens.filter(al => al !== a).length;
+        aDmg += allyCount * 2;
+        if (allyCount > 0) logCombat(`${a.name} coordinated pack attack!`);
+      }
+      
+      let defense = (targ._guardBonus || 0) + (targ.equipment.armor?.type === 'armor' ? 3 : targ.equipment.armor?.type === 'heavyArmor' ? 6 : targ.equipment.armor?.type === 'hazmatSuit' ? 3 : 0);
+      
+      // Piercing special (spitter) - ignore 50% of armor
+      if (a.special === 'piercing') {
+        defense = Math.floor(defense * 0.5);
+        logCombat(`${a.name} sprays corrosive bile!`);
+      }
+      
+      const taken = Math.max(0, aDmg - defense);
+      targ.hp -= taken;
+      logCombat(`${a.name} strikes ${targ.name} for ${taken} damage.`);
+      appendLog(`${a.name} strikes ${targ.name} for ${taken}.`);
+      if (targ.hp <= 0) {
+        logCombat(`${targ.name} has fallen.`);
+        break; // Don't continue multi-strike on dead target
+      }
     }
   }
 

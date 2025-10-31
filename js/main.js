@@ -227,8 +227,11 @@ function triggerGameOver(message) {
 let loopHandle;
 loadGame();
 if (state.survivors.length === 0) {
-  recruitSurvivor('Elias');
-  recruitSurvivor('Marta'); // starter survivors
+  // Starter survivors are free (pass random name to skip cost)
+  const starterName1 = getRandomName();
+  const starterName2 = getRandomName();
+  recruitSurvivor(starterName1);
+  recruitSurvivor(starterName2);
   // Add initial junk items
   for (let i = 0; i < 3; i++) {
     state.inventory.push({ id: state.nextItemId++, type: 'junk', name: 'Junk' });

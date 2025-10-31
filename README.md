@@ -2,7 +2,7 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.7.3 (Turrets & Balance)
+**Current Version:** 0.7.4 (Alien Diversity)
 
 ##  Play Now
 
@@ -54,7 +54,15 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
 - **Revisitable**: Can return to clear hazards after obtaining a suit
 
 ### 👾 Threats
-- **Four Alien Types**: Lurkers, Stalkers, Broods, and Spectres with unique stats
+- **Eight Alien Types** with unique abilities:
+  - **Drone**: Evasive scavenger (25% dodge)
+  - **Lurker**: Ambush predator (+50% first strike)
+  - **Stalker**: Pack hunter (+2 dmg per ally)
+  - **Spitter**: Armor-piercing ranged attacker
+  - **Brood**: Regenerating nest cluster (2-4 HP/turn)
+  - **Ravager**: Armored brute (50% damage reduction)
+  - **Spectre**: Phase-shifting elite (40% avoidance)
+  - **Hive Queen**: Apex predator (double attacks)
 - **Threat Level**: Increases over time, reduced by guards
 - **Base Raids**: **ONLY GUARDS DEFEND** - maintain a strong defense force or lose everything
 - **Guard Task**: Essential for survival - reduces threat and defends against raids
