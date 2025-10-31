@@ -125,15 +125,19 @@ const BALANCE = {
   COMBAT_XP_RANGE: [10, 22],
   
   // Production multipliers
-  PROD_MULT: 1.15,
-  SYSTEM_FILTER_MULT: 1.3,
-  SYSTEM_GENERATOR_MULT: 1.2,
+  PROD_MULT: 1,
+  BASE_SYSTEM_PRODUCTION: { // 0.8.13 - Base production for level 0 systems
+    oxygen: 0.40,
+    energy: 0.20
+  },
+  SYSTEM_FILTER_MULT: 1.0,
+  SYSTEM_GENERATOR_MULT: 1.0,
   SURVIVOR_PROD: {
     Oxygen: { base: 1.1, perSkill: 0.06 },  // 0.8.6 - Boosted from 0.9/0.05
     Food: { base: 0.9, perSkill: 0.04 },    // 0.8.6 - Boosted from 0.7/0.03
     Energy: { base: 0.7, perSkill: 0.04 },
     Scrap: { base: 0.6, perSkill: 0.03 },
-    IdleOxygen: 0.04,
+    IdleOxygen: 0, // 0.8.13 - Idle survivors no longer produce resources
     FoodYieldFactor: 0.95, // 0.8.11 - Increased from 0.6 to make food ~15% worse than oxygen
     // 0.8.8 - Energy consumption rebalanced to per-survivor basis
     PassiveEnergyDrainPerSurvivor: 0.18,  // Base energy per survivor

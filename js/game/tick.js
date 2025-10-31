@@ -60,9 +60,17 @@ function applyTick(isOffline = false) {
   });
   const systemBonus = 1 + systemBonusAdd;
   
-  // systems contribute (only with global abilities, not class bonuses)
-  prod.oxygen += state.systems.filter * 1.2 * BALANCE.SYSTEM_FILTER_MULT * systemBonus;
-  prod.energy += state.systems.generator * 1.4 * BALANCE.SYSTEM_GENERATOR_MULT * systemBonus;
+  // Check for failed systems
+  const isFilterFailed = state.systemFailures.some(f => f.type === 'filter');
+  const isGeneratorFailed = state.systemFailures.some(f => f.type === 'generator');
+
+  // Systems contribute production (0.8.13 - now have base production and can fail at level 0)
+  if (!isFilterFailed) {
+    prod.oxygen += (BALANCE.BASE_SYSTEM_PRODUCTION.oxygen + state.systems.filter * 1.2) * BALANCE.SYSTEM_FILTER_MULT * systemBonus;
+  }
+  if (!isGeneratorFailed) {
+    prod.energy += (BALANCE.BASE_SYSTEM_PRODUCTION.energy + state.systems.generator * 1.4) * BALANCE.SYSTEM_GENERATOR_MULT * systemBonus;
+  }
   
   // apply production multiplier for survivors/systems
   prod.oxygen *= BALANCE.PROD_MULT;
@@ -85,12 +93,11 @@ function applyTick(isOffline = false) {
   state.resources.energy += prod.energy;
   state.resources.scrap += prod.scrap;
   
-  // 0.8.13 - Consumption uses ALL survivors (including those on missions)
-  const allSurvivors = state.survivors.length;
-  const o2Consume = BALANCE.O2_BASE + allSurvivors * BALANCE.O2_PER_SURVIVOR;
-  const foodConsume = BALANCE.FOOD_BASE + allSurvivors * BALANCE.FOOD_PER_SURVIVOR;
+  // 0.8.8 - Energy consumption: per-survivor base + turrets + filter upgrades
+  const o2Consume = BALANCE.O2_BASE + activeSurvivors.length * BALANCE.O2_PER_SURVIVOR;
+  const foodConsume = BALANCE.FOOD_BASE + activeSurvivors.length * BALANCE.FOOD_PER_SURVIVOR;
   const energyConsume = 
-    activeSurvivors.length * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerSurvivor +  // Only active survivors drain energy
+    activeSurvivors.length * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerSurvivor +  // Per survivor
     state.systems.turret * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerTurret +      // Turret drain
     state.systems.filter * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerFilterLevel;  // Filter drain
   
@@ -199,23 +206,21 @@ function applyTick(isOffline = false) {
     const baseFailureChance = 0.01; // 1% base chance per system
     const failureChance = baseFailureChance * failureRateMod;
     
-    // Filter failures
-    if (state.systems.filter > 0 && Math.random() < failureChance) {
-      state.systems.filter--;
+    // Filter failures - can fail even at level 0
+    if (Math.random() < failureChance && !state.systemFailures.some(f => f.type === 'filter')) {
       state.systemFailures.push({ type: 'filter', time: state.secondsPlayed });
-      appendLog('⚠️ Air filter system failed! Oxygen production reduced.');
+      appendLog('⚠️ Air filter system failed! Oxygen production halted.');
     }
     
-    // Generator failures
-    if (state.systems.generator > 0 && Math.random() < failureChance) {
-      state.systems.generator--;
+    // Generator failures - can fail even at level 0
+    if (Math.random() < failureChance && !state.systemFailures.some(f => f.type === 'generator')) {
       state.systemFailures.push({ type: 'generator', time: state.secondsPlayed });
-      appendLog('⚠️ Generator system failed! Energy production reduced.');
+      appendLog('⚠️ Generator system failed! Energy production halted.');
     }
     
     // Turret failures (more fragile - slightly higher chance)
-    if (state.systems.turret > 0 && Math.random() < failureChance * 1.5) {
-      state.systems.turret--;
+    if (state.systems.turret > 0 && Math.random() < failureChance * 1.5 && !state.systemFailures.some(f => f.type === 'turret')) {
+      state.systems.turret--; // Still reduces turret count
       state.systemFailures.push({ type: 'turret', time: state.secondsPlayed });
       appendLog('⚠️ Turret system failed! Defense reduced.');
     }

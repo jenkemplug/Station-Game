@@ -51,23 +51,12 @@ function debugAddItem(itemType) {
 }
 
 function debugRecruitSurvivor() {
-  const s = {
-    id: state.nextSurvivorId++,
-    name: getRandomName(),
-    level: 1,
-    xp: 0,
-    nextXp: 50,
-    skill: rand(1, 6),
-    hp: 20,
-    maxHp: 20,
-    morale: 60,
-    role: 'Idle',
-    task: 'Idle',
-    injured: false,
-    equipment: { weapon: null, armor: null }
-  };
-  state.survivors.push(s);
-  appendLog(`[DEBUG] Recruited ${s.name} (free)`);
+  // This function now uses the core recruitSurvivor function to ensure
+  // survivors are created with proper classes, abilities, and bonuses.
+  // Passing a name bypasses the recruitment cost.
+  recruitSurvivor(getRandomName());
+  const newSurvivor = state.survivors[state.survivors.length - 1];
+  appendLog(`[DEBUG] Recruited ${newSurvivor.name} (${newSurvivor.class}) (free)`);
   updateUI();
 }
 
@@ -197,6 +186,22 @@ function debugRepairBase() {
 function debugTriggerRaid() {
   appendLog('[DEBUG] Forcing raid event...');
   resolveRaid();
+  updateUI();
+}
+
+function debugFailSystem(systemType) {
+  const isFailed = state.systemFailures.some(f => f.type === systemType);
+  if (isFailed) {
+    appendLog(`[DEBUG] ${systemType} system is already failed.`);
+    return;
+  }
+  
+  if (systemType === 'turret' && state.systems.turret > 0) {
+    state.systems.turret--;
+  }
+  
+  state.systemFailures.push({ type: systemType, time: state.secondsPlayed });
+  appendLog(`[DEBUG] Triggered failure for ${systemType} system.`);
   updateUI();
 }
 

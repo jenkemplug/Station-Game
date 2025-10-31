@@ -2,6 +2,14 @@
 All notable changes to the Derelict Station project will be documented in this file.
 
 ## [0.8.13] - 2025-10-31
+### Hotfix - System Failures & Balance
+- **Fixed NaN Production Bug**: Corrected a critical bug that caused oxygen and energy production to display as `NaN` after a system failure.
+- **Rebalanced Base Production**: Tuned the new level 0 system production values to be much lower.
+  - Base Oxygen: `0.5/s` (down from 2.5)
+  - Base Energy: `0.3/s` (down from 1.5)
+  - These values are intentionally low to require at least one survivor on task to be self-sufficient.
+- **Improved Failure Mechanics**: Systems at level 0 can now fail and be repaired correctly. A failure now flags the system as offline rather than reducing its level.
+
 ### Changed - Early Game Balance
 - **Starting Resources Increased** for better early game experience
   - Food: 30 → 40 (+33% more starting food)
