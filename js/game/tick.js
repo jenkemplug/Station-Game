@@ -85,11 +85,12 @@ function applyTick(isOffline = false) {
   state.resources.energy += prod.energy;
   state.resources.scrap += prod.scrap;
   
-  // 0.8.8 - Energy consumption: per-survivor base + turrets + filter upgrades
-  const o2Consume = BALANCE.O2_BASE + activeSurvivors.length * BALANCE.O2_PER_SURVIVOR;
-  const foodConsume = BALANCE.FOOD_BASE + activeSurvivors.length * BALANCE.FOOD_PER_SURVIVOR;
+  // 0.8.13 - Consumption uses ALL survivors (including those on missions)
+  const allSurvivors = state.survivors.length;
+  const o2Consume = BALANCE.O2_BASE + allSurvivors * BALANCE.O2_PER_SURVIVOR;
+  const foodConsume = BALANCE.FOOD_BASE + allSurvivors * BALANCE.FOOD_PER_SURVIVOR;
   const energyConsume = 
-    activeSurvivors.length * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerSurvivor +  // Per survivor
+    activeSurvivors.length * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerSurvivor +  // Only active survivors drain energy
     state.systems.turret * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerTurret +      // Turret drain
     state.systems.filter * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerFilterLevel;  // Filter drain
   

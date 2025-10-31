@@ -1,4 +1,4 @@
-const VERSION = '0.8.12';
+const VERSION = '0.8.13';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -50,7 +50,7 @@ const BALANCE = {
   O2_BASE: 0.15,
   O2_PER_SURVIVOR: 0.35,
   FOOD_BASE: 0.05,
-  FOOD_PER_SURVIVOR: 0.22,
+  FOOD_PER_SURVIVOR: 0.18, // 0.8.13 - Reduced from 0.22 to balance with buffed production
   
   // Critical state thresholds
   OXY_CRITICAL_THRESHOLD: 10,

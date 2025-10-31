@@ -196,7 +196,22 @@ function autoSalvage() {
     appendLog('No junk to salvage.');
     return;
   }
-  const scrapGained = junkItems.length * rand(2, 4);
+  
+  let baseScrap = junkItems.length * rand(2, 4);
+  
+  // 0.8.13 - Apply Scavenger scrap bonuses to salvaging (additive)
+  const activeScavengers = state.survivors.filter(s => !s.onMission && s.class === 'scavenger');
+  let scrapBonusAdd = 0;
+  
+  activeScavengers.forEach(scav => {
+    if (scav.classBonuses && scav.classBonuses.scrap) {
+      scrapBonusAdd += (scav.classBonuses.scrap - 1); // e.g., 1.25 -> 0.25
+    }
+    if (hasAbility(scav, 'salvage')) scrapBonusAdd += 0.25; // Salvage Expert ability
+  });
+  
+  const scrapGained = Math.floor(baseScrap * (1 + scrapBonusAdd));
+  
   state.inventory = state.inventory.filter(item => item.type !== 'junk');
   state.resources.scrap += scrapGained;
   appendLog(`Salvaged ${junkItems.length} junk items for ${scrapGained} scrap.`);

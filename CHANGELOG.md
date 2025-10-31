@@ -1,6 +1,26 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.13] - 2025-10-31
+### Changed - Early Game Balance
+- **Starting Resources Increased** for better early game experience
+  - Food: 30 → 40 (+33% more starting food)
+  - Energy: 40 → 50 (+25% more starting energy)
+  - Scrap: 25 → 35 (+40% more starting scrap)
+  - Makes the opening minutes less punishing and gives more room for experimentation
+
+- **Food Consumption Reduced**: Per-survivor food drain decreased
+  - Per-survivor consumption: 0.22/s → 0.18/s (18% reduction)
+  - Example with 3 survivors: 0.71/s → 0.59/s total consumption
+  - Balances with the v0.8.12 food production buff for sustainable early game
+  - Net effect: Early game food management is now much more forgiving
+
+### Fixed
+- **Scavenger Salvage Bonuses**: Scavenger class and Salvage Expert ability now apply to junk salvaging
+  - Bonuses stack additively (multiple Scavengers combine their bonuses)
+  - Consistent with scrap bonuses applying to exploration, scrap task, and expeditions
+  - Example: 2 Scavengers with +25% each = +50% scrap from salvaging junk
+
 ## [0.8.12] - 2025-10-31
 ### Fixed - Balance & Mechanics
 - **Item Repair Cost Stacking**: Fixed repair costs to use additive stacking like all other bonuses

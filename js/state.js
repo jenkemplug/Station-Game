@@ -10,7 +10,7 @@ let state = {
   startedAt: Date.now(),
   lastTick: Date.now(),
   secondsPlayed: 0,
-  resources: { oxygen: 60, food: 30, energy: 40, scrap: 25, tech: 0, ammo: 10 },
+  resources: { oxygen: 60, food: 40, energy: 50, scrap: 35, tech: 0, ammo: 10 },
   production: { oxygen: 0, food: 0, energy: 0, scrap: 0 },
   survivors: [],
   nextSurvivorId: 1,

@@ -2,9 +2,19 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.8.12 (Advanced Systems)
+**Current Version:** 0.8.13 (Advanced Systems)
 
-### 🆕 Latest Updates (v0.8.12)
+### 🆕 Latest Updates (v0.8.13)
+- **Starting Resources Increased**: Better early game balance
+  - Food: 30 → 40 (+33%)
+  - Energy: 40 → 50 (+25%)
+  - Scrap: 25 → 35 (+40%)
+- **Food Consumption Reduced**: Per-survivor food consumption reduced from 0.22/s to 0.18/s (18% reduction)
+  - With 3 survivors: 0.71/s → 0.59/s consumption
+  - Makes food management less punishing in early game
+- **Scavenger Salvage Bonuses**: Scavenger class bonuses now apply to junk salvaging (additive stacking)
+
+### 🆕 Previous Updates (v0.8.12)
 - **Food Production Buffed**: 58% increase to food yield (0.6 → 0.95 multiplier)
   - Food now ~15% worse than oxygen instead of ~57% worse
   - Makes food management viable without trivializing the resource
