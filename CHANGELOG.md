@@ -1,6 +1,87 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.10] - 2025-10-31
+### Added - Class Bonus Ranges
+- **Randomized Class Bonuses**: All survivor classes now have rolled bonus values within ranges
+  - **Soldier**: +10-20% combat damage, +4-8 HP, +2-4 defense
+  - **Medic**: +25-35% healing, +5-15% survival bonus
+  - **Engineer**: +15-30% production, 15-25% repair cost reduction
+  - **Scout**: 10-20% exploration energy reduction, +15-25% dodge, +20-30% retreat chance
+  - **Technician**: 10-20% crafting cost reduction, +15-25% durability, +10-20% tech gains
+  - **Scientist**: +15-30% XP gain, +15-25% analysis bonus
+  - **Guardian**: +3-6 defense, +5-10% morale bonus
+  - **Scavenger**: +15-25% loot quality, +20-30% scrap gain
+  - Bonuses rolled randomly when recruiting and stored per survivor
+  - Applied throughout all game systems (combat, production, crafting, exploration)
+  - Save migration: existing survivors get rolled bonuses automatically on load
+
+- **Survivor Bonus Display**: Total bonuses now shown in survivor UI
+  - Displays combined level, class, and ability bonuses
+  - Shows production, combat, defense, dodge, XP multipliers
+  - Color-coded and positioned below class and abilities
+  
+- **Crafting Cost Discounts Visible**: Workbench shows original prices crossed out when Technician bonuses apply
+  - Original cost displayed with strikethrough
+  - Discounted cost shown alongside
+  - Makes cost reduction bonuses clearly visible
+  
+- **Dynamic Tile Costs**: Map tooltips show actual energy costs including Scout bonuses
+  - Reflects both class bonuses and Pathfinder ability
+  - Shows real cost player will pay when hovering tiles
+
+- **Last Survivor Protection**: Cannot release your last surviving crew member
+  - Release button disabled when only 1 survivor remains
+  - Tooltip explains restriction
+  - Backend validation prevents accidental releases
+  
+### Fixed
+- **Raid/Threat Minimum Persistence**: Fixed bug where raid and threat tier minimums persisted between new games
+  - `highestThreatTier` and `highestRaidTier` now properly reset on new game start
+  - Only load from saves, don't carry over in memory between sessions
+
+- **Game Over State Persistence**: Fixed multiple critical bugs with game over screen
+  - Added `gameOver` flag to track ended games
+  - Prevents survivor respawn bug when reloading on game over screen
+  - Game over modal now properly shows on reload with functioning buttons
+  - UI renders correctly in background (no black screen)
+  - Start New Game and Load Save buttons work reliably
+
+- **Panel Re-rendering**: Fixed unnecessary re-renders of base, map, and survivor panels
+  - Added snapshot checks for survivor count and map info
+  - Prevents UI flicker from constant DOM updates
+  - Optimized performance during normal gameplay
+  
+### Changed - Gameplay Rebalance & UI Improvements
+- **Energy Now Critical for Oxygen**: Running out of energy severely impacts oxygen production
+  - Oxygen production reduced to 10% effectiveness when energy is depleted
+  - Makes energy management crucial for survival
+  
+- **Defense Limits**: Maximum caps on guards and turrets
+  - Max 4 guards can be assigned to Guard duty
+  - Max 5 turrets can be built
+  - Visual feedback: Guard option grayed out and disabled when limit reached
+  - Log notification when attempting to exceed limits
+  - Aligns with tiered threat/raid system for balanced progression
+  
+### Removed
+- **Journal Panel**: Removed journal display from UI
+  - Cleaned up all journal references from codebase
+  - Streamlined interface for better readability
+  
+- **Turret Crafting**: Removed redundant turret crafting from Workbench
+  - Turrets can only be built via Systems panel now
+  - Reduces UI clutter and confusion
+  
+### UI Changes
+- **Panel Rearrangement**: Swapped positions for better workflow
+  - Workbench moved to bottom-left (main content area)
+  - Threats & Base moved to bottom-right (main content area)
+  - Inventory remains in right sidebar above notifications
+  - Middle space left blank for future features
+  
+- **Visual Refinements**: Resource consumption text alignment adjusted (3px margin)
+
 ## [0.8.9] - 2025-10-31
 ### Changed - Tiered Threshold System
 - **Threat Tier System**: Threat now uses dynamic floors based on highest tier reached

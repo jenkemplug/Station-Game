@@ -8,8 +8,12 @@ function applyTick(isOffline = false) {
 
   activeSurvivors.forEach(s => {
     const levelBonus = 1 + (s.level - 1) * BALANCE.LEVEL_PRODUCTION_BONUS;
-    // 0.8.0 - Engineer production bonuses
+    // 0.8.10 - Apply Engineer class production bonus
     let classBonus = 1;
+    if (s.classBonuses && s.classBonuses.production) {
+      classBonus *= s.classBonuses.production;
+    }
+    // 0.8.0 - Engineer production bonuses (abilities)
     if (hasAbility(s, 'efficient')) classBonus *= 1.15; // +15% system production
     if (hasAbility(s, 'overclock')) classBonus *= 1.30; // +30% production (energy cost handled separately)
     if (hasAbility(s, 'mastermind')) classBonus *= 1.25; // +25% all systems
@@ -26,7 +30,11 @@ function applyTick(isOffline = false) {
         break;
       case 'Scrap':
         let scrapBonus = classBonus;
-        // 0.8.0 - Scavenger Salvage Expert
+        // 0.8.10 - Scavenger class bonus for scrap
+        if (s.classBonuses && s.classBonuses.scrap) {
+          scrapBonus *= s.classBonuses.scrap;
+        }
+        // 0.8.0 - Scavenger Salvage Expert (ability)
         if (hasAbility(s, 'salvage')) scrapBonus *= 1.25;
         prod.scrap += (BALANCE.SURVIVOR_PROD.Scrap.base + s.skill * BALANCE.SURVIVOR_PROD.Scrap.perSkill) * levelBonus * scrapBonus;
         break;
@@ -40,9 +48,14 @@ function applyTick(isOffline = false) {
     }
   });
   
-  // 0.8.6 - Calculate system production bonuses from Engineer abilities
+  // 0.8.10 - Calculate system production bonuses from Engineer class bonus + abilities
   let systemBonus = 1;
   activeSurvivors.forEach(s => {
+    // Apply Engineer class production bonus to systems
+    if (s.classBonuses && s.classBonuses.production) {
+      systemBonus *= s.classBonuses.production;
+    }
+    // Apply Engineer abilities
     if (hasAbility(s, 'efficient')) systemBonus *= 1.15; // +15% system production
     if (hasAbility(s, 'overclock')) systemBonus *= 1.30; // +30% system production
     if (hasAbility(s, 'mastermind')) systemBonus *= 1.25; // +25% all systems
@@ -57,6 +70,11 @@ function applyTick(isOffline = false) {
   prod.food *= BALANCE.PROD_MULT;
   prod.energy *= BALANCE.PROD_MULT;
   prod.scrap *= BALANCE.PROD_MULT;
+  
+  // 0.8.10 - Severe oxygen penalty when out of energy
+  if (state.resources.energy <= 0) {
+    prod.oxygen *= (BALANCE.OXYGEN_PENALTY_NO_ENERGY || 0.1);
+  }
   
   // apply
   state.production = prod;
@@ -130,6 +148,11 @@ function applyTick(isOffline = false) {
   
   // base integrity clamp
   state.baseIntegrity = clamp(state.baseIntegrity, -20, 100);
+  if (state.baseIntegrity <= 0) {
+    state.gameOver = true;
+    triggerGameOver('Base integrity compromised. All systems have failed.');
+    return;
+  }
   
   // 0.8.0 - Scientist passive tech generation (Analytical, Genius)
   const scientists = state.survivors.filter(s => !s.onMission);
@@ -206,7 +229,8 @@ function applyTick(isOffline = false) {
   }
   
   // 0.8.4 - Game over if all survivors die
-  if (state.survivors.length === 0) {
+  if (state.survivors.length === 0 && state.secondsPlayed > 10) {
+    state.gameOver = true;
     triggerGameOver('All survivors have perished. The station is lost. Game Over.');
     return;
   }

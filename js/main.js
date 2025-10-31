@@ -139,7 +139,10 @@ function resetGame() {
   state.alienKills = 0;
   state.raidPressure = 0;
   state.lastThreatNoticeAt = 0;
-  state.journal = ["Station systems nominal. Maintain discipline."];
+  // 0.8.10 - Reset tier floors for new game
+  state.highestThreatTier = 0;
+  state.highestRaidTier = 0;
+  state.gameOver = false; // Reset game over flag
   state.missions = [];
   initTiles();
   saveGame();
@@ -205,6 +208,8 @@ function mainLoop() {
 function triggerGameOver(message) {
   appendLog(message);
   appendLog('=== GAME OVER ===');
+  state.gameOver = true; // Mark game as over
+  saveGame('action'); // Save the game over state
   clearInterval(loopHandle);
   
   // Display game over modal
@@ -224,31 +229,112 @@ function triggerGameOver(message) {
   document.body.appendChild(overlay);
   
   document.getElementById('btnGameOverReset').onclick = () => {
+    if (!confirm('Start a new game? This will erase your current save.')) return;
+    // Remove overlay first
     document.body.removeChild(overlay);
-    resetGame();
+    // Clear the save
+    localStorage.removeItem(GAME_KEY);
+    // Reload the page to start fresh
+    location.reload();
   };
   document.getElementById('btnGameOverLoad').onclick = () => {
     document.body.removeChild(overlay);
-    el('btnImport').click();
+    // Trigger file import
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          localStorage.setItem(GAME_KEY, JSON.stringify(parsed));
+          appendLog('[Imported save]');
+          location.reload();
+        } catch (err) {
+          alert('Failed to load save file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    fileInput.click();
   };
 }
 
 // Initial load and startup
 let loopHandle;
 loadGame();
-if (state.survivors.length === 0) {
-  // Starter survivors are free (pass random name to skip cost)
-  const starterName1 = getRandomName();
-  const starterName2 = getRandomName();
-  recruitSurvivor(starterName1);
-  recruitSurvivor(starterName2);
-  // Add initial junk items
-  for (let i = 0; i < 3; i++) {
-    state.inventory.push({ id: state.nextItemId++, type: 'junk', name: 'Junk' });
+
+// Check if this is a game over state
+if (state.gameOver) {
+  // Re-trigger game over modal (page was reloaded on game over screen)
+  updateUI(); // Update UI first so the background isn't black
+  bindUI();
+  
+  // Define handler functions globally so inline onclick can access them
+  window.handleGameOverReset = function() {
+    console.log('Reset button clicked!');
+    if (!confirm('Start a new game? This will erase your current save.')) return;
+    localStorage.removeItem(GAME_KEY);
+    location.reload();
+  };
+  
+  window.handleGameOverLoad = function() {
+    console.log('Load button clicked!');
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    fileInput.onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          localStorage.setItem(GAME_KEY, JSON.stringify(parsed));
+          location.reload();
+        } catch (err) {
+          alert('Failed to load save file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    fileInput.click();
+  };
+  
+  // Create and show game over modal
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:99999;';
+  overlay.innerHTML = `
+    <div class="modal-card" style="text-align:center;max-width:500px;">
+      <h2 style="color:var(--danger);margin-bottom:16px">GAME OVER</h2>
+      <p style="margin-bottom:24px;color:var(--text)">Your previous game ended. Start a new game or load a save.</p>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button onclick="handleGameOverReset()" class="primary" style="cursor:pointer;">Start New Game</button>
+        <button onclick="handleGameOverLoad()" class="danger" style="cursor:pointer;">Load Save</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+} else {
+  // Normal game startup
+  if (state.survivors.length === 0) {
+    // Starter survivors are free (pass random name to skip cost)
+    const starterName1 = getRandomName();
+    const starterName2 = getRandomName();
+    recruitSurvivor(starterName1);
+    recruitSurvivor(starterName2);
+    // Add initial junk items
+    for (let i = 0; i < 3; i++) {
+      state.inventory.push({ id: state.nextItemId++, type: 'junk', name: 'Junk' });
+    }
+    saveGame('action');
   }
-  saveGame('action');
+  updateUI();
+  bindUI();
+  loopHandle = setInterval(mainLoop, 1000);
+  setInterval(() => saveGame('auto'), 15000);
 }
-updateUI();
-bindUI();
-loopHandle = setInterval(mainLoop, 1000);
-setInterval(() => saveGame('auto'), 15000);

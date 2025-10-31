@@ -2,7 +2,7 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.8.8 (Advanced Systems)
+**Current Version:** 0.8.10 (Advanced Systems)
 
 ##  Play Now
 
@@ -14,6 +14,10 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
 - **Click-to-Explore Map**: Click adjacent tiles to explore the derelict station
 - **Survivor Classes & Abilities**: 8 unique classes with 40+ special abilities
   - Each survivor gets a random class (Soldier, Medic, Engineer, Scout, Technician, Scientist, Guardian, Scavenger)
+  - **Randomized Class Bonuses**: Each survivor rolls unique bonus values within class ranges
+    - Soldiers get +10-20% combat damage, Scouts get 10-20% energy reduction, etc.
+    - Bonuses persist and are displayed in survivor UI
+    - Makes each survivor feel unique and valuable
   - Probabilistic ability system - survivors spawn with 0-5 abilities based on rarity tiers
   - Color-coded rarity: Purple (Uncommon), Orange (Rare), Red (Very Rare)
 - **Advanced Combat Mechanics**:
@@ -27,9 +31,11 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
   - Combat log tracks all actions; active turn indicators
   - Auto-resolve option for quick battles
 - **Resource Management**: Balance oxygen, food, energy, and scrap production
+  - **Energy Critical for Oxygen**: Running out of energy reduces oxygen production to 10%
   - **System Failures**: Random breakdowns require repairs (1% base chance, 0.5% with Failsafe)
   - **Inventory Capacity**: Base 20 slots, expandable with Hoarder ability (+2 per)
 - **XP & Progression**: Survivors gain experience and level up for better stats
+- **Last Survivor Protection**: Cannot release your final crew member (button disabled with tooltip)
 
 ### 🔧 Crafting & Equipment
 - **Weapons**: Pulse Rifles and Shotguns for combat advantages
@@ -42,11 +48,13 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
   - Keen Eye: +20% rarity chance (Scavenger ability)
   - Treasure Hunter: +40% rarity chance (Scavenger ability)
 - **Inventor Ability**: Engineers can extract rare components (weapon parts → 2-4 tech, 30% chance)
+- **Cost Reduction Visibility**: Workbench shows original prices crossed out when Technician bonuses apply
 
 ### 🗺️ Exploration
 - **20x10 Tile Map**: Large station to explore with varied encounters
 - **Explorer Selection**: Choose which survivor explores dangerous areas
 - **Dynamic Energy Costs**: Different tile types require varying energy (8-25)
+  - Map tooltips show actual costs including Scout bonuses
 - **Tile Types**: Empty corridors, resource caches, survivors, alien nests, hazard rooms, modules
 - **Solo Combat**: Your selected explorer fights aliens alone during exploration
 - **Retreat & Return**: Can retreat from encounters and revisit them later
@@ -86,6 +94,8 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
   - Hivemind: Queen resurrects first dead drone at 50% HP
 - **Threat Level**: Increases over time, reduced by guards
 - **Base Raids**: **ONLY GUARDS DEFEND** - maintain a strong defense force or lose everything
+  - Max 4 guards can be assigned (limit enforced in UI)
+  - Max 5 turrets can be built for automated support
 - **Guard Task**: Essential for survival - reduces threat and defends against raids
 - **Exploration-Scaled Raids**: Raid frequency increases as you explore more of the station
 - **Critical Resource States**: Oxygen and food depletion cause casualties

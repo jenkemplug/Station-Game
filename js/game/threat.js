@@ -187,10 +187,11 @@ function resolveRaid() {
   const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission);
   const turretCount = state.systems.turret || 0;
   
+  // If no guards, instant game over
   if (guards.length === 0) {
-    // No guards = instant game over
-    appendLog('No guards on duty. The base is overrun.');
-    triggerGameOver('The aliens breached the base with no resistance. All is lost.');
+    appendLog('A massive raid overruns the station! No guards were on duty.');
+    state.gameOver = true;
+    showGameOver('The station was overrun.');
     return;
   }
   

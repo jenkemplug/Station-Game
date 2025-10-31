@@ -39,9 +39,9 @@ let state = {
   // 0.8.9 - track highest tier reached (becomes permanent floor)
   highestThreatTier: 0,  // index into BALANCE.THREAT_TIERS
   highestRaidTier: 0,    // index into BALANCE.RAID_TIERS
-  journal: ["Station systems nominal. Maintain discipline."],
   missions: [], // active expeditions
   timeNow: Date.now(),
+  gameOver: false, // 0.8.10 - Track game over state to prevent respawn on reload
 };
 
 // track which task dropdown is currently open across re-renders

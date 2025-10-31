@@ -51,8 +51,13 @@ function exploreTile(idx) {
   const tile = state.tiles[idx];
   let cost = getTileEnergyCost(tile);
   
-  // 0.8.0 - Scout Pathfinder ability reduces energy cost
+  // 0.8.10 - Scout class bonus: -10-20% exploration energy cost
   const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
+  if (explorer && explorer.classBonuses && explorer.classBonuses.exploration) {
+    cost = Math.floor(cost * explorer.classBonuses.exploration);
+  }
+  
+  // 0.8.0 - Scout Pathfinder ability reduces energy cost (stacks with class bonus)
   if (explorer && hasAbility(explorer, 'pathfinder')) {
     cost = Math.floor(cost * 0.85); // -15% energy cost
   }

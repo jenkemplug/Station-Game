@@ -3,7 +3,7 @@
 ## Project Overview
 This is a browser-based survival/management game where players manage a space station, survivors, and resources while facing alien threats. The project uses vanilla JavaScript, HTML, and CSS with no external dependencies.
 
-**Current Version:** 0.8.0 (Advanced Systems)
+**Current Version:** 0.8.10 (Advanced Systems)
 
 ## Architecture
 
@@ -11,7 +11,7 @@ This is a browser-based survival/management game where players manage a space st
 1. **State Management** (`js/state.js`)
    - Central `state` object manages all game data
    - Uses localStorage for persistence with unique user IDs (key: `derelict_station_expanded_v0.7.4_${USER_ID}`)
-   - State includes: resources, survivors, map, inventory, systems, threat levels, missions, alienKills, raidChance, raidCooldownMs
+   - State includes: resources, survivors, map, inventory, systems, threat levels, missions, alienKills, raidChance, raidCooldownMs, gameOver
    - Multi-user support: Each player on the same domain gets a unique save file
    - UI state tracking: `activeDropdown`, `selectedExplorerId`, `selectedExpeditionSurvivorId`, `activeTaskDropdownScroll`
 
@@ -106,8 +106,19 @@ js/
 - **Revisitable Content**: Uncleared hazards/aliens can be returned to after retreat
 
 ### 2. Survivor System (`js/game/survivor.js`)
-- **Attributes**: level, xp, skill, hp, maxHp, morale, task, equipment, class, abilities, downed
+- **Attributes**: level, xp, skill, hp, maxHp, morale, task, equipment, class, abilities, downed, classBonuses
 - **Classes**: 8 types (Soldier, Medic, Engineer, Scout, Technician, Scientist, Guardian, Scavenger)
+- **Class Bonuses**: Randomized bonus ranges rolled when recruiting (0.8.10)
+  - Soldier: +10-20% combat, +4-8 HP, +2-4 defense
+  - Medic: +25-35% healing, +5-15% survival
+  - Engineer: +15-30% production, 15-25% repair cost reduction
+  - Scout: 10-20% exploration energy reduction, +15-25% dodge, +20-30% retreat
+  - Technician: 10-20% crafting cost reduction, +15-25% durability, +10-20% tech gains
+  - Scientist: +15-30% XP gain, +15-25% analysis
+  - Guardian: +3-6 defense, +5-10% morale
+  - Scavenger: +15-25% loot quality, +20-30% scrap
+  - Stored in `survivor.classBonuses` object
+  - Applied throughout combat, production, crafting, exploration systems
 - **Abilities**: 40+ special abilities with rarity tiers (uncommon, rare, very rare)
 - **Equipment Slots**: weapon (rifle/shotgun), armor (light/heavy/hazmat)
 - **Tasks**: Idle, Oxygen, Food, Energy, Scrap, Guard
@@ -115,6 +126,7 @@ js/
 - **Recruitment**: Cost scales with survivor count, discounted by exploration progress
 - **Randomized Names**: Starter survivors have random names from 300+ name pool
 - **Downed State**: Survivors at 0 HP become downed instead of dying immediately
+- **Release Protection**: Cannot release last survivor (button disabled, backend validation) (0.8.10)
 
 ### 3. Combat System (`js/game/combat.js`, `js/game/combatInteractive.js`)
 - **Interactive Combat**: Turn-based overlay with tactical actions

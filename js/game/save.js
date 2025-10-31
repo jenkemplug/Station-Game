@@ -100,7 +100,6 @@ function makeSaveSnapshot() {
   selectedExpeditionSurvivorId: state.selectedExpeditionSurvivorId,
   highestThreatTier: state.highestThreatTier,
   highestRaidTier: state.highestRaidTier,
-    journal: state.journal,
     missions: state.missions,
     timeNow: Date.now()
   };
@@ -172,7 +171,6 @@ function loadGame() {
   state.alienKills = Number(parsed.alienKills) || 0;
   state.raidPressure = Number(parsed.raidPressure) || 0;
   state.lastThreatNoticeAt = Number(parsed.lastThreatNoticeAt) || 0;
-        state.journal = Array.isArray(parsed.journal) ? parsed.journal : state.journal;
         state.missions = Array.isArray(parsed.missions) ? parsed.missions : state.missions;
         state.timeNow = parsed.timeNow || Date.now();
         
@@ -192,30 +190,65 @@ function loadGame() {
           state.production[k] = Number(state.production[k]) || 0;
         }
         // ensure survivors numeric fields
-        state.survivors = state.survivors.map(s => ({
-          id: Number(s.id) || 0,
-          name: s.name || 'Unknown',
-          level: Number(s.level) || 1,
-          xp: Number(s.xp) || 0,
-          nextXp: Number(s.nextXp) || 50,
-          skill: Number(s.skill) || 1,
-          hp: Number(s.hp) || 1,
-          maxHp: Number(s.maxHp) || 1,
-          morale: Number(s.morale) || 0,
-          role: s.role || 'Idle',
-          task: s.task || 'Idle',
-          injured: !!s.injured,
-          downed: !!s.downed, // 0.8.0 - Revival system
-          equipment: s.equipment || { weapon: null, armor: null },
-          // 0.8.0 - Migration: add class/abilities for old saves
-          class: s.class || assignRandomClass(),
-          abilities: Array.isArray(s.abilities) ? s.abilities : (s.class ? rollAbilities(s.class) : [])
-        }));
+        state.survivors = state.survivors.map(s => {
+          const migratedSurvivor = {
+            id: Number(s.id) || 0,
+            name: s.name || 'Unknown',
+            level: Number(s.level) || 1,
+            xp: Number(s.xp) || 0,
+            nextXp: Number(s.nextXp) || 50,
+            skill: Number(s.skill) || 1,
+            hp: Number(s.hp) || 1,
+            maxHp: Number(s.maxHp) || 1,
+            morale: Number(s.morale) || 0,
+            role: s.role || 'Idle',
+            task: s.task || 'Idle',
+            injured: !!s.injured,
+            downed: !!s.downed, // 0.8.0 - Revival system
+            equipment: s.equipment || { weapon: null, armor: null },
+            // 0.8.0 - Migration: add class/abilities for old saves
+            class: s.class || assignRandomClass(),
+            abilities: Array.isArray(s.abilities) ? s.abilities : (s.class ? rollAbilities(s.class) : [])
+          };
+          
+          // 0.8.10 - Migration: roll class bonuses for existing survivors without them
+          if (!s.classBonuses && migratedSurvivor.class) {
+            const classInfo = SURVIVOR_CLASSES.find(c => c.id === migratedSurvivor.class);
+            const rolledBonuses = {};
+            
+            if (classInfo && classInfo.bonuses) {
+              for (const [key, value] of Object.entries(classInfo.bonuses)) {
+                if (Array.isArray(value) && value.length === 2) {
+                  const [min, max] = value;
+                  const rolled = min + Math.random() * (max - min);
+                  rolledBonuses[key] = (key === 'hp' || key === 'defense') ? Math.round(rolled) : Math.round(rolled * 100) / 100;
+                } else {
+                  rolledBonuses[key] = value;
+                }
+              }
+            }
+            
+            migratedSurvivor.classBonuses = rolledBonuses;
+            
+            // Apply retroactive HP bonus if it exists
+            if (rolledBonuses.hp && !s._hpMigrated) {
+              migratedSurvivor.maxHp += rolledBonuses.hp;
+              migratedSurvivor.hp = Math.min(migratedSurvivor.hp + rolledBonuses.hp, migratedSurvivor.maxHp);
+              migratedSurvivor._hpMigrated = true;
+            }
+          } else {
+            migratedSurvivor.classBonuses = s.classBonuses || {};
+            migratedSurvivor._hpMigrated = s._hpMigrated || false;
+          }
+          
+          return migratedSurvivor;
+        });
 
         // ensure tiles exist
         if (!state.tiles || state.tiles.length === 0) initTiles();
 
-        appendLog('[Loaded save]');
+  state.isNewGame = false;
+  appendLog('[Loaded save]');
         handleOffline();
         return;
       }
@@ -224,6 +257,10 @@ function loadGame() {
       appendLog('[Failed loading save: corrupt data]');
     }
   }
+  // 0.8.10 - Reset to defaults for new game
+  state.isNewGame = true;
+  state.highestThreatTier = 0;
+  state.highestRaidTier = 0;
   initTiles();
   appendLog('[New game]');
 }

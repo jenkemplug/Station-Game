@@ -18,10 +18,21 @@ let lastRenderedWorkbenchKey = null;
 let lastRenderedResourceSnapshot = null;
 let lastRenderedSystemSnapshot = null;
 let lastRenderedThreatSnapshot = null;
+// 0.8.10 - Additional snapshots for base panel and map info
+let lastRenderedSurvivorCount = null;
+let lastRenderedMapInfo = null;
 
 function computeMapSnapshot() {
   try {
     const parts = [state.mapSize.w, state.mapSize.h];
+    
+    // 0.8.10 - Include explorer ID and bonuses in snapshot to update tooltips
+    const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
+    const explorerKey = explorer 
+      ? `${explorer.id}:${explorer.classBonuses?.exploration || 1}:${hasAbility(explorer, 'pathfinder') ? 1 : 0}`
+      : 'none';
+    parts.push(explorerKey);
+    
     for (let i = 0; i < state.tiles.length; i++) {
       const t = state.tiles[i];
       const aliensAlive = (t.aliens && t.aliens.some(a => a && a.hp > 0)) ? 1 : 0;
@@ -69,8 +80,12 @@ function updateUI() {
     }
   }
 
-  // survivors
-  el('survivorCount').textContent = state.survivors.length;
+  // 0.8.10 - Only update survivor count if changed
+  const currentSurvivorCount = state.survivors.length;
+  if (lastRenderedSurvivorCount !== currentSurvivorCount) {
+    lastRenderedSurvivorCount = currentSurvivorCount;
+    el('survivorCount').textContent = currentSurvivorCount;
+  }
   renderSurvivors();
 
   // 0.8.5 - Only update systems panel if values changed
@@ -130,7 +145,13 @@ function updateUI() {
 
   // map
   renderMap();
-  el('mapInfo').textContent = `Explored: ${state.explored.size}/${state.mapSize.w * state.mapSize.h}`;
+  
+  // 0.8.10 - Only update map info if changed
+  const mapInfoText = `Explored: ${state.explored.size}/${state.mapSize.w * state.mapSize.h}`;
+  if (lastRenderedMapInfo !== mapInfoText) {
+    lastRenderedMapInfo = mapInfoText;
+    el('mapInfo').textContent = mapInfoText;
+  }
 
   // 0.8.5 - Only update threat panel if values changed
   const last = Number(state.lastRaidAt) || 0;
@@ -146,7 +167,6 @@ function updateUI() {
     cooldownSec: totalSec,
     tech: state.resources.tech,
     ammo: state.resources.ammo,
-    journal: state.journal.slice(-5).join(' '),
     played: state.secondsPlayed
   });
   
@@ -180,8 +200,6 @@ function updateUI() {
       }
     }
     
-    // journal
-    el('journal').textContent = state.journal.slice(-5).join(' ');
     el('timePlayed').textContent = `Played: ${formatTime(state.secondsPlayed)}`;
 
     // (loot preview removed)
@@ -354,10 +372,28 @@ function renderSurvivors() {
       const item = document.createElement('div');
       item.className = 'task-dropdown-item' + (task === s.task ? ' selected' : '');
       item.textContent = task;
+      
+      // 0.8.10 - Disable Guard task if max guards reached (excluding this survivor if already a guard)
+      if (task === 'Guard') {
+        const currentGuards = state.survivors.filter(surv => surv.task === 'Guard' && surv.id !== s.id && !surv.onMission).length;
+        const maxGuards = BALANCE.MAX_GUARDS || 4;
+        if (currentGuards >= maxGuards) {
+          item.classList.add('disabled');
+          item.title = `Maximum guards (${maxGuards}) reached`;
+          item.style.opacity = '0.4';
+          item.style.cursor = 'not-allowed';
+          item.style.color = 'var(--muted)';
+        }
+      }
 
       // click handler — use plain click to avoid interfering with default browser behavior
       item.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (item.classList.contains('disabled')) {
+          appendLog(`Cannot assign more guards. Maximum: ${BALANCE.MAX_GUARDS || 4}`);
+          updateUI();
+          return;
+        }
         
         // Close the dropdown and clear the active state
         dropdown.classList.remove('open');
@@ -437,6 +473,125 @@ function renderSurvivors() {
           classDisplay += ` • ${abilityNames.join(', ')}`;
         }
         classDisplay += '</div>';
+        
+        // 0.8.10 - Display total bonuses (level + class + abilities)
+        const levelBonus = 1 + (s.level - 1) * BALANCE.LEVEL_PRODUCTION_BONUS;
+        const levelPct = Math.round((levelBonus - 1) * 100);
+        
+        let bonusLines = [];
+        
+        // Production bonus (Engineer class + abilities, excluding level)
+        let prodBonus = 1;
+        if (s.classBonuses && s.classBonuses.production) prodBonus *= s.classBonuses.production;
+        if (hasAbility(s, 'efficient')) prodBonus *= 1.15;
+        if (hasAbility(s, 'overclock')) prodBonus *= 1.30;
+        if (hasAbility(s, 'mastermind')) prodBonus *= 1.25;
+        if (prodBonus > 1) {
+          bonusLines.push(`Production: +${Math.round((prodBonus - 1) * 100)}%`);
+        }
+        
+        // Scrap bonus (Scavenger class + abilities, excluding level)
+        let scrapBonus = 1;
+        if (s.classBonuses && s.classBonuses.scrap) scrapBonus *= s.classBonuses.scrap;
+        if (hasAbility(s, 'salvage')) scrapBonus *= 1.25;
+        if (scrapBonus > 1) {
+          bonusLines.push(`Scrap: +${Math.round((scrapBonus - 1) * 100)}%`);
+        }
+        
+        // Combat bonus (Soldier class + abilities)
+        let combatBonus = 1;
+        if (s.classBonuses && s.classBonuses.combat) combatBonus *= s.classBonuses.combat;
+        if (hasAbility(s, 'veteran')) combatBonus *= 1.2;
+        if (combatBonus > 1) {
+          bonusLines.push(`Combat: +${Math.round((combatBonus - 1) * 100)}%`);
+        }
+        
+        // Healing bonus (Medic class + abilities)
+        let healingBonus = 1;
+        if (s.classBonuses && s.classBonuses.healing) healingBonus *= s.classBonuses.healing;
+        if (hasAbility(s, 'triage')) healingBonus *= 1.25;
+        if (healingBonus > 1) {
+          bonusLines.push(`Healing: +${Math.round((healingBonus - 1) * 100)}%`);
+        }
+        
+        // Defense (Guardian/Soldier class + abilities + armor)
+        let defenseBonus = 0;
+        if (s.classBonuses && s.classBonuses.defense) defenseBonus += s.classBonuses.defense;
+        if (s.equipment.armor?.type === 'armor') defenseBonus += 3;
+        if (s.equipment.armor?.type === 'heavyArmor') defenseBonus += 6;
+        if (s.equipment.armor?.type === 'hazmatSuit') defenseBonus += 3;
+        if (hasAbility(s, 'stalwart') && s.task === 'Guard') defenseBonus += 3;
+        if (hasAbility(s, 'fortress')) defenseBonus += 5;
+        if (defenseBonus > 0) {
+          bonusLines.push(`Defense: +${defenseBonus}`);
+        }
+        
+        // Dodge (Scout class + abilities)
+        let dodgeChance = 0;
+        if (s.class === 'scout' && s.classBonuses && s.classBonuses.dodge) {
+          dodgeChance = 0.12 * s.classBonuses.dodge;
+        }
+        if (hasAbility(s, 'evasive')) dodgeChance += 0.20;
+        if (hasAbility(s, 'ghost')) dodgeChance += 0.35;
+        if (dodgeChance > 0) {
+          bonusLines.push(`Dodge: ${Math.round(dodgeChance * 100)}%`);
+        }
+        
+        // Exploration cost (Scout class + abilities)
+        let explorationCost = 1;
+        if (s.classBonuses && s.classBonuses.exploration) explorationCost *= s.classBonuses.exploration;
+        if (hasAbility(s, 'pathfinder')) explorationCost *= 0.85;
+        if (explorationCost < 1) {
+          bonusLines.push(`Exploration: ${Math.round((1 - explorationCost) * 100)}% cheaper`);
+        }
+        
+        // Loot quality (Scavenger class + abilities)
+        let lootBonus = 0;
+        if (s.classBonuses && s.classBonuses.loot) lootBonus += (s.classBonuses.loot - 1);
+        if (hasAbility(s, 'keen')) lootBonus += 0.20;
+        if (hasAbility(s, 'treasure')) lootBonus += 0.40;
+        if (lootBonus > 0) {
+          bonusLines.push(`Loot: +${Math.round(lootBonus * 100)}% quality`);
+        }
+        
+        // Crafting cost (Technician class + abilities)
+        let craftingCost = 1;
+        if (s.classBonuses && s.classBonuses.crafting) craftingCost *= s.classBonuses.crafting;
+        if (hasAbility(s, 'resourceful')) craftingCost *= 0.90;
+        if (hasAbility(s, 'prodigy')) craftingCost *= 0.75;
+        if (craftingCost < 1) {
+          bonusLines.push(`Crafting: ${Math.round((1 - craftingCost) * 100)}% cheaper`);
+        }
+        
+        // Durability (Technician class + abilities)
+        let durabilityBonus = 1;
+        if (s.classBonuses && s.classBonuses.durability) durabilityBonus *= s.classBonuses.durability;
+        if (hasAbility(s, 'durable')) durabilityBonus *= 1.2;
+        if (hasAbility(s, 'prodigy')) durabilityBonus *= 1.3;
+        if (durabilityBonus > 1) {
+          bonusLines.push(`Durability: +${Math.round((durabilityBonus - 1) * 100)}%`);
+        }
+        
+        // Morale (Guardian class)
+        if (s.classBonuses && s.classBonuses.morale && s.classBonuses.morale > 1) {
+          bonusLines.push(`Morale: +${Math.round((s.classBonuses.morale - 1) * 100)}% aura`);
+        }
+        
+        // XP bonus (Scientist class, excluding level)
+        let xpBonus = 1;
+        if (s.classBonuses && s.classBonuses.xp) xpBonus *= s.classBonuses.xp;
+        if (hasAbility(s, 'studious')) xpBonus *= 1.15;
+        if (xpBonus > 1) {
+          bonusLines.push(`XP: +${Math.round((xpBonus - 1) * 100)}%`);
+        }
+        
+        if (bonusLines.length > 0 || levelPct > 0) {
+          classDisplay += `<div style="font-size: 11px; color: var(--muted); margin-top: 2px;">`;
+          if (levelPct > 0) classDisplay += `Level: +${levelPct}% • `;
+          classDisplay += bonusLines.join(' • ');
+          classDisplay += `</div>`;
+        }
+        
         return classDisplay;
       })()}
       <div style="margin-top:4px; font-size: 11px; color: var(--muted);">
@@ -447,7 +602,7 @@ function renderSurvivors() {
         <div id="task-select-${s.id}" style="flex:1"></div>
         <button data-id="${s.id}" class="equip" style="flex:0 0 auto">Equip</button>
         <button data-id="${s.id}" class="heal" style="flex:0 0 auto">Use Medkit</button>
-        <button data-id="${s.id}" class="dismiss" style="flex:0 0 auto">Release</button>
+        <button data-id="${s.id}" class="dismiss" style="flex:0 0 auto" ${state.survivors.length <= 1 ? 'disabled title="Cannot release your last survivor"' : ''}>Release</button>
       </div>
     `;
     cont.appendChild(card);
@@ -584,12 +739,19 @@ function renderMap() {
         // Add click handler for explorable tiles
         tile.onclick = () => exploreTile(idx);
         
-        // Calculate energy cost with explorer bonuses
+        // 0.8.10 - Calculate energy cost with Scout class bonus + abilities
         const baseCost = getTileEnergyCost(t);
         const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
         let actualCost = baseCost;
+        
+        // Apply Scout class exploration bonus
+        if (explorer && explorer.classBonuses && explorer.classBonuses.exploration) {
+          actualCost = Math.floor(actualCost * explorer.classBonuses.exploration);
+        }
+        
+        // Apply Pathfinder ability (stacks with class bonus)
         if (explorer && hasAbility(explorer, 'pathfinder')) {
-          actualCost = Math.ceil(baseCost * 0.85); // -15% cost for Pathfinder
+          actualCost = Math.floor(actualCost * 0.85); // -15% cost for Pathfinder
         }
         
         // Show energy cost in tooltip
@@ -763,9 +925,18 @@ function renderExpeditionSurvivorSelect() {
 
 // 0.8.1 - Render workbench with dynamic crafting costs
 function renderWorkbench() {
-  // Calculate cost multiplier from Technician abilities
+  // 0.8.10 - Calculate cost multiplier from Technician class bonuses + abilities
   let costMult = 1;
   const technicians = state.survivors.filter(s => !s.onMission);
+  
+  // Apply best Technician's class bonus first
+  const techsWithBonus = technicians.filter(t => t.class === 'technician' && t.classBonuses && t.classBonuses.crafting);
+  if (techsWithBonus.length > 0) {
+    const bestCraftingBonus = Math.min(...techsWithBonus.map(t => t.classBonuses.crafting));
+    costMult *= bestCraftingBonus;
+  }
+  
+  // Apply Technician abilities (stack with class bonus)
   for (const t of technicians) {
     if (hasAbility(t, 'resourceful')) costMult *= 0.90; // -10% cost
     if (hasAbility(t, 'prodigy')) costMult *= 0.75; // -25% cost
@@ -783,7 +954,7 @@ function renderWorkbench() {
   const recipes = [
     { item: 'medkit', label: 'Assemble Medkit', scrap: 15 },
     { item: 'ammo', label: 'Manufacture Ammo', scrap: 10 },
-    { item: 'turret', label: 'Construct Auto-Turret', scrap: 75, energy: 40, tech: 3 },
+    // 0.8.10 - Turret removed from workbench (build via Systems panel)
     { item: 'armor', label: 'Craft Light Armor', scrap: 40, tech: 3 },
     { item: 'rifle', label: 'Build Pulse Rifle', scrap: 55, tech: 5, weaponPart: 1 },
     { item: 'heavyArmor', label: 'Craft Heavy Armor', scrap: 70, tech: 5 },
@@ -803,26 +974,36 @@ function renderWorkbench() {
     const techCost = Math.ceil((r.tech || 0) * costMult);
     const weaponPartCost = r.weaponPart || 0;
 
-    // Build cost string
+    // Build cost string with discounts
     let costParts = [];
-    if (scrapCost > 0) costParts.push(`Scrap ${scrapCost}`);
-    if (energyCost > 0) costParts.push(`Energy ${energyCost}`);
-    if (techCost > 0) costParts.push(`Tech ${techCost}`);
+    if (r.scrap > 0) {
+      const hasDiscount = scrapCost < r.scrap;
+      if (hasDiscount) {
+        costParts.push(`Scrap <span style="text-decoration:line-through;color:var(--muted)">${r.scrap}</span> ${scrapCost}`);
+      } else {
+        costParts.push(`Scrap ${scrapCost}`);
+      }
+    }
+    if (r.energy > 0) {
+      const hasDiscount = energyCost < r.energy;
+      if (hasDiscount) {
+        costParts.push(`Energy <span style="text-decoration:line-through;color:var(--muted)">${r.energy}</span> ${energyCost}`);
+      } else {
+        costParts.push(`Energy ${energyCost}`);
+      }
+    }
+    if (r.tech > 0) {
+      const hasDiscount = techCost < r.tech;
+      if (hasDiscount) {
+        costParts.push(`Tech <span style="text-decoration:line-through;color:var(--muted)">${r.tech}</span> ${techCost}`);
+      } else {
+        costParts.push(`Tech ${techCost}`);
+      }
+    }
     if (weaponPartCost > 0) costParts.push(`Parts ${weaponPartCost}`);
 
     const costStr = costParts.length > 0 ? ` (${costParts.join(', ')})` : '';
-
-    // Show original cost if different (discount applied)
-    if (costMult < 1) {
-      let originalParts = [];
-      if (r.scrap > 0) originalParts.push(`${r.scrap}`);
-      if (r.energy > 0) originalParts.push(`${r.energy}`);
-      if (r.tech > 0) originalParts.push(`${r.tech}`);
-      if (r.weaponPart > 0) originalParts.push(`${r.weaponPart}p`);
-      button.innerHTML = `${r.label}${costStr} <span style="text-decoration:line-through;color:var(--muted);font-size:11px">${originalParts.join('/')}</span>`;
-    } else {
-      button.textContent = `${r.label}${costStr}`;
-    }
+    button.innerHTML = `${r.label}${costStr}`;
 
     button.onclick = () => {
       craft(r.item);

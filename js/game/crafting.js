@@ -8,14 +8,22 @@ function craft(item) {
     return;
   }
   
-  // 0.8.0 - Technician abilities reduce crafting costs
+  // 0.8.10 - Technician class bonus: crafting cost reduction (rolled 0.80-0.90 = 10-20% reduction)
   let costMult = 1;
   const technicians = state.survivors.filter(s => !s.onMission);
+  
+  // Apply best Technician's class bonus first
+  const techsWithBonus = technicians.filter(t => t.class === 'technician' && t.classBonuses && t.classBonuses.crafting);
+  if (techsWithBonus.length > 0) {
+    const bestCraftingBonus = Math.min(...techsWithBonus.map(t => t.classBonuses.crafting));
+    costMult *= bestCraftingBonus;
+  }
+  
+  // 0.8.0 - Technician abilities reduce crafting costs (stack with class bonus)
   for (const t of technicians) {
     if (hasAbility(t, 'resourceful')) costMult *= 0.90; // -10% cost
     if (hasAbility(t, 'prodigy')) costMult *= 0.75; // -25% cost
   }
-  // Apply only once (most powerful technician)
   const scrapCost = Math.ceil((r.scrap || 0) * costMult);
   const energyCost = Math.ceil((r.energy || 0) * costMult);
   const techCost = Math.ceil((r.tech || 0) * costMult);
@@ -69,15 +77,26 @@ function craft(item) {
     }
   }
   
-  // 0.8.0 - Technician Durable Craft: +20% durability on crafted items
+  // 0.8.10 - Technician class + ability durability bonuses
   const hasDurable = technicians.some(t => hasAbility(t, 'durable'));
   const hasProdigy = technicians.some(t => hasAbility(t, 'prodigy'));
-  if (hasDurable || hasProdigy) {
+  
+  // Apply Technician class durability bonus
+  let durabilityMult = 1;
+  const techsWithDurability = technicians.filter(t => t.class === 'technician' && t.classBonuses && t.classBonuses.durability);
+  if (techsWithDurability.length > 0) {
+    const bestDurabilityBonus = Math.max(...techsWithDurability.map(t => t.classBonuses.durability));
+    durabilityMult *= bestDurabilityBonus;
+  }
+  
+  // Apply Technician ability bonuses (stack with class bonus)
+  if (hasDurable) durabilityMult *= 1.2; // +20%
+  if (hasProdigy) durabilityMult *= 1.3; // +30%
+  
+  if (durabilityMult > 1) {
     const lastItem = state.inventory[state.inventory.length - 1];
     if (lastItem && lastItem.durability !== undefined) {
-      const durabilityBonus = hasDurable ? 1.2 : 1;
-      const prodigyBonus = hasProdigy ? 1.3 : 1;
-      lastItem.maxDurability = Math.floor(lastItem.maxDurability * durabilityBonus * prodigyBonus);
+      lastItem.maxDurability = Math.floor(lastItem.maxDurability * durabilityMult);
       lastItem.durability = lastItem.maxDurability;
       appendLog('Crafted with enhanced durability!');
     }
@@ -111,6 +130,13 @@ function upgradeGenerator() {
 }
 
 function buildTurret() {
+  // 0.8.10 - Enforce max turret limit
+  const maxTurrets = BALANCE.MAX_TURRETS || 5;
+  if (state.systems.turret >= maxTurrets) {
+    appendLog(`Cannot build more turrets. Maximum: ${maxTurrets}`);
+    return;
+  }
+  
   // 0.8.4 - Scale turret costs by 10% per existing turret
   const baseCost = BALANCE.UPGRADE_COSTS.turret.scrap;
   const baseEnergy = BALANCE.UPGRADE_COSTS.turret.energy;
@@ -183,7 +209,15 @@ function repairItem(itemId) {
 
   let repairCost = Math.ceil((item.maxDurability - item.durability) * BALANCE.REPAIR_COST_PER_POINT);
   
-  // 0.8.0 - Engineer Quick Fix: -20% repair costs
+  // 0.8.10 - Engineer class bonus: repair cost reduction (rolled 0.75-0.85 = 15-25% reduction)
+  const activeEngineers = state.survivors.filter(s => !s.onMission && s.class === 'engineer' && s.classBonuses && s.classBonuses.repair);
+  if (activeEngineers.length > 0) {
+    // Use the best Engineer's bonus
+    const bestRepairBonus = Math.min(...activeEngineers.map(e => e.classBonuses.repair));
+    repairCost = Math.ceil(repairCost * bestRepairBonus);
+  }
+  
+  // 0.8.0 - Engineer Quick Fix ability: -20% repair costs (stacks with class bonus)
   const hasQuickFix = state.survivors.some(s => !s.onMission && hasAbility(s, 'quickfix'));
   if (hasQuickFix) repairCost = Math.ceil(repairCost * 0.80);
   

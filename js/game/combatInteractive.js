@@ -576,6 +576,11 @@ function playerRetreat() {
   retreatChance += s.skill * BALANCE.RETREAT_SKILL_BONUS;
   retreatChance += s.level * BALANCE.RETREAT_LEVEL_BONUS;
   
+  // 0.8.10 - Scout class bonus: +20-30% retreat chance
+  if (s.classBonuses && s.classBonuses.retreat) {
+    retreatChance *= s.classBonuses.retreat;
+  }
+  
   // Apply alien type penalty/bonus
   const aliens = currentCombat.aliens.filter(a => a.hp > 0);
   if (aliens.length > 0) {

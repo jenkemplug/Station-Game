@@ -43,11 +43,29 @@ function recruitSurvivor(name) {
   else if (skillRoll < 0.95) skill = 2; // 25% chance skill 2
   else skill = 3;                        // 5% chance skill 3
 
-  // 0.8.6 - Apply class-specific HP bonuses
-  let baseHp = 20;
+  // 0.8.10 - Roll class bonus values from ranges and store them
   const classInfo = SURVIVOR_CLASSES.find(c => c.id === survivorClass);
-  if (classInfo && classInfo.bonuses.hp) {
-    baseHp += classInfo.bonuses.hp; // Soldier gets +5 HP
+  const rolledBonuses = {};
+  
+  if (classInfo && classInfo.bonuses) {
+    for (const [key, value] of Object.entries(classInfo.bonuses)) {
+      if (Array.isArray(value) && value.length === 2) {
+        // Roll a random value between min and max
+        const [min, max] = value;
+        const rolled = min + Math.random() * (max - min);
+        // Round to 2 decimal places for percentages, whole numbers for flat values
+        rolledBonuses[key] = (key === 'hp' || key === 'defense') ? Math.round(rolled) : Math.round(rolled * 100) / 100;
+      } else {
+        // Fallback for any non-range values
+        rolledBonuses[key] = value;
+      }
+    }
+  }
+  
+  // 0.8.10 - Apply HP bonus from rolled values
+  let baseHp = 20;
+  if (rolledBonuses.hp) {
+    baseHp += rolledBonuses.hp;
   }
 
   const s = {
@@ -66,7 +84,9 @@ function recruitSurvivor(name) {
     equipment: { weapon: null, armor: null },
     // 0.8.0 - New fields
     class: survivorClass,
-    abilities: abilities
+    abilities: abilities,
+    // 0.8.10 - Store rolled class bonuses
+    classBonuses: rolledBonuses
   };
   state.survivors.push(s);
   
@@ -98,6 +118,18 @@ function getRecruitCost() {
 function assignTask(id, newTask) {
   const s = state.survivors.find(x => x.id === id);
   if (!s) return;
+  
+  // 0.8.10 - Enforce max guards limit
+  if (newTask === 'Guard') {
+    const currentGuards = state.survivors.filter(surv => surv.task === 'Guard' && surv.id !== id && !surv.onMission).length;
+    const maxGuards = BALANCE.MAX_GUARDS || 4;
+    if (currentGuards >= maxGuards) {
+      appendLog(`Cannot assign more guards. Maximum: ${maxGuards}`);
+      updateUI();
+      return;
+    }
+  }
+  
   if (TASKS.includes(newTask)) {
     s.task = newTask;
     s.role = newTask; // Update role to match task
@@ -111,10 +143,9 @@ function grantXp(survivor, amount) {
 
   let xpMult = BALANCE.XP_MULT;
   
-  // 0.8.6 - Scientist class bonus: +15% XP
-  const classInfo = SURVIVOR_CLASSES.find(c => c.id === survivor.class);
-  if (classInfo && classInfo.bonuses.xp) {
-    xpMult *= classInfo.bonuses.xp;
+  // 0.8.10 - Use rolled class bonus for XP (Scientist)
+  if (survivor.classBonuses && survivor.classBonuses.xp) {
+    xpMult *= survivor.classBonuses.xp;
   }
 
   const gained = Math.round(amount * xpMult);
@@ -134,6 +165,12 @@ function grantXp(survivor, amount) {
 }
 
 function releaseSurvivor(id) {
+  // 0.8.10 - Prevent releasing last survivor
+  if (state.survivors.length <= 1) {
+    appendLog('Cannot release your last survivor!');
+    return;
+  }
+  
   const idx = state.survivors.findIndex(x => x.id === id);
   if (idx === -1) return;
   const name = state.survivors[idx].name;
@@ -152,11 +189,10 @@ function useMedkit(id) {
   }
   state.inventory.splice(medkitIndex, 1);
   
-  // 0.8.6 - Medic class bonus: +30% healing (base 10 -> 13)
+  // 0.8.10 - Use rolled Medic class bonus for healing
   let healAmount = 10;
-  const classInfo = SURVIVOR_CLASSES.find(c => c.id === s.class);
-  if (classInfo && classInfo.bonuses.healing) {
-    healAmount = Math.floor(healAmount * classInfo.bonuses.healing);
+  if (s.classBonuses && s.classBonuses.healing) {
+    healAmount = Math.floor(healAmount * s.classBonuses.healing);
   }
   
   s.hp = Math.min(s.maxHp, s.hp + healAmount);

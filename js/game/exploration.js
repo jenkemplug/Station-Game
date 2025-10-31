@@ -27,11 +27,17 @@ function handleTileEvent(idx) {
   if (t.type === 'resource') {
     // produce loot
     let qualityBonus = 0;
-    // 0.8.1 - Scout Keen Eye: +20% loot quality
+    
+    // 0.8.10 - Scavenger class bonus: +15-25% loot quality
+    if (explorer && explorer.classBonuses && explorer.classBonuses.loot) {
+      qualityBonus += (explorer.classBonuses.loot - 1); // Convert 1.15-1.25 to 0.15-0.25
+    }
+    
+    // 0.8.1 - Scout Keen Eye: +20% loot quality (stacks with class bonus)
     if (explorer && hasAbility(explorer, 'keen')) {
       qualityBonus += 0.20;
     }
-    // 0.8.1 - Scavenger Treasure Hunter: rare items more often
+    // 0.8.1 - Scavenger Treasure Hunter: +40% rare items (stacks with class bonus)
     if (explorer && hasAbility(explorer, 'treasure')) {
       qualityBonus += 0.40;
     }

@@ -1,4 +1,4 @@
-const VERSION = '0.8.9';
+const VERSION = '0.8.10';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -60,6 +60,11 @@ const BALANCE = {
   MORALE_LOSS_ASPHYXIA: 0.6,
   MORALE_LOSS_STARVATION: 0.25,
   STARVATION_CHANCE: 0.07,
+  
+  // 0.8.10 - Gameplay rebalance
+  OXYGEN_PENALTY_NO_ENERGY: 0.1, // Oxygen production is only 10% effective without energy
+  MAX_GUARDS: 4,                 // Max number of survivors that can be assigned to Guard duty
+  MAX_TURRETS: 5,                // Max number of turrets that can be built
   
   // 0.8.9 - Tiered threshold system: reaching milestones creates permanent floors
   // Threat tiers: Once you hit a tier, you can't go below it (high water marks)
@@ -218,62 +223,89 @@ const ALIEN_TYPES = [
     specialDesc: 'Multi-Strike: Attacks twice each turn' }
 ];
 
-// 0.8.0 - Survivor Classes (8 classes)
+// 0.8.10 - Survivor Classes (8 classes) with bonus ranges
 const SURVIVOR_CLASSES = [
   { 
     id: 'soldier', 
     name: 'Soldier', 
     desc: 'Combat specialist: +10% hit, +15% crit, bonus damage and defense',
-    bonuses: { combat: 1.15, hp: 5 },
+    bonuses: { 
+      combat: [1.10, 1.20],  // +10-20% damage
+      hp: [4, 8],            // +4-8 HP
+      defense: [2, 4]        // +2-4 defense
+    },
     color: 'var(--class-common)' // Blue
   },
   { 
     id: 'medic', 
     name: 'Medic', 
-    desc: 'Healing specialist: +25% medkit healing, can survive fatal blows',
-    bonuses: { healing: 1.3, survival: 1.1 },
+    desc: 'Healing specialist: +25-35% medkit healing, can survive fatal blows',
+    bonuses: { 
+      healing: [1.25, 1.35],  // +25-35% healing
+      survival: [1.05, 1.15]  // +5-15% survival
+    },
     color: 'var(--class-common)'
   },
   { 
     id: 'engineer', 
     name: 'Engineer', 
     desc: 'Systems expert: +15-30% production, -20% repair costs, overclock systems',
-    bonuses: { production: 1.2, repair: 1.25 },
+    bonuses: { 
+      production: [1.15, 1.30],  // +15-30% production
+      repair: [0.75, 0.85]       // 15-25% repair cost reduction (multiply cost by this)
+    },
     color: 'var(--class-common)'
   },
   { 
     id: 'scout', 
     name: 'Scout', 
-    desc: 'Exploration specialist: -15% energy cost, 20-35% dodge, +25% retreat',
-    bonuses: { exploration: 0.8, dodge: 1.15 },
+    desc: 'Exploration specialist: -10-20% energy cost, 15-25% dodge, +25% retreat',
+    bonuses: { 
+      exploration: [0.80, 0.90],  // 10-20% energy cost reduction
+      dodge: [1.15, 1.25],        // +15-25% dodge
+      retreat: [1.20, 1.30]       // +20-30% retreat chance
+    },
     color: 'var(--class-common)'
   },
   { 
     id: 'technician', 
     name: 'Technician', 
-    desc: 'Crafting specialist: -10-25% costs, +20-30% durability, 25% refund',
-    bonuses: { crafting: 0.85, tech: 1.15 },
+    desc: 'Crafting specialist: -10-20% costs, +15-25% durability, 25% refund',
+    bonuses: { 
+      crafting: [0.80, 0.90],     // 10-20% crafting cost reduction
+      durability: [1.15, 1.25],   // +15-25% durability
+      tech: [1.10, 1.20]          // +10-20% tech gains
+    },
     color: 'var(--class-common)'
   },
   { 
     id: 'scientist', 
     name: 'Scientist', 
-    desc: 'Research specialist: +15-25% XP, alien analysis',
-    bonuses: { xp: 1.15, analysis: 1.2 },  // 0.8.6 - Removed base tech bonus, only from abilities now
+    desc: 'Research specialist: +15-30% XP, alien analysis',
+    bonuses: { 
+      xp: [1.15, 1.30],         // +15-30% XP gain
+      analysis: [1.15, 1.25]    // +15-25% analysis bonus
+    },
     color: 'var(--class-common)'
   },
   { 
     id: 'guardian', 
     name: 'Guardian', 
-    desc: 'Defense specialist: +3-5 defense, +5% morale aura, protect allies',
-    bonuses: { defense: 1.2, morale: 1.15 },
+    desc: 'Defense specialist: +3-6 defense, +5-10% morale aura, protect allies',
+    bonuses: { 
+      defense: [3, 6],          // +3-6 defense
+      morale: [1.05, 1.10]      // +5-10% morale
+    },
     color: 'var(--class-common)'
   },
   { 
     id: 'scavenger', 
     name: 'Scavenger', 
-    desc: 'Resource specialist: +25% scrap, 15% extra loot, double loot rolls',
-    bonuses: { loot: 1.25, scrap: 1.15 },
+    desc: 'Resource specialist: +20-30% scrap, 15-25% extra loot, double loot rolls',
+    bonuses: { 
+      loot: [1.15, 1.25],       // +15-25% loot chance
+      scrap: [1.20, 1.30]       // +20-30% scrap gain
+    },
     color: 'var(--class-common)'
   }
 ];
@@ -404,7 +436,7 @@ const RECIPES = {
     if (tryAddToInventory(item)) appendLog('Medkit crafted.'); 
   } },
   ammo: { scrap: 10, energy: 0, result: () => { state.resources.ammo += rand(4, 10); appendLog('Ammo manufactured.'); } },
-  turret: { scrap: 75, energy: 40, tech: 3, result: () => { state.systems.turret++; appendLog('Auto-turret constructed.'); } },
+  // 0.8.10 - Turret removed from crafting (redundant with Systems panel)
   armor: { name: 'Light Armor', scrap: 40, tech: 3, durability: 100, result: () => { 
     const item = { id: state.nextItemId++, type: 'armor', name: 'Light Armor', durability: 100, maxDurability: 100 }; 
     if (tryAddToInventory(item)) appendLog('Light Armor crafted.'); 
