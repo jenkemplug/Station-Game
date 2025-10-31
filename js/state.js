@@ -36,6 +36,9 @@ let state = {
   // 0.8.8 - persist selected explorer and expedition survivor
   selectedExplorerId: null,
   selectedExpeditionSurvivorId: null,
+  // 0.8.9 - track highest tier reached (becomes permanent floor)
+  highestThreatTier: 0,  // index into BALANCE.THREAT_TIERS
+  highestRaidTier: 0,    // index into BALANCE.RAID_TIERS
   journal: ["Station systems nominal. Maintain discipline."],
   missions: [], // active expeditions
   timeNow: Date.now(),

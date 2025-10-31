@@ -1,6 +1,38 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.8.9] - 2025-10-31
+### Changed - Tiered Threshold System
+- **Threat Tier System**: Threat now uses dynamic floors based on highest tier reached
+  - Tiers at 0% → 20% → 40% → 60% → 80% become permanent floors once crossed
+  - Replacing static 15% floor with progressive milestone system
+  - Milestone notifications alert when crossing into new tier
+  - Can temporarily reduce threat below tier but not below highest tier reached
+  
+- **Raid Chance Tier System**: Raid frequency uses tiered floors
+  - Tiers at 0% → 1.5% → 3.5% → 5.5% → 8.0% per minute
+  - Once you hit a tier, raid pressure cannot fall below it permanently
+  - Creates escalating difficulty curve as you progress
+  
+- **Expedition Failures Now Matter**: Failed expeditions have consequences
+  - +3-6 threat increase on failure (immediate pressure)
+  - +1.5% temporary raid pressure (decays over time)
+  - Makes expedition risk/reward more meaningful
+  
+- **Rebalanced Growth Rates**: Increased pressure to overcome heavy defenses
+  - Threat growth: 0.055 base + 0.055 random (up from 0.035 + 0.045)
+  - Raid base chance: 0.30% (up from 0.25%)
+  - Exploration pressure: 0.040% per tile (up from 0.035%)
+  - Combat pressure: 0.25% per kill (up from 0.20%)
+  - Defense soft cap: 7% max reduction (up from 6%)
+  - Ensures threat/raids meaningfully progress even with max defenses
+
+### System Design
+- **High Water Marks**: Once you reach a tier, it becomes your new minimum
+- **Still Reducible**: Can lower threat/raids temporarily, just not below tier floor
+- **Progression Guaranteed**: Even with 10+ guards/turrets, tiers will eventually progress
+- **Milestone Feedback**: Special log messages when crossing tier thresholds
+
 ## [0.8.8] - 2025-10-30
 ### Changed - Major Balance & Progression Overhaul
 - **Energy Consumption Rebalanced**: Energy now scales per-survivor (0.18/s each) instead of flat base rate

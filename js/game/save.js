@@ -70,7 +70,7 @@ function initTiles() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '1.10.2', // 0.8.8 - Save selected explorer and expedition survivor
+  _version: '1.10.3', // 0.8.9 - Added tier tracking
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
@@ -98,6 +98,8 @@ function makeSaveSnapshot() {
   lastThreatNoticeAt: state.lastThreatNoticeAt,
   selectedExplorerId: state.selectedExplorerId,
   selectedExpeditionSurvivorId: state.selectedExpeditionSurvivorId,
+  highestThreatTier: state.highestThreatTier,
+  highestRaidTier: state.highestRaidTier,
     journal: state.journal,
     missions: state.missions,
     timeNow: Date.now()
@@ -177,6 +179,10 @@ function loadGame() {
         // Restore UI selections
         state.selectedExplorerId = parsed.selectedExplorerId || null;
         state.selectedExpeditionSurvivorId = parsed.selectedExpeditionSurvivorId || null;
+        
+        // 0.8.9 - Restore tier tracking
+        state.highestThreatTier = Number(parsed.highestThreatTier) || 0;
+        state.highestRaidTier = Number(parsed.highestRaidTier) || 0;
 
         // sanitize numeric resource fields
         for (const k of ['oxygen', 'food', 'energy', 'scrap', 'tech', 'ammo']) {

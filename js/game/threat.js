@@ -41,7 +41,7 @@ function rollAlienModifiers(alienType) {
 }
 
 function evaluateThreat() {
-  // 0.8.8 - Threat drift: grows slowly; guards and turrets suppress it (but not below floor)
+  // 0.8.9 - Threat drift with tiered floors: grows slowly; guards and turrets suppress it
   const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission).length;
   const turrets = state.systems.turret || 0;
   const prevThreat = state.threat || 0;
@@ -50,9 +50,26 @@ function evaluateThreat() {
     - guards * BALANCE.GUARD_THREAT_REDUCTION
     - turrets * (BALANCE.TURRET_THREAT_REDUCTION || 0);
   
-  // 0.8.8 - Apply threat floor: cannot go below THREAT_FLOOR (15% permanent threat)
-  const minThreat = BALANCE.THREAT_FLOOR || 0;
-  state.threat = clamp(state.threat + threatChange, minThreat, 100);
+  // 0.8.9 - Tiered floor system: check if we've hit a new tier
+  const tiers = BALANCE.THREAT_TIERS || [0];
+  const currentTierIndex = state.highestThreatTier || 0;
+  const currentFloor = tiers[currentTierIndex] || 0;
+  
+  // Calculate new threat (can go above or below current value)
+  let newThreat = clamp(state.threat + threatChange, 0, 100);
+  
+  // Check if we've crossed into a new tier
+  for (let i = currentTierIndex + 1; i < tiers.length; i++) {
+    if (newThreat >= tiers[i]) {
+      state.highestThreatTier = i;
+      const tierPercent = tiers[i];
+      appendLog(`⚠️ THREAT MILESTONE: Station threat has reached ${tierPercent}%. This level becomes the new permanent minimum.`);
+    }
+  }
+  
+  // Apply floor: cannot go below highest tier reached
+  const activeFloor = tiers[state.highestThreatTier || 0] || 0;
+  state.threat = Math.max(newThreat, activeFloor);
   
   // Notify on notable threat changes and quartile crossings (throttled)
   try {
@@ -69,7 +86,7 @@ function evaluateThreat() {
     }
   } catch (e) { /* noop */ }
 
-  // Raid chance (0.7.3): base scaled by exploration + threat pressure, reduced by guards and turrets
+  // 0.8.9 - Raid chance with tiered floors: base scaled by exploration + threat pressure, reduced by guards and turrets
   const totalTiles = Math.max(1, state.mapSize.w * state.mapSize.h);
   const explorationFactor = state.explored.size / totalTiles; // 0.0 - 1.0
   const exploredTiles = state.explored.size;
@@ -84,11 +101,27 @@ function evaluateThreat() {
   state.raidPressure = Math.max(0, (state.raidPressure || 0) - 0.0002); // decay ~0.02/min
   raidChance += (state.raidPressure || 0);
 
-  // 0.8.8 - Defenders reduce incident likelihood (with soft cap on defense)
+  // 0.8.9 - Defenders reduce incident likelihood (with soft cap on defense)
   const guardReduce = (BALANCE.RAID_CHANCE_REDUCTION_PER_GUARD || 0) * guards;
   const turretReduce = (BALANCE.RAID_CHANCE_REDUCTION_PER_TURRET || 0) * turrets;
-  const totalDefenseReduction = Math.min(guardReduce + turretReduce, BALANCE.RAID_DEFENSE_SOFTCAP || 0.06);
+  const totalDefenseReduction = Math.min(guardReduce + turretReduce, BALANCE.RAID_DEFENSE_SOFTCAP || 0.07);
   raidChance = Math.max(0, raidChance - totalDefenseReduction);
+  
+  // 0.8.9 - Check if we've crossed into a new raid tier
+  const raidTiers = BALANCE.RAID_TIERS || [0];
+  const currentRaidTierIndex = state.highestRaidTier || 0;
+  
+  for (let i = currentRaidTierIndex + 1; i < raidTiers.length; i++) {
+    if (raidChance >= raidTiers[i]) {
+      state.highestRaidTier = i;
+      const tierPercent = (raidTiers[i] * 100).toFixed(1);
+      appendLog(`🚨 RAID MILESTONE: Raid frequency has reached ${tierPercent}% per minute. This becomes the new permanent minimum.`);
+    }
+  }
+  
+  // Apply raid floor: cannot go below highest tier reached
+  const activeRaidFloor = raidTiers[state.highestRaidTier || 0] || 0;
+  raidChance = Math.max(raidChance, activeRaidFloor);
   raidChance = clamp(raidChance, 0, BALANCE.RAID_MAX_CHANCE);
 
   // Expose for UI as per-minute chance

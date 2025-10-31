@@ -74,9 +74,19 @@ function tickMissions() {
             }
           }
         } else {
+          // 0.8.9 - Failed expeditions increase threat and raid pressure
           grantXp(survivor, BALANCE.XP_FROM_EXPEDITION_FAILURE);
           report += 'Encountered heavy resistance. ';
           survivor.hp -= rand(BALANCE.EXPEDITION_FAILURE_DAMAGE[0], BALANCE.EXPEDITION_FAILURE_DAMAGE[1]);
+          
+          // Increase threat from failed expedition
+          const threatGain = rand(BALANCE.EXPEDITION_FAILURE_THREAT_GAIN[0], BALANCE.EXPEDITION_FAILURE_THREAT_GAIN[1]);
+          state.threat = clamp(state.threat + threatGain, 0, 100);
+          report += `Threat increased by ${threatGain}. `;
+          
+          // Add temporary raid pressure
+          state.raidPressure = (state.raidPressure || 0) + (BALANCE.EXPEDITION_FAILURE_RAID_PRESSURE || 0);
+          
           if (survivor.hp <= 0) {
             report += `${survivor.name} was lost.`;
             state.survivors = state.survivors.filter(s => s.id !== survivor.id);
