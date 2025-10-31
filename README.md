@@ -9,9 +9,7 @@ A browser-based survival/management game where you manage a space station, survi
   - Food: 30 → 40 (+33%)
   - Energy: 40 → 50 (+25%)
   - Scrap: 25 → 35 (+40%)
-- **Food Consumption Reduced**: Per-survivor food consumption reduced from 0.22/s to 0.18/s (18% reduction)
-  - With 3 survivors: 0.71/s → 0.59/s consumption
-  - Makes food management less punishing in early game
+- **Food Consumption Rebalanced**: Base consumption increased to 0.1/s, per-survivor to 0.2/s.
 - **Scavenger Salvage Bonuses**: Scavenger class bonuses now apply to junk salvaging (additive stacking)
 
 ### 🆕 Previous Updates (v0.8.12)

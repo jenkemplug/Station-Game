@@ -9,11 +9,11 @@ All notable changes to the Derelict Station project will be documented in this f
   - Scrap: 25 → 35 (+40% more starting scrap)
   - Makes the opening minutes less punishing and gives more room for experimentation
 
-- **Food Consumption Reduced**: Per-survivor food drain decreased
-  - Per-survivor consumption: 0.22/s → 0.18/s (18% reduction)
-  - Example with 3 survivors: 0.71/s → 0.59/s total consumption
-  - Balances with the v0.8.12 food production buff for sustainable early game
-  - Net effect: Early game food management is now much more forgiving
+- **Food Consumption Rebalanced**: Adjusted base and per-survivor food drain.
+  - Base consumption: 0.05/s → 0.1/s
+  - Per-survivor consumption: 0.18/s → 0.2/s
+  - Example with 3 survivors: 0.59/s → 0.7/s total consumption
+  - Creates a slightly higher food pressure to encourage active management.
 
 ### Fixed
 - **Scavenger Salvage Bonuses**: Scavenger class and Salvage Expert ability now apply to junk salvaging

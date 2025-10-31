@@ -49,8 +49,8 @@ const BALANCE = {
   // Resource consumption (per tick)
   O2_BASE: 0.15,
   O2_PER_SURVIVOR: 0.35,
-  FOOD_BASE: 0.05,
-  FOOD_PER_SURVIVOR: 0.18, // 0.8.13 - Reduced from 0.22 to balance with buffed production
+  FOOD_BASE: 0.1, // 0.8.13 - Increased from 0.05
+  FOOD_PER_SURVIVOR: 0.2, // 0.8.13 - Adjusted from 0.18
   
   // Critical state thresholds
   OXY_CRITICAL_THRESHOLD: 10,
