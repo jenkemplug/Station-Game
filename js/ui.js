@@ -1715,7 +1715,7 @@ function renderWorkbench() {
         if (recipe[compType] > 0) {
           const available = componentCounts[compType] || 0;
           const needed = recipe[compType];
-          const displayName = compType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).replace('part', ' Part');
+          const displayName = compType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).replace(/([a-z])(Part)/, '$1 $2');
           costParts.push(`${displayName} ${available}/${needed}`);
         }
       }

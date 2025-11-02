@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.7] - 2025-11-02
+### Fixed
+- **UI**: Corrected the display of "WeaponPart" in crafting recipes to show as "Weapon Part" with a space.
+
 ## [0.9.6] - 2025-11-02
 ### Fixed
 - **Performance**: Replaced the offline progress simulation loop with a single, efficient calculation. This dramatically improves the initial load time of the game after a long period of inactivity, preventing the browser from freezing.
