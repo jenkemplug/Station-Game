@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.13] - 2025-11-02
+### Changed
+- **Exploration Balance**: Increased the spawn rate of `Resource` tiles by approximately 50% to make exploration more consistently rewarding.
+
 ## [0.9.12] - 2025-11-02
 ### Changed
 - **Generator Repair Cost**: Changed the repair cost for a failed generator to 50 scrap and 0 energy (previously 30 scrap and 20 energy). This resolves a potential softlock where players could not generate energy to repair the generator.

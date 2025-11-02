@@ -47,16 +47,16 @@ function initTiles() {
       } else if (isAdjacentToBase(x, y)) {
         // No aliens adjacent to base (0.7.2)
         if (r < 0.06) type = 'survivor';
-        else if (r < 0.18) type = 'resource';
-        else if (r < 0.26) type = 'hazard';
-        else if (r < 0.30) type = 'module';
+        else if (r < 0.27) type = 'resource'; // Increased from 0.18
+        else if (r < 0.35) type = 'hazard'; // Adjusted from 0.26
+        else if (r < 0.39) type = 'module'; // Adjusted from 0.30
         // else empty
       } else {
         if (r < 0.06) type = 'survivor';
-        else if (r < 0.18) type = 'resource';
-        else if (r < 0.28) type = 'alien';
-        else if (r < 0.36) type = 'hazard';
-        else if (r < 0.40) type = 'module';
+        else if (r < 0.27) type = 'resource'; // Increased from 0.18
+        else if (r < 0.37) type = 'alien'; // Adjusted from 0.28
+        else if (r < 0.45) type = 'hazard'; // Adjusted from 0.36
+        else if (r < 0.49) type = 'module'; // Adjusted from 0.40
       }
       state.tiles[idx] = { x, y, type, scouted: false, cleared: false, aliens: [] };
     }
@@ -99,7 +99,7 @@ function generateNewMap() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '0.9.12', // 0.9.3 - Threat rebalance & performance tweaks
+  _version: '0.9.13', // 0.9.3 - Threat rebalance & performance tweaks
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
