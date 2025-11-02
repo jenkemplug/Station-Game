@@ -310,7 +310,8 @@ function updateUI() {
         el('btnRepairGenerator').textContent = `Repair Generator (Free with Repair Kit)`;
       } else {
         const costs = BALANCE.REPAIR_COSTS.generator;
-        el('btnRepairGenerator').textContent = `Repair Generator (${costs.scrap}s/${costs.energy}e)`;
+        const costText = costs.energy > 0 ? `${costs.scrap}s/${costs.energy}e` : `${costs.scrap}s`;
+        el('btnRepairGenerator').textContent = `Repair Generator (${costText})`;
       }
     }
     if (turretFailures > 0) {
