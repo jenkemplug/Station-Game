@@ -145,6 +145,9 @@ function applyTick(isOffline = false) {
   state.resources.scrap = Math.max(0, state.resources.scrap);
   state.resources.ammo = Math.max(0, state.resources.ammo);
   state.resources.tech = Math.max(0, state.resources.tech);
+
+  // Clamp oxygen to 100%
+  state.resources.oxygen = Math.min(100, state.resources.oxygen);
   
   // threat & missions & raids
   evaluateThreat();
@@ -481,6 +484,9 @@ function calculateOfflineProgress(elapsedSeconds) {
   state.resources.food = Math.max(0, state.resources.food + netFood);
   state.resources.energy = Math.max(0, state.resources.energy + netEnergy);
   state.resources.scrap += netScrap;
+
+  // Clamp oxygen to 100%
+  state.resources.oxygen = Math.min(100, state.resources.oxygen);
 
   // Clamp morale
   state.survivors.forEach(s => s.morale = clamp(s.morale, 0, 100));

@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.12] - 2025-11-02
+### Changed
+- **Generator Repair Cost**: Changed the repair cost for a failed generator to 50 scrap and 0 energy (previously 30 scrap and 20 energy). This resolves a potential softlock where players could not generate energy to repair the generator.
+- **Oxygen as a Percentage**: The Oxygen resource is now represented as a percentage (0-100%) instead of an open-ended number. All UI elements have been updated to reflect this change.
+
 ## [0.9.11] - 2025-11-02
 ### Added
 - **Map Reset Feature (Temporary)**: Added a "New Map" button that appears once the entire map has been explored. This allows players to generate a new map layout and continue exploring. This feature is a temporary addition, as the exploration system is slated for a major overhaul in version 1.0.

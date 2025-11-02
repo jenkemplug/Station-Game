@@ -105,7 +105,7 @@ function resetGame() {
   state.lastTick = Date.now();
   state.secondsPlayed = 0;
   state.resources = {
-    oxygen: 60,
+    oxygen: 100,
     food: 40,
     energy: 50,
     scrap: 35,

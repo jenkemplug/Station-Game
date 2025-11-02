@@ -232,18 +232,18 @@ function updateUI() {
   
   if (lastRenderedResourceSnapshot !== resourceSnapshot) {
     lastRenderedResourceSnapshot = resourceSnapshot;
-    el('res-oxygen').textContent = `O₂: ${Math.floor(state.resources.oxygen)}`;
+    el('res-oxygen').textContent = `O₂: ${Math.floor(state.resources.oxygen)}%`;
     el('res-food').textContent = `Food: ${Math.floor(state.resources.food)}`;
     el('res-energy').textContent = `Energy: ${Math.floor(state.resources.energy)}`;
     el('res-scrap').textContent = `Scrap: ${Math.floor(state.resources.scrap)}`;
-    el('res-oxygen-rate').textContent = `+${state.production.oxygen.toFixed(1)}/s`;
+    el('res-oxygen-rate').textContent = `+${state.production.oxygen.toFixed(1)}%/s`;
     el('res-food-rate').textContent = `+${state.production.food.toFixed(1)}/s`;
     el('res-energy-rate').textContent = `+${state.production.energy.toFixed(1)}/s`;
     el('res-scrap-rate').textContent = `+${state.production.scrap.toFixed(1)}/s`;
     
     // 0.8.6 - Show consumption rates
     if (state.consumption) {
-      el('res-oxygen-consume').textContent = `-${state.consumption.oxygen.toFixed(1)}/s`;
+      el('res-oxygen-consume').textContent = `-${state.consumption.oxygen.toFixed(1)}%/s`;
       el('res-food-consume').textContent = `-${state.consumption.food.toFixed(1)}/s`;
       el('res-energy-consume').textContent = `-${state.consumption.energy.toFixed(1)}/s`;
     }
