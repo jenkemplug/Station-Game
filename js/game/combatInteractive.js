@@ -1003,6 +1003,11 @@ function calculateSurvivorStats(survivor, party) {
   const classCombatBonus = (survivor.classBonuses && survivor.classBonuses.combat) ? (survivor.classBonuses.combat - 1) : 0;
   damageMultiplier += classCombatBonus;
   
+  // Add Berserker bonus if active
+  if (hasAbility(survivor, 'berserker') && survivor.hp < survivor.maxHp * 0.3) {
+    damageMultiplier += 0.30;
+  }
+  
   // 0.9.0 - Add morale combat modifier
   const moraleModifier = getMoraleModifier(survivor);
   const moraleCombatBonus = moraleModifier.combat - 1; // -0.15 to +0.15

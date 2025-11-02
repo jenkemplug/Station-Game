@@ -70,7 +70,7 @@ function initTiles() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '1.11.1', // 0.9.1 - Stun grenade recipe
+  _version: '1.11.2', // 0.9.2 - Electron build setup
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,

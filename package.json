@@ -1,0 +1,31 @@
+{
+  "name": "derelict-station",
+  "version": "0.9.2",
+  "description": "A browser-based survival/management game.",
+  "main": "electron.js",
+  "scripts": {
+    "start": ".\\node_modules\\.bin\\electron .",
+    "build": "electron-builder"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.example.derelictstation",
+    "productName": "Derelict Station",
+    "files": [
+      "index.html",
+      "styles.css",
+      "js/",
+      "electron.js",
+      "preload.js"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    }
+  }
+}

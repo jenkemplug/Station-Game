@@ -1,6 +1,16 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.2] - 2025-11-01
+### Added
+- **Electron Build**: The project can now be built as a standalone desktop application for Windows.
+- Added `electron.js`, `preload.js`, and `package.json` to support the Electron build.
+- The application now starts in a maximized, windowed mode with the menu bar removed.
+
+### Fixed
+- **Game Over Screen**: Fixed a visual bug where hovering over buttons on the game over screen could cause rendering issues with the backdrop filter.
+- **Berserker Ability**: The Soldier's Berserker ability now correctly updates the UI to show the damage bonus when active.
+
 ## [0.9.1] - 2025-11-01
 ### Added
 - **Stun Grenade Recipe**: Added a craftable Stun Grenade to the workbench under consumables.

@@ -823,6 +823,9 @@ function renderSurvivors() {
         let combatBonusAdd = 0;
         if (s.classBonuses && s.classBonuses.combat) combatBonusAdd += (s.classBonuses.combat - 1);
         if (hasAbility(s, 'veteran')) combatBonusAdd += 0.20;
+        if (hasAbility(s, 'berserker') && s.hp < s.maxHp * 0.3) {
+          combatBonusAdd += 0.30;
+        }
         combatBonusAdd += (s.level - 1) * BALANCE.LEVEL_ATTACK_BONUS;
         if (combatBonusAdd > 0) {
           bonusLines.push(`Combat: +${Math.round(combatBonusAdd * 100)}%`);

@@ -484,6 +484,7 @@ footer {
   padding: 16px;
   width: min(95vw, 960px);
   box-shadow: var(--shadow-lg);
+  transform: translateZ(0); /* Promotes to its own rendering layer to fix blur bugs */
 }
 
 .modal-header {
