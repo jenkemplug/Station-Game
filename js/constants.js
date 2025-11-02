@@ -1,4 +1,4 @@
-const VERSION = '0.9.0';
+const VERSION = '0.9.1';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -847,6 +847,17 @@ const RECIPES = {
       state.resources.ammo += rand(4, 10); 
       appendLog('Ammo manufactured.'); 
     } 
+  },
+  stun_grenade: {
+    name: 'Stun Grenade',
+    scrap: 35,
+    tech: 4,
+    electronics: 1,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'consumable', subtype: 'stun_grenade', name: 'Stun Grenade', rarity: 'rare' };
+      tryAddAndLog(item);
+    }
   },
   
   // ===== COMMON MELEE WEAPONS =====

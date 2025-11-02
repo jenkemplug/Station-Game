@@ -1,6 +1,16 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.1] - 2025-11-01
+### Added
+- **Stun Grenade Recipe**: Added a craftable Stun Grenade to the workbench under consumables.
+
+### Changed
+- **Workbench Order**: Reordered consumables on the workbench to Ammo, Medkit, Stun Grenade.
+
+### Fixed
+- **Debug Panel**: Fixed a reference error for the "Level Up All Survivors" button.
+
 ## [0.9.0] - 2025-11-01
 ### Added - Base Integrity & Morale Systems
 

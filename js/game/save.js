@@ -70,7 +70,7 @@ function initTiles() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '1.11.0', // 0.9.0 - Added escalation system (escalationLevel, lastEscalationTime, threatLocked)
+  _version: '1.11.1', // 0.9.1 - Stun grenade recipe
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
@@ -208,7 +208,7 @@ function loadGame() {
             skill: Number(s.skill) || 1,
             hp: Number(s.hp) || 1,
             maxHp: Number(s.maxHp) || 1,
-            morale: Number(s.morale) || 60, // 0.9.0 - Default to 60 (Stable tier) for migrated saves
+            morale: Number(s.morale) || 0,
             role: s.role || 'Idle',
             task: s.task || 'Idle',
             injured: !!s.injured,

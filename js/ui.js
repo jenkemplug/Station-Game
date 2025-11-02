@@ -1430,8 +1430,9 @@ function renderWorkbench() {
     { 
       name: '⚗️ Consumables', 
       recipes: [
+        { item: 'ammo', name: 'Ammo', rarity: 'common' },
         { item: 'medkit', name: 'Medkit', rarity: 'uncommon' },
-        { item: 'ammo', name: 'Ammo', rarity: 'common' }
+        { item: 'stun_grenade', name: 'Stun Grenade', rarity: 'rare' }
       ]
     },
     { 
