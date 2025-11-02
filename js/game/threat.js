@@ -165,25 +165,6 @@ function evaluateThreat() {
     const activeFloor = tiers[state.highestThreatTier || 0] || 0;
     state.threat = Math.max(newThreat, activeFloor);
   }
-  
-  // Notify on notable threat changes and quartile crossings (throttled)
-  try {
-    const nowMs = Date.now();
-    const lastNote = Number(state.lastThreatNoticeAt) || 0;
-    const throttleMs = 20000; // 20s between notices
-    
-    // Check if we crossed a tier threshold (not quartile)
-    const tiers = BALANCE.THREAT_TIERS || [0, 25, 50, 75, 100];
-    const prevTier = tiers.findIndex(t => prevThreat < t);
-    const currentTier = tiers.findIndex(t => state.threat < t);
-    const crossedTier = prevTier !== currentTier && prevTier !== -1 && currentTier !== -1;
-    
-    if (crossedTier && (nowMs - lastNote) > throttleMs && !state.threatLocked) {
-      const tierValue = tiers[prevTier];
-      appendLog(`⚠️ Threat crossed ${tierValue}%. Alien encounters become stronger. This level is now the permanent minimum.`);
-      state.lastThreatNoticeAt = nowMs;
-    }
-  } catch (e) { /* noop */ }
 
   // 0.8.9 - Raid chance with tiered floors: base scaled by exploration + threat pressure, reduced by guards and turrets
   const totalTiles = Math.max(1, state.mapSize.w * state.mapSize.h);

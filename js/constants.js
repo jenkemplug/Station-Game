@@ -1,4 +1,4 @@
-const VERSION = '0.9.2';
+const VERSION = '0.9.3';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -126,8 +126,8 @@ const BALANCE = {
   // 0.9.0 - Rebalanced for longer runs with endgame escalation system
   // Threat tiers: Once you hit a tier, you can't go below it (high water marks)
   THREAT_TIERS: [0, 25, 50, 75, 100],  // 0% → 25% → 50% → 75% → 100% floors (wider gaps for longer runs)
-  THREAT_GROWTH_BASE: 0.030,          // Reduced from 0.050 - slower passive growth for longer runs
-  THREAT_GROWTH_RAND: 0.020,          // Reduced from 0.025 - more predictable, less swingy
+  THREAT_GROWTH_BASE: 0.025,          // Reduced from 0.030
+  THREAT_GROWTH_RAND: 0.015,          // Reduced from 0.020
   THREAT_GROWTH_MINIMUM: 0.005,       // Threat always grows at least +0.5%/min even with max defenses
   GUARD_THREAT_REDUCTION: 0.08,       // Guards slow threat, can't stop it
   THREAT_GAIN_PER_ALIEN: [2, 3],      // Increased from [1, 2] - combat drives threat progression

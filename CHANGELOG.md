@@ -1,6 +1,16 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.3] - 2025-11-01
+### Changed
+- **Threat Rebalance**: Slightly reduced the base and random threat growth rates for a slower overall progression.
+- **Performance**: Added `defer` attribute to all scripts to improve initial page load time.
+
+### Fixed
+- **Berserker Ability**: The Soldier's Berserker ability now correctly updates the UI to show the damage bonus when active.
+- **Game Over Screen**: Fixed a visual bug where hovering over buttons on the game over screen could cause rendering issues with the backdrop filter.
+- **Duplicate Notifications**: Removed a redundant threat milestone notification.
+
 ## [0.9.2] - 2025-11-01
 ### Added
 - **Electron Build**: The project can now be built as a standalone desktop application for Windows.
