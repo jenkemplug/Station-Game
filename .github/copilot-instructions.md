@@ -487,16 +487,69 @@ js/
 - Map tiles only re-render when exploration state changes
 - Log limited to 300 entries max
 
-## Testing Checklist
-When making changes, verify:
-- [ ] Save/load works correctly
-- [ ] Offline progress calculates properly
-- [ ] Resources don't go negative
-- [ ] UI updates reflect state changes
-- [ ] Dropdowns maintain state across re-renders
-- [ ] Combat calculations use correct equipment bonuses
-- [ ] XP and leveling work as expected
-- [ ] Crafting costs are deducted
-- [ ] New features have log messages
-- [ ] Mobile layout isn't broken
-- [ ] No console errors
+## Proposed 1.0 Development Plan (v3)
+
+### Phase 1: Reworking Core Gameplay Loops
+
+*Goal: Change how players acquire survivors and gear to make exploration the central focus of the game.*
+
+1.  **Recruitment Overhaul (High Priority):**
+    *   **Action:** Remove the "Recruit" button from the base.
+    *   **Change:** Survivors can **only** be found by exploring `Survivor` tiles on the map.
+    *   **Impact:** This immediately makes exploration more critical and rewarding from the very beginning. It changes the core dynamic from a passive "buy survivor" loop to an active "search and rescue" loop.
+
+2.  **Crafting Recipe Discovery:**
+    *   **Action:** Initially, lock all but the most basic crafting recipes (e.g., Makeshift Pipe, Scrap Vest).
+    *   **Change:** New recipes are unlocked by finding "Blueprints" as rare loot during exploration, especially in `Module` or `Hazard` rooms.
+    *   **Impact:** Adds a major incentive to explore and provides a sense of technological progression.
+
+3.  **Expedition Rework:**
+    *   **Action:** Remove the current generic "Expedition" button.
+    *   **Change:** Replace it with specific, high-risk "Away Missions" that can be discovered on the map (e.g., "Scavenge the Wrecked Medical Bay," "Raid the Alien Nest"). These would have unique challenges and guaranteed rare loot.
+    *   **Impact:** Transforms expeditions from a passive timer into active, player-driven objectives.
+
+### Phase 2: The Exploration Overhaul & Advanced AI
+
+*Goal: Make the map bigger, more dangerous, and more interesting, culminating in a final objective.*
+
+1.  **Map Expansion & New Rooms:**
+    *   **Action:** Increase the map size (e.g., to 30x15).
+    *   **Change:** Add new, unique room types with specific events and loot tables (e.g., "Armory," "Medbay," "Bridge," "Engine Room").
+
+2.  **Advanced Combat AI (New Step):**
+    *   **Action:** Rework the enemy turn logic in the combat system to move beyond random targeting.
+    *   **Change:** Implement a smarter AI for both aliens and hostile survivors.
+        *   **Aliens:** Will prioritize targets based on factors like **lowest HP** (to focus fire) or **class** (e.g., Spitters targeting high-defense Guardians).
+        *   **Hostile Survivors:** Will intelligently use their abilities and consumables. For example, using a **Medkit when health is low**, or a **Stun Grenade on the player's strongest survivor**.
+    *   **Impact:** Makes combat more tactical and less random. Hostile survivors will feel like genuine threats, and aliens will behave more like strategic hunters.
+
+3.  **Hostile Survivor Encounters (Revised):**
+    *   **Action:** Create a new "Hostile Survivor" tile type, labeled **HS** on the map.
+    *   **Change:** These encounters trigger combat against 1-3 human NPCs that **utilize the new Advanced Combat AI**.
+        *   **Procedural Generation:** Hostile survivors will be procedurally generated with their own **class, abilities, and rarity tier**.
+        *   **Dynamic Equipment:** Their equipment will be randomly selected from the craftable/lootable item pool, with the rarity of their gear matching their own rarity tier.
+        *   **Consumable Use:** Hostile survivors will have a chance to spawn with and **use consumables** during combat (e.g., using a Medkit when low on health or a Stun Grenade to disable a player's survivor).
+    *   **Impact:** Adds a highly unpredictable and challenging new enemy type that uses the same game mechanics as the player, making for unique combat encounters.
+
+4.  **Win Condition: The Escape (Revised):**
+    *   **Action:** Add a special, hidden "Hangar Bay" tile to the map.
+    *   **Change:**
+        *   **Dynamic Location:** The Hangar Bay will be **randomly placed on the map**, but only in the **outermost 25%** of the map, ensuring it can only be found after significant exploration.
+        *   **Final Objective:** Exploring this tile reveals the final objective: repair a shuttle to escape. This would require a large number of resources and perhaps special components found in boss rooms.
+    *   **Final Boss:** The shuttle repair process could trigger a final, massive raid led by the game's hardest boss (e.g., an "Alpha Queen"). Surviving this raid and finishing the repairs wins the game.
+
+### Phase 3: Polish and Replayability
+
+*Goal: Add features that improve the new player experience and give veteran players a reason to come back.*
+
+1.  **Tutorial System:**
+    *   **Action:** Add a simple "Help" button that opens a modal with a brief tutorial.
+    *   **Change:** The tutorial would explain the new focus on exploration for finding survivors and recipes.
+
+2.  **UI Animations & Flavor Text:**
+    *   **Action:** Add subtle animations to UI elements (e.g., resource icons flashing when they increase).
+    *   **Change:** Add more descriptive text to exploration events to build atmosphere.
+
+3.  **New Game+:**
+    *   **Action:** Upon winning the game, give the player the option to start a New Game+.
+    *   **Change:** The player could start with a small bonus, like a choice of one rare piece of equipment or a highly-skilled starting survivor, but the threat level would ramp up much faster.

@@ -166,8 +166,13 @@ function getItemTooltip(item, isRecipe = false) {
   }
   
   // Consumable type
-  if (item.type === 'consumable' || item.subtype?.includes('medkit') || item.subtype?.includes('stimpack')) {
+  if (item.type === 'consumable' || item.type === 'medkit') {
     parts.push(`[Consumable Item]`);
+    const key = item.subtype || item.type;
+    const effect = BALANCE.CONSUMABLE_EFFECTS[key];
+    if (effect && effect.desc) {
+      parts.push(`\n${effect.desc}`);
+    }
   }
   
   return parts.join('\n');
@@ -444,14 +449,17 @@ Threat locks at 100% (escalation takes over).`;
         });
         costMult = Math.max(0.5, costMult); // Cap at 50% reduction
         
-        const scrapCost = Math.ceil(BALANCE.BASE_REPAIR_SCRAP_COST * (missingIntegrity / 100) * costMult);
-        const energyCost = Math.ceil(BALANCE.BASE_REPAIR_ENERGY_COST * (missingIntegrity / 100) * costMult);
+        const scrapCostPerPercent = Math.ceil((BALANCE.BASE_REPAIR_SCRAP_COST / 100) * costMult);
+        const energyCostPerPercent = Math.ceil((BALANCE.BASE_REPAIR_ENERGY_COST / 100) * costMult);
         
-        const canAfford = state.resources.scrap >= scrapCost && state.resources.energy >= energyCost;
-        repairBtn.disabled = !canAfford;
-        repairBtn.textContent = `Repair Base (${scrapCost}s, ${energyCost}e)`;
+        const canAffordAny = state.resources.scrap >= scrapCostPerPercent && state.resources.energy >= energyCostPerPercent;
+        repairBtn.disabled = !canAffordAny;
         
-        let tooltipText = `Repair ${missingIntegrity}% integrity for ${scrapCost} scrap and ${energyCost} energy.`;
+        const fullScrapCost = Math.ceil(BALANCE.BASE_REPAIR_SCRAP_COST * (missingIntegrity / 100) * costMult);
+        const fullEnergyCost = Math.ceil(BALANCE.BASE_REPAIR_ENERGY_COST * (missingIntegrity / 100) * costMult);
+        repairBtn.textContent = `Repair Base (${fullScrapCost} scrap, ${fullEnergyCost} energy)`;
+        
+        let tooltipText = `Repairs as much integrity as you can afford. Costs ${scrapCostPerPercent} scrap and ${energyCostPerPercent} energy per 1%.`;
         if (engineers.length > 0) {
           const discount = Math.floor((1 - costMult) * 100);
           tooltipText += `\n\nEngineer discount: -${discount}% cost`;
@@ -463,11 +471,10 @@ Threat locks at 100% (escalation takes over).`;
     // Warning flash for critical thresholds
     const threatPanel = el('threatBasePanel');
     if (threatPanel) {
-      // Check if base integrity is critical (<20%) OR any survivor has breaking point morale (<20)
+      // Check if base integrity is critical (<20%)
       const integrityIsCritical = integrity < 20;
-      const anyMoraleCritical = state.survivors.some(s => s.morale < 20);
       
-      if (integrityIsCritical || anyMoraleCritical) {
+      if (integrityIsCritical) {
         threatPanel.classList.add('critical-warning');
       } else {
         threatPanel.classList.remove('critical-warning');
@@ -1055,6 +1062,152 @@ function renderSurvivors() {
   cont.querySelectorAll('button.equip').forEach(b => b.onclick = () => openLoadoutForSurvivor(Number(b.dataset.id)));
 }
 
+// Repair Modal Logic
+function openRepairModal() {
+  const modal = el('repairModal');
+  modal.style.display = 'flex';
+  renderRepairModalContent();
+  const btnClose = el('btnCloseRepairModal');
+  if (btnClose) btnClose.onclick = closeRepairModal;
+}
+
+function closeRepairModal() {
+  const modal = el('repairModal');
+  modal.style.display = 'none';
+}
+
+function renderRepairModalContent() {
+  const cont = el('repairModalContent');
+  
+  // Get damaged items from both inventory and equipped by survivors
+  const damagedInventoryItems = state.inventory.filter(i => i.durability < i.maxDurability);
+  const damagedEquippedItems = state.survivors.flatMap(s => {
+    const items = [];
+    if (s.equipment.weapon && s.equipment.weapon.durability < s.equipment.weapon.maxDurability) {
+      items.push({ ...s.equipment.weapon, equippedBy: s.name });
+    }
+    if (s.equipment.armor && s.equipment.armor.durability < s.equipment.armor.maxDurability) {
+      items.push({ ...s.equipment.armor, equippedBy: s.name });
+    }
+    return items;
+  });
+  const damagedItems = [...damagedInventoryItems, ...damagedEquippedItems];
+
+  if (damagedItems.length === 0) {
+    cont.innerHTML = '<div class="small">No damaged items to repair.</div>';
+    return;
+  }
+
+  // Calculate repair cost multiplier from survivor bonuses
+  let repairCostMult = 1.0;
+  state.survivors.forEach(s => {
+    if (s.classBonuses && s.classBonuses.repair) {
+      repairCostMult *= s.classBonuses.repair;
+    }
+    if (hasAbility(s, 'quickfix')) {
+      repairCostMult *= 0.80;
+    }
+  });
+  
+  let totalRepairCost = 0;
+  const itemsHtml = damagedItems.map(item => {
+    const missingDurability = item.maxDurability - item.durability;
+    const baseRepairCost = Math.ceil(missingDurability * BALANCE.REPAIR_COST_PER_POINT);
+    const actualRepairCost = Math.ceil(baseRepairCost * repairCostMult);
+    totalRepairCost += actualRepairCost;
+    
+    const color = item.rarity ? (RARITY_COLORS[item.rarity] || '#ffffff') : '#ffffff';
+    const tooltip = getItemTooltip(item);
+    const equippedByInfo = item.equippedBy ? ` <span class="small">(Equipped by ${item.equippedBy})</span>` : '';
+    
+    return `
+      <div class="inv-row repair-row">
+        <div class="repair-item-name">
+          <span style="color:${color}" title="${tooltip}">${item.name}</span> (${item.durability}/${item.maxDurability})${equippedByInfo}
+        </div>
+        <div class="repair-item-cost">
+          Cost: ${actualRepairCost} scrap
+        </div>
+        <div class="repair-item-action">
+          <button data-id="${item.id}" class="repair-item">Repair</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const totalDiscount = Math.round((1 - repairCostMult) * 100);
+
+  cont.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="scrollable-panel" style="max-height:300px;overflow-y:auto;">
+        ${itemsHtml}
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <span>Total Cost: ${totalRepairCost} scrap</span>
+          ${totalDiscount > 0 ? `<span class="small" style="color:var(--success);margin-left:8px;">(-${totalDiscount}% discount)</span>` : ''}
+        </div>
+        <button id="btnRepairAllItems">Repair All (${totalRepairCost} scrap)</button>
+      </div>
+    </div>
+  `;
+
+  // Bind events
+  cont.querySelectorAll('button.repair-item').forEach(b => {
+    b.onclick = () => {
+      repairItem(Number(b.dataset.id));
+      renderRepairModalContent(); // Re-render to update the list
+    };
+  });
+
+  const btnRepairAll = document.getElementById('btnRepairAllItems');
+  if (btnRepairAll) {
+    btnRepairAll.onclick = () => {
+      let repairedCount = 0;
+      let totalCostPaid = 0;
+      
+      damagedItems.forEach(item => {
+        const missingDurability = item.maxDurability - item.durability;
+        const baseCost = Math.ceil(missingDurability * BALANCE.REPAIR_COST_PER_POINT);
+        const actualCost = Math.ceil(baseCost * repairCostMult);
+        
+        if (state.resources.scrap >= actualCost) {
+          state.resources.scrap -= actualCost;
+          
+          // Find the item in its original location (inventory or equipped) and repair it
+          const invItem = state.inventory.find(i => i.id === item.id);
+          if (invItem) {
+            invItem.durability = invItem.maxDurability;
+          } else {
+            for (const s of state.survivors) {
+              if (s.equipment.weapon && s.equipment.weapon.id === item.id) {
+                s.equipment.weapon.durability = s.equipment.weapon.maxDurability;
+                break;
+              }
+              if (s.equipment.armor && s.equipment.armor.id === item.id) {
+                s.equipment.armor.durability = s.equipment.armor.maxDurability;
+                break;
+              }
+            }
+          }
+          
+          repairedCount++;
+          totalCostPaid += actualCost;
+        }
+      });
+
+      if (repairedCount > 0) {
+        appendLog(`Repaired ${repairedCount} items for ${totalCostPaid} scrap.`);
+        saveGame('action');
+        renderRepairModalContent();
+        updateUI();
+      } else {
+        appendLog('Not enough scrap to repair any items.');
+      }
+    };
+  }
+}
+
 // Loadout Modal Logic
 let activeLoadoutSurvivorId = null;
 
@@ -1303,13 +1456,6 @@ function renderInventory() {
       infoText.textContent = '✓ Auto-used on system repairs';
       node.appendChild(infoText);
     }
-    // Regular durability repair for weapons/armor
-    else if (item.durability < item.maxDurability) {
-      const repairButton = document.createElement('button');
-      repairButton.textContent = 'Repair';
-      repairButton.onclick = () => repairItem(item.id);
-      node.appendChild(repairButton);
-    }
     inv.appendChild(node);
   });
 }
@@ -1421,7 +1567,7 @@ function renderWorkbench() {
     componentCounts[compType] = state.inventory.filter(i => i.type === 'component' && i.subtype === compType).length;
   }
 
-  const key = `v2:${costMult.toFixed(3)}:${JSON.stringify(componentCounts)}`;
+  const key = `v2:${costMult.toFixed(3)}:${JSON.stringify(componentCounts)}:${state.resources.tech}`;
   if (lastRenderedWorkbenchKey === key) return;
   lastRenderedWorkbenchKey = key;
 
@@ -1556,10 +1702,11 @@ function renderWorkbench() {
       }
       if (recipe.tech > 0) {
         const hasDiscount = techCost < recipe.tech;
+        const techStr = `Tech ${state.resources.tech}/${techCost}`;
         if (hasDiscount) {
-          costParts.push(`Tech <span style="text-decoration:line-through;color:var(--muted)">${recipe.tech}</span> ${techCost}`);
+          costParts.push(`<span style="text-decoration:line-through;color:var(--muted)">${recipe.tech}</span> ${techStr}`);
         } else {
-          costParts.push(`Tech ${techCost}`);
+          costParts.push(techStr);
         }
       }
       
@@ -1568,7 +1715,7 @@ function renderWorkbench() {
         if (recipe[compType] > 0) {
           const available = componentCounts[compType] || 0;
           const needed = recipe[compType];
-          const displayName = compType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          const displayName = compType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).replace('part', ' Part');
           costParts.push(`${displayName} ${available}/${needed}`);
         }
       }

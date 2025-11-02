@@ -1,4 +1,4 @@
-const VERSION = '0.9.3';
+const VERSION = '0.9.4';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -7,7 +7,7 @@ const BALANCE = {
   // Interactive combat
   COMBAT_ACTIONS: {
     Aim: { accuracyBonus: 0.25 },
-    Burst: { dmgBonus: [3, 6], accuracyPenalty: 0.05, ammoMult: 2, cooldown: 3 },
+    Burst: { dmgBonus: 5, accuracyPenalty: 0.05, ammoMult: 2, cooldown: 3 },
     Guard: { defenseBonus: 3 },
     MedkitHeal: [10, 18]
   },
@@ -15,9 +15,9 @@ const BALANCE = {
   CONSUMABLE_EFFECTS: {
     medkit: { heal: [12, 20], desc: 'Heal 12-20 HP' },
     advanced_medkit: { heal: [25, 35], desc: 'Heal 25-35 HP (superior healing)' },
-    stimpack: { evasionBonus: 0.20, retreatBonus: 0.25, duration: 4, desc: '+20% dodge, +25% retreat for 4 turns' },
+    stimpack: { evasionBonus: 0.20, retreatBonus: 0.25, duration: 4, desc: '+20% dodge, +25% retreat for 4 turns.' },
     repair_kit: { durabilityRestore: 40, desc: 'Restore 40 durability to equipped weapon or armor' },
-    combat_drug: { damageBonus: 0.20, maxHpCost: 0.20, duration: 3, desc: '+20% damage for 3 turns, -20% max HP' },
+    combat_drug: { damageBonus: 0.20, maxHpCost: 0.20, duration: 3, desc: '+20% damage for 3 turns, -20% max HP.' },
     stun_grenade: { stunChance: 0.75, desc: '75% chance to stun target enemy' },
     nanite_injector: { permanentHP: 1, desc: '+1 permanent max HP' },
     revival_kit: { reviveHP: [0.40, 0.60], desc: 'Revive ally at 40-60% HP' },
@@ -84,8 +84,8 @@ const BALANCE = {
   INTEGRITY_DAMAGE_HIGH_THREAT: 0.02, // Damage per tick when threat > 75%
   INTEGRITY_DAMAGE_ON_RAID_LOSS: [3, 10], // Damage when raid defense fails (scaled by alien count)
   INTEGRITY_DAMAGE_ON_BREACH: [1, 3], // 10% chance per alien on raid victory
-  BASE_REPAIR_SCRAP_COST: 50, // Base cost to repair from 0% to 100%
-  BASE_REPAIR_ENERGY_COST: 30,
+  BASE_REPAIR_SCRAP_COST: 300, // Base cost to repair from 0% to 100%
+  BASE_REPAIR_ENERGY_COST: 100,
   ENGINEER_PASSIVE_REPAIR: 0.1, // Engineers on Idle repair +0.1 integrity/tick
   
   // Morale Tiers: 80-100 (high), 60-79 (stable), 40-59 (low), 20-39 (despondent), 0-19 (breaking)
@@ -110,6 +110,7 @@ const BALANCE = {
   MORALE_GAIN_SYSTEM_REPAIRED: 3,
   MORALE_LOSS_ALLY_DEATH: 10,
   MORALE_LOSS_ALLY_DOWNED: 5,
+  MORALE_LOSS_BASE_TIERED: [0, 0.02, 0.05, 0.10, 0.15], // Per tick, based on integrity tier
   MORALE_LOSS_BASE_CRITICAL: 0.15, // Per tick when base < 40%
   MORALE_LOSS_RAID_LOST: 15,
   MORALE_LOSS_RETREAT: 3,
@@ -606,7 +607,7 @@ const ALIEN_TYPES = [
   
   { id: 'ravager', name: 'Ravager', hpRange: [24, 35], attackRange: [11, 18], armor: 6, rarity: 'rare', stealth: 0.1,
     flavor: 'Heavily armored brute with crushing limbs.',
-    special: 'armored', // Takes 50% less damage from all attacks
+    special: 'armored', // Takes 30% less damage from all attacks
     specialDesc: 'Armored Carapace: Resistant to damage' },
   
   // Elite threats - Legendary
@@ -806,11 +807,11 @@ const ALIEN_MODIFIERS = {
     { id: 'titan', name: 'Titan', rarity: 'veryrare', chance: 0.01, effect: '+15 HP, +4 regen, +3 attack', color: '#ef4444' }
   ],
   ravager: [
-    { id: 'hardened', name: 'Hardened', rarity: 'uncommon', chance: 0.06, effect: 'Take 60% less damage', color: '#a78bfa' },
+    { id: 'hardened', name: 'Hardened', rarity: 'uncommon', chance: 0.06, effect: '20% resist', color: '#a78bfa' },
     { id: 'crusher', name: 'Crusher', rarity: 'uncommon', chance: 0.05, effect: '+4 attack', color: '#a78bfa' },
     { id: 'unstoppable', name: 'Unstoppable', rarity: 'rare', chance: 0.03, effect: 'Immune to crits', color: '#fb923c' },
     { id: 'juggernaut', name: 'Juggernaut', rarity: 'rare', chance: 0.025, effect: '+8 HP, 20% chance to stun on hit', color: '#fb923c' },
-    { id: 'colossus', name: 'Colossus', rarity: 'veryrare', chance: 0.01, effect: '70% resist, +6 attack, +12 HP', color: '#ef4444' }
+    { id: 'colossus', name: 'Colossus', rarity: 'veryrare', chance: 0.01, effect: '40% resist, +6 attack, +12 HP', color: '#ef4444' }
   ],
   spectre: [
     { id: 'ethereal', name: 'Ethereal', rarity: 'uncommon', chance: 0.06, effect: '+10% phase chance', color: '#a78bfa' },

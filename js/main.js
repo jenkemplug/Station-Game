@@ -45,6 +45,8 @@ function bindUI() {
     saveGame('action');
   };
 
+  el('btnRepairItems').onclick = openRepairModal;
+
   el('btnSave').onclick = () => {
     saveGame('manual');
   };

@@ -1207,25 +1207,23 @@ function calculateAlienStats(alien, aliens) {
     : null;
   
   // RESIST calculation (damage reduction %)
-  let baseResist = 0;
+  let totalResist = 0;
   const resistSources = [];
   
   if (alien.special === 'armored') {
-    baseResist = 0.50;
-    resistSources.push('Armored (50%)');
+    totalResist += 0.30;
+    resistSources.push('Armored (30%)');
   }
   if (hasModifier(alien, 'hardened')) {
-    baseResist = 0.60;
-    resistSources.length = 0;
-    resistSources.push('Hardened (60%)');
+    totalResist += 0.20;
+    resistSources.push('Hardened (20%)');
   }
+  // Note: Colossus is not additive, it sets a new base.
   if (hasModifier(alien, 'colossus')) {
-    baseResist = 0.70;
+    totalResist = 0.40;
     resistSources.length = 0;
-    resistSources.push('Colossus (70%)');
+    resistSources.push('Colossus (40%)');
   }
-  
-  const totalResist = baseResist;
   
   return {
     damage: damageCalc,
@@ -1596,7 +1594,7 @@ function renderAdaptiveActions(survivor) {
       disabled: cooldown > 0,
       tooltip: cooldown > 0 
         ? `Powerful melee strike. Available in ${cooldown} turn${cooldown !== 1 ? 's' : ''}.`
-        : `Powerful melee strike with +${BALANCE.COMBAT_ACTIONS.Burst.dmgBonus[0]}-${BALANCE.COMBAT_ACTIONS.Burst.dmgBonus[1]} bonus damage. (${BALANCE.COMBAT_ACTIONS.Burst.cooldown} turn cooldown)`,
+        : `Powerful melee strike with +${BALANCE.COMBAT_ACTIONS.Burst.dmgBonus} bonus damage. (${BALANCE.COMBAT_ACTIONS.Burst.cooldown} turn cooldown)`,
       onclick: 'playerBurst()'
     });
   } else if (weaponType === 'unarmed') {
@@ -1644,10 +1642,10 @@ function renderAdaptiveActions(survivor) {
         class: '', 
         disabled: cooldown > 0,
         tooltip: cooldown > 0
-          ? `Fire multiple shots with bonus damage. Available in ${cooldown} turn${cooldown !== 1 ? 's' : ''}.`
+          ? `Fire multiple shots. Available in ${cooldown} turn${cooldown !== 1 ? 's' : ''}.`
           : (hasBurst 
-            ? `Fire ${burstShots} shots with bonus damage. Uses ${burstShots}x ammo. (${BALANCE.COMBAT_ACTIONS.Burst.cooldown} turn cooldown)`
-            : `Fire 2 shots with +${BALANCE.COMBAT_ACTIONS.Burst.dmgBonus[0]}-${BALANCE.COMBAT_ACTIONS.Burst.dmgBonus[1]} bonus damage. Uses 2x ammo. (${BALANCE.COMBAT_ACTIONS.Burst.cooldown} turn cooldown)`),
+            ? `Fire ${burstShots} shots. Uses ${burstShots}x ammo. (${BALANCE.COMBAT_ACTIONS.Burst.cooldown} turn cooldown)`
+            : `Fire 2 shots. Uses 2x ammo. (${BALANCE.COMBAT_ACTIONS.Burst.cooldown} turn cooldown)`),
         onclick: 'playerBurst()'
       });
     }
@@ -1944,6 +1942,15 @@ function turretAttack(idx, action, tState) {
     if (target.hp <= 0) {
       logCombat(`${target.name} neutralized by automated fire.`);
       state.alienKills = (state.alienKills || 0) + 1;
+      
+      // Auto-select next available target
+      const nextTarget = currentCombat.aliens.find(a => a.hp > 0);
+      if (nextTarget) {
+        currentCombat.selectedTargetId = nextTarget.id;
+      } else {
+        currentCombat.selectedTargetId = null;
+      }
+      
       renderCombatUI(); // Update UI after kill
     }
   }
@@ -1988,8 +1995,28 @@ function playerShoot(action = 'shoot', burstShots = null) {
     // Allow caller to specify burst shot count (computed per-weapon) or fall back to default
     shots = burstShots != null ? burstShots : (BALANCE.COMBAT_ACTIONS.Burst.ammoMult || 2);
   }
+  // Melee power attacks are a single, high-damage hit, not multiple shots.
+  if (weaponType === 'melee') {
+    shots = 1;
+  }
 
+  if (action === 'burst') {
+    if (weaponType === 'melee') {
+      logCombat(`${s.name} winds up for a powerful melee attack!`);
+    } else {
+      logCombat(`${s.name} opens fire with a burst attack!`);
+    }
+  }
   for (let i = 0; i < shots; i++) {
+    if (target.hp <= 0) {
+      if (action === 'burst' && weaponType !== 'melee') {
+        logCombat(`Target eliminated, ending burst fire.`);
+      }
+      break;
+    }
+    if (action === 'burst' && weaponType !== 'melee') {
+      logCombat(`Shot ${i + 1} of ${shots}...`);
+    }
     // Melee weapons skip ammo consumption
     if (ammoMultiplier > 0) {
       if (state.resources.ammo <= 0) {
@@ -2042,9 +2069,8 @@ function playerShoot(action = 'shoot', burstShots = null) {
       }
       
       let dmg = computeSurvivorDamage(s);
-      if (action === 'burst') {
-        const r = BALANCE.COMBAT_ACTIONS.Burst.dmgBonus;
-        dmg += rand(r[0], r[1]);
+      if (action === 'burst' && weaponType === 'melee') {
+        dmg += BALANCE.COMBAT_ACTIONS.Burst.dmgBonus;
       }
       // 0.8.0 - Medic Adrenaline Shot bonus damage
       if (s._adrenalineBonus) {
@@ -2081,14 +2107,16 @@ function playerShoot(action = 'shoot', burstShots = null) {
       }
       dealt = Math.max(1, dealt - alienArmor); // Armor reduces damage, min 1
       
-      // Apply armored special (additional damage reduction)
-      if (target.special === 'armored') {
-        dealt = Math.floor(dealt * 0.5);
+      // Apply resistance from armored special and other modifiers
+      const stats = calculateAlienStats(target, currentCombat.aliens);
+      if (stats.resist.value > 0) {
+        dealt = Math.floor(dealt * (1 - stats.resist.value));
         logCombat(`${target.name}'s carapace absorbs damage!`);
       }
       
+      const overkill = Math.max(0, dealt - target.hp);
       target.hp -= dealt;
-      logCombat(`${s.name} hits ${target.name} for ${dealt} damage.`, true);
+      logCombat(`${s.name} hits ${target.name} for ${dealt} damage.` + (overkill > 0 ? ` (${overkill} overkill)` : ``), true);
       
       // 0.9.0 - Apply weapon effects
       if (weapon && weapon.effects && weapon.effects.length > 0 && target.hp > 0) {
@@ -2098,7 +2126,7 @@ function playerShoot(action = 'shoot', burstShots = null) {
       renderCombatUI(); // Update UI after damage
       
       if (target.hp <= 0) {
-        logCombat(`${target.name} eliminated.`, true);
+        logCombat(`${target.name} eliminated!`, true);
         state.alienKills = (state.alienKills || 0) + 1;
         
   // 0.9.0 - Morale gain for killing alien
@@ -2165,10 +2193,20 @@ function playerShoot(action = 'shoot', burstShots = null) {
           state.resources.tech += 1;
           appendLog(`${s.name} extracts alien tech.`);
         }
+        break; // Stop burst fire on this target
       }
     } else {
       logCombat(`${s.name} missed.`, true);
       renderCombatUI(); // Update UI after miss
+    }
+  }
+
+  // After the attack sequence, check if the target is dead and if so, select a new one.
+  const stillExists = currentCombat.aliens.find(a => a.id === currentCombat.selectedTargetId);
+  if (!stillExists || stillExists.hp <= 0) {
+    const nextTarget = currentCombat.aliens.find(a => a.hp > 0);
+    if (nextTarget) {
+      selectTarget(nextTarget.id);
     }
   }
 

@@ -244,36 +244,47 @@ function repairBase() {
   }
   
   const missingIntegrity = 100 - state.baseIntegrity;
-  let scrapCost = Math.ceil(BALANCE.BASE_REPAIR_SCRAP_COST * (missingIntegrity / 100));
-  let energyCost = Math.ceil(BALANCE.BASE_REPAIR_ENERGY_COST * (missingIntegrity / 100));
   
-  // Engineer class bonuses reduce repair costs
+  // Calculate total cost for full repair
+  let fullScrapCost = Math.ceil(BALANCE.BASE_REPAIR_SCRAP_COST * (missingIntegrity / 100));
+  let fullEnergyCost = Math.ceil(BALANCE.BASE_REPAIR_ENERGY_COST * (missingIntegrity / 100));
+  
+  // Apply Engineer/Technician discounts
   let costReduction = 0;
   state.survivors.forEach(s => {
     if (s.classBonuses && s.classBonuses.repair) {
-      costReduction += (1 - s.classBonuses.repair); // e.g., 0.85 -> 0.15 reduction
+      costReduction += (1 - s.classBonuses.repair);
     }
-    if (hasAbility(s, 'efficient')) {
-      costReduction += 0.15;
+    if (hasAbility(s, 'quickfix')) {
+      costReduction += 0.20;
     }
   });
   
-  scrapCost = Math.ceil(scrapCost * (1 - Math.min(0.5, costReduction))); // Cap at 50% reduction
-  energyCost = Math.ceil(energyCost * (1 - Math.min(0.5, costReduction)));
-  
-  // Check resources
-  if (state.resources.scrap < scrapCost || state.resources.energy < energyCost) {
-    appendLog(`Need ${scrapCost} scrap and ${energyCost} energy to repair base to 100%.`);
+  const costMult = 1 - Math.min(0.5, costReduction); // Cap at 50% reduction
+  fullScrapCost = Math.ceil(fullScrapCost * costMult);
+  fullEnergyCost = Math.ceil(fullEnergyCost * costMult);
+
+  // Determine affordable repair amount
+  const scrapRatio = state.resources.scrap / fullScrapCost;
+  const energyRatio = state.resources.energy / fullEnergyCost;
+  const affordableRatio = Math.min(1, scrapRatio, energyRatio);
+
+  if (affordableRatio <= 0) {
+    appendLog(`Not enough resources to repair the base. Need ${fullScrapCost} scrap and ${fullEnergyCost} energy for a full repair.`);
     return;
   }
-  
+
+  const integrityToRepair = Math.ceil(missingIntegrity * affordableRatio);
+  const scrapToSpend = Math.floor(fullScrapCost * affordableRatio);
+  const energyToSpend = Math.floor(fullEnergyCost * affordableRatio);
+
   // Deduct costs and repair
-  state.resources.scrap -= scrapCost;
-  state.resources.energy -= energyCost;
+  state.resources.scrap -= scrapToSpend;
+  state.resources.energy -= energyToSpend;
   const oldIntegrity = Math.floor(state.baseIntegrity);
-  state.baseIntegrity = 100;
+  state.baseIntegrity += integrityToRepair;
   
-  appendLog(`🔧 Base repaired from ${oldIntegrity}% to 100%! Cost: ${scrapCost} scrap, ${energyCost} energy.`);
+  appendLog(`🔧 Base repaired by ${integrityToRepair}% to ${Math.floor(state.baseIntegrity)}%! Cost: ${scrapToSpend} scrap, ${energyToSpend} energy.`);
   
   updateUI();
   saveGame('action');
@@ -312,7 +323,25 @@ function autoSalvage() {
 }
 
 function repairItem(itemId) {
-  const item = state.inventory.find(i => i.id === itemId);
+  // Find item in inventory or equipped by a survivor
+  let item = state.inventory.find(i => i.id === itemId);
+  let ownerSurvivor = null;
+
+  if (!item) {
+    for (const s of state.survivors) {
+      if (s.equipment.weapon && s.equipment.weapon.id === itemId) {
+        item = s.equipment.weapon;
+        ownerSurvivor = s;
+        break;
+      }
+      if (s.equipment.armor && s.equipment.armor.id === itemId) {
+        item = s.equipment.armor;
+        ownerSurvivor = s;
+        break;
+      }
+    }
+  }
+
   if (!item) {
     appendLog('Item not found.');
     return;

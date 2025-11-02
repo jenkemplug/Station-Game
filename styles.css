@@ -1112,3 +1112,48 @@ footer {
   gap: 4px;
 }
 
+.scrollable-panel {
+  overflow-y: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+
+.scrollable-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable-panel::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.2);
+  border-radius: 3px;
+}
+
+.scrollable-panel::-webkit-scrollbar-thumb {
+  background: rgba(74, 158, 255, 0.4);
+  border-radius: 3px;
+}
+
+.scrollable-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(74, 158, 255, 0.6);
+}
+
+.repair-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.repair-item-name {
+  flex-grow: 1;
+  text-align: left;
+}
+
+.repair-item-cost {
+  min-width: 120px;
+  text-align: right;
+  color: var(--muted);
+}
+
+.repair-item-action {
+  text-align: right;
+}

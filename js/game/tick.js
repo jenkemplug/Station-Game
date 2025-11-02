@@ -205,7 +205,10 @@ function applyTick(isOffline = false) {
   // 0.9.0 - Morale passive changes from crises
   const crisisMoraleLoss = (s) => {
     let loss = 0;
-    if (state.baseIntegrity < 40) loss += BALANCE.MORALE_LOSS_LOW_INTEGRITY;
+    // Tiered morale loss from base integrity
+    const integrityTier = getIntegrityTier(state.baseIntegrity);
+    loss += BALANCE.MORALE_LOSS_BASE_TIERED[integrityTier] || 0;
+    
     if (state.threat > 75) loss += BALANCE.MORALE_LOSS_HIGH_THREAT;
     if (state.systemFailures.length > 0) loss += (BALANCE.MORALE_LOSS_SYSTEM_FAILURE * state.systemFailures.length);
     if (loss > 0) {
@@ -214,27 +217,6 @@ function applyTick(isOffline = false) {
   };
   
   state.survivors.forEach(crisisMoraleLoss);
-  
-  // 0.9.0 - Desertion System (hourly checks)
-  if (state.baseIntegrity < 40) {
-    state.survivors.forEach(s => {
-      s.morale = Math.max(0, s.morale - BALANCE.MORALE_LOSS_BASE_CRITICAL);
-    });
-  }
-  
-  // Morale loss from high threat
-  if (state.threat > 75) {
-    state.survivors.forEach(s => {
-      s.morale = Math.max(0, s.morale - BALANCE.MORALE_LOSS_HIGH_THREAT);
-    });
-  }
-  
-  // Morale loss from failed systems
-  if (failedSystemCount > 0) {
-    state.survivors.forEach(s => {
-      s.morale = Math.max(0, s.morale - failedSystemCount * BALANCE.MORALE_LOSS_SYSTEM_FAILURE);
-    });
-  }
   
   // Desertion checks (hourly: 3600 ticks = 1 hour)
   if (state.secondsPlayed % 3600 === 0 && state.survivors.length > 1) { // Don't desert if last survivor
@@ -278,17 +260,32 @@ function applyTick(isOffline = false) {
     }
   }
   
-  // 0.8.0 - Guardian morale bonuses
-  const guardians = state.survivors.filter(s => !s.onMission);
-  let moraleBonus = 0;
-  for (const g of guardians) {
-    if (hasAbility(g, 'rallying')) moraleBonus += 0.05; // +5% morale to all
+  // 0.9.0 - Morale recovery
+  const isResourcesHealthy = state.resources.oxygen > BALANCE.OXY_CRITICAL_THRESHOLD && state.resources.food > 0;
+  
+  // Calculate global morale bonuses from auras like Guardian's Rallying Cry
+  let globalMoraleBonus = 0;
+  const activeGuardians = state.survivors.filter(s => !s.onMission && hasAbility(s, 'rallying'));
+  if (activeGuardians.length > 0) {
+    globalMoraleBonus = activeGuardians.length * 0.05;
   }
-  if (moraleBonus > 0) {
-    state.survivors.forEach(s => {
-      s.morale = Math.min(100, s.morale + moraleBonus);
-    });
-  }
+
+  state.survivors.forEach(s => {
+    let moraleGain = 0;
+    if (isResourcesHealthy) {
+      moraleGain += BALANCE.MORALE_NATURAL_RECOVERY;
+    }
+    if (s.task === 'Idle') {
+      moraleGain += BALANCE.MORALE_REST_RECOVERY;
+    }
+    
+    // Apply global aura bonuses
+    moraleGain += globalMoraleBonus;
+
+    if (moraleGain > 0) {
+      s.morale = Math.min(100, s.morale + moraleGain);
+    }
+  });
   
   // 0.8.11 - System failure events with Overclock/Failsafe modifiers
   if (!isOffline && state.secondsPlayed % 10 === 0) { // Check every 10 seconds

@@ -1,6 +1,49 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.4] - 2025-11-02
+### Changed
+- **Combat UI**:
+  - The combat UI now automatically selects a new target if the current one is defeated.
+  - Burst attacks now log each shot individually, and the overkill damage is displayed.
+  - The bonus damage has been removed from ranged burst attacks, making the number of shots the sole advantage.
+  - The tooltip for the ranged "Burst" action has been updated to reflect that it fires multiple shots without bonus damage.
+- **Melee Power Attack**:
+  - The melee "Power Attack" now correctly functions as a single, powerful strike with bonus damage.
+  - The combat log message for the Power Attack has been updated to be more descriptive.
+  - The bonus damage for the Power Attack has been changed from a random 3-6 to a flat 5.
+- **Ravager Balance**:
+  - The Ravager's "Armored" special damage reduction has been nerfed to 30%.
+  - The "Hardened" modifier's damage reduction has been nerfed to 20%.
+  - The "Colossus" modifier's resistance has been nerfed from 70% to 40%.
+  - The Ravager's base armor remains at 6.
+- **Consumable Tooltips**:
+  - The inventory tooltips for all consumables, including the Combat Drug and Stimpack, have been updated to be more descriptive of their in-combat effects.
+
+### Fixed
+- **Morale System**:
+  - Fixed an issue where the Guardian's "Rallying Cry" ability was not providing its passive morale boost.
+  - Corrected the implementation of natural and rest-based morale recovery.
+  - Removed a redundant morale penalty for losing a raid, as this is a game-over state.
+- **Resistance Calculation**: Fixed a critical bug where resistance calculations were duplicated and incorrect. The logic is now consolidated in a single function, and resistances from different sources stack correctly.
+- **Consumable Tooltips**: Fixed a bug where inventory tooltips for consumables were not displaying their detailed descriptions.
+- **Base Repair**: Fixed a rounding error that could prevent base integrity from reaching 100%.
+- **UI Warning**: The critical warning flash on the base panel now correctly deactivates after repairs and is only tied to base integrity.
+- **Repair Button Bug**: Fixed a bug where the repair button on an inventory item would incorrectly trigger the recycle prompt.
+- **Redeclaration Error**: Fixed a "Cannot redeclare block-scoped variable" error in the combat UI code.
+
+### Added
+- **Repair Modal**: Added a new "Repair Equipment" button and modal to centralize item repairs.
+  - The modal lists all damaged items from both the inventory and equipped by survivors.
+  - It displays the repair cost for each item, including discounts from survivor abilities.
+  - Includes a "Repair All" button for convenience.
+
+### Changed
+- **Tiered Morale Penalty**: Morale loss from low base integrity is now tiered, making it less punishing for minor damage.
+- **Partial Base Repair**: The "Repair Base" button now uses available resources to repair as much integrity as possible.
+- **UI Text**: The "Repair Base" button now displays the full words "scrap" and "energy" for clarity.
+- **Repair Costs**: Increased the base cost to repair base integrity.
+
 ## [0.9.3] - 2025-11-01
 ### Changed
 - **Threat Rebalance**: Slightly reduced the base and random threat growth rates for a slower overall progression.
