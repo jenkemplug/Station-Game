@@ -504,6 +504,7 @@ Threat locks at 100% (escalation takes over).`;
       }
     }
     
+    el('alienKills').textContent = state.alienKills;
     el('activeGuards').textContent = state.survivors.filter(s => s.task === 'Guard' && !s.onMission).length;
     el('totalSurvivors').textContent = state.survivors.length;
     el('activeExpeditions').textContent = state.missions.length;

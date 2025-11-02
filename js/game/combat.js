@@ -63,7 +63,18 @@ function applyWeaponEffects(weapon, target, attacker, baseDmg) {
           
         case 'splash':
           // Splash: Hit additional targets
-          appendLog(`💥 Splash damage!`);
+          const splashDmg = Math.max(1, Math.floor(baseDmg * 0.5));
+          const splashTarget = aliens.find(a => a.hp > 0 && a !== target);
+          if (splashTarget) {
+            const splashArmor = splashTarget.armor || 0;
+            const splashDealt = Math.max(1, splashDmg - splashArmor);
+            splashTarget.hp -= splashDealt;
+            appendLog(`💥 Splash damage hits ${splashTarget.name} for ${splashDealt} damage!`);
+            if (splashTarget.hp <= 0) {
+              appendLog(`${splashTarget.name} downed by splash damage.`);
+              state.alienKills = (state.alienKills || 0) + 1;
+            }
+          }
           break;
           
         // Note: accuracy and crit are passive bonuses, applied elsewhere

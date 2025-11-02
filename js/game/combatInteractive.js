@@ -2118,8 +2118,8 @@ function playerShoot(action = 'shoot', burstShots = null) {
       target.hp -= dealt;
       logCombat(`${s.name} hits ${target.name} for ${dealt} damage.` + (overkill > 0 ? ` (${overkill} overkill)` : ``), true);
       
-      // 0.9.0 - Apply weapon effects
-      if (weapon && weapon.effects && weapon.effects.length > 0 && target.hp > 0) {
+      // Apply weapon effects (Moved before death check for splash on kill)
+      if (weapon && weapon.effects && weapon.effects.length > 0) {
         applyWeaponEffectsInteractive(weapon, target, s, dealt);
       }
       

@@ -113,7 +113,7 @@ function handleTileEvent(idx) {
       appendLog(`Detected hazard at (${x},${y}). No explorer selected.`);
       return;
     }
-    const hasHazmat = explorer.equipment.armor?.type === 'hazmatSuit';
+    const hasHazmat = explorer.equipment.armor?.subtype === 'hazmat_suit';
     if (!hasHazmat) {
       appendLog(`Detected hazard at (${x},${y}). Hazmat Suit required to clear.`);
       // Mark as cleared so it can be revisited later with a suit (0.7.2)

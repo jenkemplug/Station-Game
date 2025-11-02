@@ -1,6 +1,17 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.8] - 2025-11-02
+### Fixed
+- **Combat**: 
+- Fixed a critical bug where splash damage was not being applied if the primary target was defeated by the initial attack. The effect now correctly triggers even on a killing blow in both interactive and auto-resolve combat.
+- Fixed alien kills not being tracked correctly in the UI
+- **Exploration**:
+- Fixed survivors not being able to explore hazard rooms even with a Hazmat Suit equipped.
+- **Progression**:
+- Increased minimum threat growth to ensure steadier progression of enemy types/modifiers.
+
+
 ## [0.9.7] - 2025-11-02
 ### Fixed
 - **UI**: Corrected the display of "WeaponPart" in crafting recipes to show as "Weapon Part" with a space.

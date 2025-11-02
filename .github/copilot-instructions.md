@@ -1,3 +1,6 @@
+### IMPORTANT NOTE FOR AI ASSISTANTS
+Please do not ever try to read entire files at once. When you are looking for something, use grep or similar functions to find the code you need to change and correctly identify what lines to read instead of trying to read huge files. This is a critical matter of efficiency. 
+
 # Derelict Station - AI Agent Instructions
 
 ## Project Overview
