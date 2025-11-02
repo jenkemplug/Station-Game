@@ -17,6 +17,7 @@ const SURVIVOR_NAMES = [
     'Petra', 'Viktor', 'Sasha', 'Dmitri', 'Natasha', 'Yuri', 'Anya',
     'Hassan', 'Leila', 'Tariq', 'Fatima', 'Jamal', 'Amara', 'Kofi',
     'Chinwe', 'Kwame', 'Zuri', 'Jabari', 'Nia', 'Malik', 'Imani',
+    'Dylan', 'Quinton', 'Sally', 'Carol', 'Kyan', 'Eli', 'Vincent',
     // Sci-fi inspired names
     'Atlas', 'Nova', 'Echo', 'Orion', 'Phoenix', 'Vega', 'Cygnus',
     'Lyra', 'Rigel', 'Terra', 'Sol', 'Astro', 'Nebula', 'Comet',

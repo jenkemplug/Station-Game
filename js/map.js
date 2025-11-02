@@ -78,6 +78,7 @@ function exploreTile(idx) {
   state.resources.energy -= cost;
   tile.scouted = true;
   state.explored.add(idx);
+  state.threat += BALANCE.THREAT_GAIN_PER_TILE || 0;
   
   // Grant XP to the selected explorer (bonuses applied in grantXp - 0.8.11 additive stacking)
   if (explorer) {

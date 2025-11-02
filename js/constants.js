@@ -1,4 +1,4 @@
-const VERSION = '0.9.9';
+const VERSION = '0.9.10';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -130,6 +130,8 @@ const BALANCE = {
   THREAT_GROWTH_MINIMUM: 0.015,       // Threat always grows at least +1.5%/min even with max defenses
   GUARD_THREAT_REDUCTION: 0.08,       // Guards slow threat, can't stop it
   THREAT_GAIN_PER_ALIEN: [2, 3],      // Increased from [1, 2] - combat drives threat progression
+  THREAT_GAIN_PER_ALIEN_KILL: 0.25, // Threat gain for each alien kill
+  THREAT_GAIN_PER_TILE: 0.1,        // Threat gain for each tile explored
   THREAT_GAIN_ON_RETREAT: [1, 2],     // NEW: Retreating from combat adds threat
   EXPEDITION_FAILURE_THREAT_GAIN: [4, 8], // Increased from [3, 6] - failed expeditions matter more
   
@@ -371,11 +373,11 @@ const LOOT_TABLE = [
   }},
   
   // Uncommon components
-  { type: 'armor_plating', weight: 2.2, rarity: 'uncommon', desc: 'Reinforcement material', onPickup: (s) => { 
+  { type: 'armor_plating', weight: 3.0, rarity: 'uncommon', desc: 'Reinforcement material', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'component', subtype: 'armor_plating', name: 'Armor Plating', rarity: 'uncommon' }; 
     return tryAddAndReturn(item, '', ''); 
   }},
-  { type: 'electronics', weight: 2.2, rarity: 'uncommon', desc: 'Circuit boards and chips', onPickup: (s) => { 
+  { type: 'electronics', weight: 3.0, rarity: 'uncommon', desc: 'Circuit boards and chips', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'component', subtype: 'electronics', name: 'Electronics', rarity: 'uncommon' }; 
     return tryAddAndReturn(item, '', ''); 
   }},
@@ -457,15 +459,15 @@ const LOOT_TABLE = [
   }},
   
   // Rare components (MORE COMMON than legendary items)
-  { type: 'power_core', weight: 1.2, rarity: 'rare', desc: 'Compact fusion cell', onPickup: (s) => { 
+  { type: 'power_core', weight: 1.5, rarity: 'rare', desc: 'Compact fusion cell', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'component', subtype: 'power_core', name: 'Power Core', rarity: 'rare' }; 
     return tryAddAndReturn(item, '', ''); 
   }},
-  { type: 'nano_material', weight: 1.1, rarity: 'rare', desc: 'Programmable matter', onPickup: (s) => { 
+  { type: 'nano_material', weight: 1.4, rarity: 'rare', desc: 'Programmable matter', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'component', subtype: 'nano_material', name: 'Nano-Material', rarity: 'rare' }; 
     return tryAddAndReturn(item, '', ''); 
   }},
-  { type: 'advanced_component', weight: 1.2, rarity: 'rare', desc: 'Rare crafting component', onPickup: (s) => { 
+  { type: 'advanced_component', weight: 1.5, rarity: 'rare', desc: 'Rare crafting component', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'component', subtype: 'advanced_component', name: 'Advanced Component', rarity: 'rare' }; 
     return tryAddAndReturn(item, '', ''); 
   }},

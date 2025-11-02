@@ -2163,6 +2163,7 @@ function playerShoot(action = 'shoot', burstShots = null) {
       if (target.hp <= 0) {
         logCombat(`${target.name} eliminated!`, true);
         state.alienKills = (state.alienKills || 0) + 1;
+        state.threat += BALANCE.THREAT_GAIN_PER_ALIEN_KILL || 0;
         
   // 0.9.0 - Morale gain for killing alien
         s.morale = Math.min(100, (s.morale || 0) + BALANCE.MORALE_GAIN_ALIEN_KILL);

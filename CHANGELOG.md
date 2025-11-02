@@ -1,13 +1,23 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.10] - 2025-11-02
+### Added
+- **Threat Mechanics**:
+  - Threat now increases by `0.1` for each new tile explored.
+  - Threat now increases by `0.25` for each alien killed.
+
+### Changed
+- **Loot Balance**: Increased the drop rates of uncommon and rare crafting materials to make them more accessible.
+
 ## [0.9.9] - 2025-11-02
 ### Changed
 - **Combat Log**:
-  - Increased the height width of the combat log for better readability.
+  - Increased the height and reduced the width of the combat log for better readability.
   - Removed the 20-entry limit, allowing the log to scroll through the entire engagement.
   - Implemented color-coding for survivor and alien names to match the main notification log.
   - Added a custom-styled scrollbar to match the rest of the UI.
+  - Centered the text within the log entries.
 
 ## [0.9.8] - 2025-11-02
 ### Changed

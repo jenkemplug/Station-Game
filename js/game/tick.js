@@ -260,7 +260,7 @@ function applyTick(isOffline = false) {
     }
   }
   
-  // 0.9.9 - Morale recovery (capped at 60)
+  // 0.9.10 - Morale recovery (capped at 60)
   const isResourcesHealthy = state.resources.oxygen > BALANCE.OXY_CRITICAL_THRESHOLD && state.resources.food > 0;
   
   // Calculate global morale bonuses from auras like Guardian's Rallying Cry
