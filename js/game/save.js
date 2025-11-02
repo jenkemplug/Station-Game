@@ -278,7 +278,9 @@ function handleOffline() {
     state.lastTick = now;
     return;
   }
-  appendLog(`Recovered ${elapsed}s of offline activity.`);
-  for (let i = 0; i < elapsed; i++) applyTick(true);
+
+  // New: Use the simplified offline calculation instead of the loop
+  calculateOfflineProgress(elapsed);
+  
   state.lastTick = now;
 }

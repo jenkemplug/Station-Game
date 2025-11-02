@@ -355,3 +355,143 @@ function applyTick(isOffline = false) {
   if (!isOffline) state.secondsPlayed++;
   state.lastTick = Date.now();
 }
+
+function calculateOfflineProgress(elapsedSeconds) {
+  // --- 1. Calculate Production Rates (per second) ---
+  let prod = { oxygen: 0, food: 0, energy: 0, scrap: 0 };
+  const activeSurvivors = state.survivors.filter(s => !s.onMission);
+
+  activeSurvivors.forEach(s => {
+    const levelBonus = 1 + (s.level - 1) * BALANCE.LEVEL_PRODUCTION_BONUS;
+    let classBonus = 0;
+    if (s.classBonuses && s.classBonuses.production) {
+      classBonus += (s.classBonuses.production - 1);
+    }
+    if (hasAbility(s, 'efficient')) classBonus += 0.15;
+    if (hasAbility(s, 'overclock')) classBonus += 0.30;
+    if (hasAbility(s, 'mastermind')) classBonus += 0.25;
+    
+    const moraleModifier = getMoraleModifier(s);
+    const finalBonus = (1 + classBonus) * moraleModifier.production;
+    
+    switch (s.task) {
+      case 'Oxygen':
+        prod.oxygen += BALANCE.SURVIVOR_PROD.Oxygen.base * levelBonus * finalBonus;
+        break;
+      case 'Food':
+        prod.food += BALANCE.SURVIVOR_PROD.Food.base * levelBonus * finalBonus;
+        break;
+      case 'Energy':
+        prod.energy += BALANCE.SURVIVOR_PROD.Energy.base * levelBonus * finalBonus;
+        break;
+      case 'Scrap':
+        let scrapBonus = classBonus;
+        if (s.classBonuses && s.classBonuses.scrap) {
+          scrapBonus += (s.classBonuses.scrap - 1);
+        }
+        if (hasAbility(s, 'salvage')) scrapBonus += 0.25;
+        prod.scrap += BALANCE.SURVIVOR_PROD.Scrap.base * levelBonus * (1 + scrapBonus);
+        break;
+      default: // Idle
+        prod.oxygen += BALANCE.SURVIVOR_PROD.IdleOxygen;
+        break;
+    }
+  });
+
+  let systemBonusAdd = 0;
+  activeSurvivors.forEach(s => {
+    if (hasAbility(s, 'overclock')) systemBonusAdd += 0.30;
+    if (hasAbility(s, 'mastermind')) systemBonusAdd += 0.25;
+  });
+  const systemBonus = 1 + systemBonusAdd;
+
+  const isFilterFailed = state.systemFailures.some(f => f.type === 'filter');
+  const isGeneratorFailed = state.systemFailures.some(f => f.type === 'generator');
+
+  if (!isFilterFailed) {
+    prod.oxygen += (BALANCE.BASE_SYSTEM_PRODUCTION.oxygen + state.systems.filter * 1.2) * BALANCE.SYSTEM_FILTER_MULT * systemBonus;
+  }
+  if (!isGeneratorFailed) {
+    prod.energy += (BALANCE.BASE_SYSTEM_PRODUCTION.energy + state.systems.generator * 1.4) * BALANCE.SYSTEM_GENERATOR_MULT * systemBonus;
+  }
+  
+  if (isFilterFailed) prod.oxygen *= 0.10;
+  if (isGeneratorFailed) prod.energy *= 0.10;
+
+  const integrityTier = getIntegrityTier(state.baseIntegrity);
+  const integrityPenalty = BALANCE.INTEGRITY_PROD_PENALTY[integrityTier] || 0;
+  if (integrityPenalty > 0) {
+    prod.oxygen *= (1 - integrityPenalty);
+    prod.food *= (1 - integrityPenalty);
+    prod.energy *= (1 - integrityPenalty);
+    prod.scrap *= (1 - integrityPenalty);
+  }
+
+  prod.oxygen *= BALANCE.PROD_MULT;
+  prod.food *= BALANCE.PROD_MULT;
+  prod.energy *= BALANCE.PROD_MULT;
+  prod.scrap *= BALANCE.PROD_MULT;
+
+  if (state.resources.energy <= 0) {
+    prod.oxygen *= (BALANCE.OXYGEN_PENALTY_NO_ENERGY || 0.1);
+  }
+  
+  prod.food *= BALANCE.SURVIVOR_PROD.FoodYieldFactor;
+
+  // --- 2. Calculate Consumption Rates (per second) ---
+  const o2Consume = BALANCE.O2_BASE + activeSurvivors.length * BALANCE.O2_PER_SURVIVOR;
+  const foodConsume = BALANCE.FOOD_BASE + activeSurvivors.length * BALANCE.FOOD_PER_SURVIVOR;
+  const energyConsume = 
+    activeSurvivors.length * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerSurvivor +
+    state.systems.turret * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerTurret +
+    state.systems.filter * BALANCE.SURVIVOR_PROD.PassiveEnergyDrainPerFilterLevel;
+
+  // --- 3. Calculate Net Change over elapsed time ---
+  const netOxygen = (prod.oxygen - o2Consume) * elapsedSeconds;
+  const netFood = (prod.food - foodConsume) * elapsedSeconds;
+  const netEnergy = (prod.energy - energyConsume) * elapsedSeconds;
+  const netScrap = prod.scrap * elapsedSeconds;
+
+  // --- 4. Apply Penalties for Depletion ---
+  // Calculate how many seconds it would take to deplete oxygen/food
+  const secondsToDepleteOxygen = state.resources.oxygen / Math.abs(prod.oxygen - o2Consume);
+  const secondsToDepleteFood = state.resources.food / Math.abs(prod.food - foodConsume);
+
+  let offlinePenaltyMessages = [];
+
+  if (netOxygen < 0 && elapsedSeconds > secondsToDepleteOxygen) {
+    const secondsWithoutOxygen = elapsedSeconds - secondsToDepleteOxygen;
+    const integrityDamage = secondsWithoutOxygen * BALANCE.INTEGRITY_DAMAGE_OXY_CRIT;
+    const moraleLoss = secondsWithoutOxygen * BALANCE.MORALE_LOSS_OXY_CRIT;
+    
+    state.baseIntegrity -= integrityDamage;
+    state.survivors.forEach(s => s.morale -= moraleLoss);
+    offlinePenaltyMessages.push(`Station was without oxygen for ~${formatTime(secondsWithoutOxygen)}, causing base damage and morale loss.`);
+  }
+
+  if (netFood < 0 && elapsedSeconds > secondsToDepleteFood) {
+    const secondsWithoutFood = elapsedSeconds - secondsToDepleteFood;
+    const moraleLoss = secondsWithoutFood * BALANCE.MORALE_LOSS_STARVATION;
+    state.survivors.forEach(s => s.morale = Math.max(0, s.morale - moraleLoss));
+    offlinePenaltyMessages.push(`Survivors went without food for ~${formatTime(secondsWithoutFood)}, causing severe morale loss.`);
+  }
+
+  // --- 5. Apply Final Resource Changes ---
+  state.resources.oxygen = Math.max(0, state.resources.oxygen + netOxygen);
+  state.resources.food = Math.max(0, state.resources.food + netFood);
+  state.resources.energy = Math.max(0, state.resources.energy + netEnergy);
+  state.resources.scrap += netScrap;
+
+  // Clamp morale
+  state.survivors.forEach(s => s.morale = clamp(s.morale, 0, 100));
+  state.baseIntegrity = clamp(state.baseIntegrity, 0, 100);
+
+  // Update total time played
+  state.secondsPlayed += elapsedSeconds;
+
+  // Log a summary
+  appendLog(`Offline progress for ${formatTime(elapsedSeconds)} calculated.`);
+  if (offlinePenaltyMessages.length > 0) {
+    offlinePenaltyMessages.forEach(msg => appendLog(msg, 'warning'));
+  }
+}
