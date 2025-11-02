@@ -15,7 +15,6 @@ All notable changes to the Derelict Station project will be documented in this f
 ### Fixed
   - Survivor deaths in expeditions and interactive combat now correctly apply a morale penalty to all other living survivors.
   - Morale changes during combat are now reflected dynamically in the UI tooltips.
-
 ## [0.9.4] - 2025-11-02
 ### Changed
 - **Combat UI**:
@@ -37,6 +36,8 @@ All notable changes to the Derelict Station project will be documented in this f
 
 ### Fixed
 - **Morale System**:
+  - Survivor deaths in expeditions and interactive combat now correctly apply a morale penalty to all other living survivors.
+  - Morale changes during combat are now reflected dynamically in the UI tooltips.
   - Fixed an issue where the Guardian's "Rallying Cry" ability was not providing its passive morale boost.
   - Corrected the implementation of natural and rest-based morale recovery.
   - Removed a redundant morale penalty for losing a raid, as this is a game-over state.
