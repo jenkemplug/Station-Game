@@ -1,4 +1,4 @@
-const VERSION = '0.9.4';
+const VERSION = '0.9.5';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -106,18 +106,16 @@ const BALANCE = {
   MORALE_GAIN_LEVEL_UP: 8,
   MORALE_GAIN_EXPEDITION_SUCCESS: 6,
   MORALE_GAIN_ALIEN_KILL: 2,
-  MORALE_GAIN_BASE_REPAIRED: 15,
-  MORALE_GAIN_SYSTEM_REPAIRED: 3,
   MORALE_LOSS_ALLY_DEATH: 10,
   MORALE_LOSS_ALLY_DOWNED: 5,
   MORALE_LOSS_BASE_TIERED: [0, 0.02, 0.05, 0.10, 0.15], // Per tick, based on integrity tier
   MORALE_LOSS_BASE_CRITICAL: 0.15, // Per tick when base < 40%
   MORALE_LOSS_RAID_LOST: 15,
-  MORALE_LOSS_RETREAT: 3,
+  MORALE_LOSS_RETREAT: 6,
   MORALE_LOSS_HIGH_THREAT: 0.10, // Per tick when threat > 75%
   MORALE_LOSS_SYSTEM_FAILURE: 0.05, // Per tick per failed system
-  MORALE_NATURAL_RECOVERY: 0.20, // Per tick when resources healthy
-  MORALE_REST_RECOVERY: 0.50, // Per tick for survivors on Idle task
+  MORALE_NATURAL_RECOVERY: 0.10, // Per tick when resources healthy
+  MORALE_REST_RECOVERY: 0.25, // Per tick for survivors on Idle task
   
   // 0.8.10 - Gameplay rebalance
   OXYGEN_PENALTY_NO_ENERGY: 0.1, // Oxygen production is only 10% effective without energy
@@ -388,7 +386,7 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'consumable', subtype: 'advanced_medkit', name: 'Advanced Medkit', rarity: 'uncommon' }; 
     return tryAddAndReturn(item, '', ''); 
   }},
-  { type: 'stimpack', weight: 1.0, rarity: 'uncommon', desc: 'Combat enhancer', onPickup: (s) => { 
+  { type: 'stimpack', weight: 1.0, rarity: 'uncommon', desc: '+20% dodge, +25% retreat for 4 turns.', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'consumable', subtype: 'stimpack', name: 'Stimpack', rarity: 'uncommon' }; 
     return tryAddAndReturn(item, '', ''); 
   }},
@@ -477,7 +475,7 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'consumable', subtype: 'repair_kit', name: 'Repair Kit', rarity: 'rare' }; 
     return tryAddAndReturn(item, '', ''); 
   }},
-  { type: 'combat_drug', weight: 0.6, rarity: 'rare', desc: 'High-risk enhancer', onPickup: (s) => { 
+  { type: 'combat_drug', weight: 0.6, rarity: 'rare', desc: '+20% damage for 3 turns, -20% max HP.', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'consumable', subtype: 'combat_drug', name: 'Combat Drug', rarity: 'rare' }; 
     return tryAddAndReturn(item, '', ''); 
   }},

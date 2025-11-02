@@ -2131,6 +2131,7 @@ function playerShoot(action = 'shoot', burstShots = null) {
         
   // 0.9.0 - Morale gain for killing alien
         s.morale = Math.min(100, (s.morale || 0) + BALANCE.MORALE_GAIN_ALIEN_KILL);
+        renderCombatUI();
         
         // 0.9.0 - Relentless: Stalkers with this modifier attack twice if an ally dies
         const relentlessStalkers = currentCombat.aliens.filter(al => 
@@ -2689,6 +2690,7 @@ function playerRetreat() {
     
   // 0.9.0 - Morale loss for retreating
     s.morale = Math.max(0, (s.morale || 0) - BALANCE.MORALE_LOSS_RETREAT);
+    renderCombatUI();
     
     // Check if all survivors have retreated or died
     const party = currentCombat.partyIds.map(id => state.survivors.find(surv => surv.id === id)).filter(Boolean);
@@ -3208,6 +3210,14 @@ function enemyTurn() {
           targ.hp = 0;
           targ.downed = true;
           logCombat(`${targ.name} has died.`, true);
+
+          // Morale loss for all other survivors
+          state.survivors.forEach(s => {
+            if (s.id !== targ.id && s.hp > 0) {
+              s.morale = Math.max(0, (s.morale || 0) - BALANCE.MORALE_LOSS_ALLY_DEATH);
+            }
+          });
+          
           renderCombatUI(); // Update UI after downed
           if (currentCombat.context !== 'base') {
             state.raidPressure = Math.min((state.raidPressure || 0) + 0.004, 0.03);
@@ -3306,6 +3316,7 @@ function endCombat(win) {
         s.morale = Math.min(100, (s.morale || 0) + moraleGain);
       }
     }
+    renderCombatUI();
     
     // Raid success rewards
     if (isRaid) {

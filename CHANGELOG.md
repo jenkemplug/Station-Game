@@ -1,6 +1,17 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.5] - 2025-11-02
+### Changed
+- **Morale System**:
+  - Passive morale recovery from being idle or having healthy resources is now capped at 60.
+  - The rates for natural and rest-based morale recovery have been reduced by 50%.
+  - Morale loss for retreat increased from 3 to 5.
+
+### Fixed
+  - Survivor deaths in expeditions and interactive combat now correctly apply a morale penalty to all other living survivors.
+  - Morale changes during combat are now reflected dynamically in the UI tooltips.
+
 ## [0.9.4] - 2025-11-02
 ### Changed
 - **Combat UI**:
