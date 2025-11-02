@@ -321,6 +321,34 @@ function getStatusEffectsDisplay(entity, isAlien = false, rarityColor = null, pa
         });
       }
     }
+
+    // Scavenger loot bonuses
+    if (entity.class === 'scavenger') {
+        let lootBonus = 0;
+        if (entity.classBonuses && entity.classBonuses.loot) {
+            lootBonus += (entity.classBonuses.loot - 1);
+        }
+        if (hasAbility(entity, 'treasure')) {
+            lootBonus += 0.25;
+        }
+        if (hasAbility(entity, 'goldnose')) {
+            lootBonus += 0.50;
+        }
+        if (lootBonus > 0) {
+            effects.push({
+                text: `Loot Rarity +${Math.round(lootBonus * 100)}%`,
+                color: '#f59e0b', // A gold/yellow color
+                tooltip: `Increases the chance of finding rarer items from kills.`
+            });
+        }
+        if (hasAbility(entity, 'goldnose')) {
+            effects.push({
+                text: `Double Loot Rolls`,
+                color: '#f59e0b',
+                tooltip: `Grants an extra loot roll on kills.`
+            });
+        }
+    }
   }
   
   // === ALIEN SPECIAL ABILITIES ===

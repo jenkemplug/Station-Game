@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.15] - 2025-11-02
+### Added
+- **Scavenger UI**: The interactive combat UI now displays a Scavenger's loot-finding bonuses in their passive effects list, providing clear feedback on their contribution to the fight.
+
 ## [0.9.14] - 2025-11-02
 ### Added
 - **Dynamic Loot Quality**: Defeating rarer and more powerful aliens now increases the quality of loot drops. The bonus is calculated based on the alien's rarity and the number of modifiers it has.
