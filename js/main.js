@@ -14,6 +14,8 @@ function bindUI() {
   el('btnUpgradeGen').onclick = upgradeGenerator;
   el('btnBuildTurret').onclick = buildTurret;
   
+  el('btnNewMap').onclick = generateNewMap;
+
   // 0.8.0 - System repair buttons
   el('btnRepairFilter').onclick = () => {
     repairSystem('filter');

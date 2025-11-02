@@ -1901,14 +1901,13 @@ function turretPhase() {
     const aliveAliens = currentCombat.aliens.filter(a => a.hp > 0);
     if (aliveAliens.length === 0) break;
     const tState = currentCombat.turretsState[i] || { aimed: false };
-    // Decide action: aim if not aimed (35%), else burst (35%) or shoot
+    // Decide action: aim if not aimed (35%), else shoot
     if (!tState.aimed && Math.random() < 0.35) {
       tState.aimed = true;
       logCombat(`Auto-Turret #${i + 1} acquiring target...`);
       continue;
     }
-    const doBurst = Math.random() < 0.35;
-    turretAttack(i, doBurst ? 'burst' : 'shoot', tState);
+    turretAttack(i, 'shoot', tState);
     // reset aim after firing
     tState.aimed = false;
     currentCombat.turretsState[i] = tState;
@@ -1950,8 +1949,7 @@ function turretAttack(idx, action, tState) {
     
     let dmg = BALANCE.TURRET_BASE_DAMAGE;
     if (action === 'burst') {
-      const r = BALANCE.COMBAT_ACTIONS.Burst.dmgBonus;
-      dmg += rand(r[0], r[1]);
+      dmg += BALANCE.COMBAT_ACTIONS.Burst.dmgBonus;
     }
     // Apply small variance and crit
     if (Math.random() < BALANCE.CRIT_CHANCE) {

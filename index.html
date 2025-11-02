@@ -81,7 +81,10 @@
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <strong style="color:var(--accent)">Station Map</strong>
-        <div id="explorerDropdown" style="width:180px;"></div>
+        <div class="flex-row">
+          <button id="btnNewMap" style="display:none;">New Map</button>
+          <div id="explorerDropdown" style="width:180px;"></div>
+        </div>
       </div>
       <div class="small" style="margin-top:6px">Explore to find loot, survivors, alien nests, and modules.</div>
       <div class="map" id="mapGrid" style="margin-top:10px"></div>

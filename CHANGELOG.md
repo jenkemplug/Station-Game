@@ -1,6 +1,23 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.11] - 2025-11-02
+### Added
+- **Map Reset Feature (Temporary)**: Added a "New Map" button that appears once the entire map has been explored. This allows players to generate a new map layout and continue exploring. This feature is a temporary addition, as the exploration system is slated for a major overhaul in version 1.0.
+
+### Changed
+- **Durability System**: Items no longer break and get destroyed at 0 durability. Instead, they become ineffective, providing no bonuses until repaired.
+- **Hive Queen Balance**:
+  - Reduced the Hive Queen's base attack damage.
+  - Fixed a bug with the "Empress" modifier that caused it to grant a much larger damage bonus than intended.
+- **Hazmat Suit Recipe**: Removed the electronics requirement and increased the scrap cost.
+
+### Fixed
+- **Combat**: Fixed a bug where several alien special abilities and modifiers were not functioning correctly in auto-resolve combat.
+- **UI**: Corrected the rarity display for "Spectre" and "Hive Queen" aliens to ensure they appear with the correct legendary color in logs.
+- **Combat**: Fixed a bug that could cause turret attacks to result in `NaN` damage.
+- **Combat**: Removed the unintended bonus damage from burst attacks.
+
 ## [0.9.10] - 2025-11-02
 ### Added
 - **Threat Mechanics**:

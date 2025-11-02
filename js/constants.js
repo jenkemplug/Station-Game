@@ -7,7 +7,7 @@ const BALANCE = {
   // Interactive combat
   COMBAT_ACTIONS: {
     Aim: { accuracyBonus: 0.25 },
-    Burst: { dmgBonus: 5, accuracyPenalty: 0.05, ammoMult: 2, cooldown: 3 },
+    Burst: { dmgBonus: 0, accuracyPenalty: 0.05, ammoMult: 2, cooldown: 3 },
     Guard: { defenseBonus: 3 },
     MedkitHeal: [10, 18]
   },
@@ -129,7 +129,7 @@ const BALANCE = {
   THREAT_GROWTH_RAND: 0.015,          // Reduced from 0.020
   THREAT_GROWTH_MINIMUM: 0.015,       // Threat always grows at least +1.5%/min even with max defenses
   GUARD_THREAT_REDUCTION: 0.08,       // Guards slow threat, can't stop it
-  THREAT_GAIN_PER_ALIEN: [2, 3],      // Increased from [1, 2] - combat drives threat progression
+  THREAT_GAIN_PER_ALIEN: [1, 2],      // Increased from [1, 2] - combat drives threat progression
   THREAT_GAIN_PER_ALIEN_KILL: 0.25, // Threat gain for each alien kill
   THREAT_GAIN_PER_TILE: 0.1,        // Threat gain for each tile explored
   THREAT_GAIN_ON_RETREAT: [1, 2],     // NEW: Retreating from combat adds threat
@@ -611,12 +611,12 @@ const ALIEN_TYPES = [
     specialDesc: 'Armored Carapace: Resistant to damage' },
   
   // Elite threats - Legendary
-  { id: 'spectre', name: 'Spectre', hpRange: [14, 21], attackRange: [7, 13], armor: 2, rarity: 'legendary', stealth: 0.7,
+  { id: 'spectre', name: 'Spectre', hpRange: [14, 21], attackRange: [7, 13], armor: 2, rarity: 'veryrare', stealth: 0.7,
     flavor: 'An elusive lifeform that strikes from darkness.',
     special: 'phase', // 40% chance to avoid all damage
     specialDesc: 'Evasive Phase: Frequently phases out of reality' },
   
-  { id: 'queen', name: 'Hive Queen', hpRange: [40, 58], attackRange: [14, 23], armor: 7, rarity: 'legendary', stealth: 0,
+  { id: 'queen', name: 'Hive Queen', hpRange: [40, 58], attackRange: [10, 16], armor: 7, rarity: 'veryrare', stealth: 0,
     flavor: 'Massive apex predator. Commands the hive.',
     special: 'multistrike', // Attacks twice per turn
     specialDesc: 'Multi-Strike: Attacks twice each turn' }
@@ -1237,10 +1237,9 @@ const RECIPES = {
   },
   hazmat_suit: { 
     name: 'Hazmat Suit', 
-    scrap: 85, 
+    scrap: 115, 
     tech: 6,
     armor_plating: 1,
-    electronics: 1,
     rarity: 'rare',
     result: () => { 
       const item = { id: state.nextItemId++, type: 'armor', subtype: 'hazmat_suit', name: 'Hazmat Suit', rarity: 'rare', durability: 150, maxDurability: 150, defense: 3 }; 

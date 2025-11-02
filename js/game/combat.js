@@ -273,20 +273,19 @@ function applyModifierStatEffects(alien) {
   // Spawner handled in combat logic, not stats
   
   // Ravager modifiers
-  if (hasModifier(alien, 'hardened')) defBonus += 0.60; // Take 60% less (stacks with armored)
   if (hasModifier(alien, 'crusher')) atkBonus += 4;
-  if (hasModifier(alien, 'juggernaut')) hpBonus += 8; // FIXED: Was hpMult += 0.30, should be +8 flat
-  if (hasModifier(alien, 'colossus')) { defBonus += 0.70; atkBonus += 6; hpBonus += 12; } // FIXED: Was hpMult += 0.40, should be +12 flat
+  if (hasModifier(alien, 'juggernaut')) hpBonus += 8;
+  if (hasModifier(alien, 'colossus')) { atkBonus += 6; hpBonus += 12; }
   
   // Spectre modifiers
   if (hasModifier(alien, 'ethereal')) phaseBonus += 0.10;
   if (hasModifier(alien, 'shadow')) phaseBonus += 0.20; // +20% phase (Shadow Form)
-  if (hasModifier(alien, 'void')) phaseBonus += 0.60;
+  if (hasModifier(alien, 'void')) phaseBonus = 0.60;
   
   // Queen modifiers
   if (hasModifier(alien, 'dominant')) atkBonus += 3;
-  if (hasModifier(alien, 'ancient')) { atkBonus += 2; hpBonus += 15; } // FIXED: Was hpMult += 0.30, should be +15 flat
-  if (hasModifier(alien, 'empress')) { atkBonus += 20; hpBonus += 20; } // FIXED: Was missing HP bonus
+  if (hasModifier(alien, 'ancient')) { atkBonus += 2; hpBonus += 15; }
+  if (hasModifier(alien, 'empress')) { atkBonus += 2; hpBonus += 20; }
   
   return { hpMult, hpBonus, atkBonus, defBonus, dodgeBonus, phaseBonus };
 }
@@ -297,7 +296,7 @@ function calculateAttackDamage(survivor) {
   
   // Get weapon damage
   const weapon = survivor.equipment.weapon;
-  if (weapon) {
+  if (weapon && weapon.durability > 0) {
     // New structure: has damage array
     if (weapon.damage && Array.isArray(weapon.damage)) {
       damage = rand(weapon.damage[0], weapon.damage[1]);
@@ -341,7 +340,7 @@ function calculateDefense(survivor) {
   const armor = survivor.equipment.armor;
   
   // 0.9.0 - Support both old and new armor structure
-  if (armor) {
+  if (armor && armor.durability > 0) {
     // New structure: has defense property
     if (armor.defense !== undefined) {
       defense += armor.defense;
@@ -452,6 +451,9 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
   
   // simplistic round-based combat
   while (aliens.some(a => a.hp > 0) && fighters.some(f => f.hp > 0)) {
+    // Reset per-round flags
+    aliens.forEach(a => a._relentlessUsed = false);
+
     // Apply poison damage at start of round
     for (const s of fighters) {
       if (s._poisonStacks && s._poisonStacks > 0 && s.hp > 0) {
@@ -547,7 +549,7 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       }
       
       // Crit check
-      if (Math.random() < critChance) {
+      if (Math.random() < critChance && !hasModifier(target, 'unstoppable')) {
         dmg = Math.floor(dmg * 1.6);
         appendLog(`${s.name} scores a critical hit!`);
       }
@@ -583,12 +585,21 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         
         continue;
       }
-      if (target.special === 'armored' || modStats.defBonus > 0) {
-        let resist = 0.5;
-        if (hasModifier(target, 'hardened')) resist = 0.60;
-        if (hasModifier(target, 'colossus')) resist = 0.70;
-        dmg = Math.floor(dmg * (1 - resist));
-        appendLog(`${target.name}'s armor absorbs damage.`);
+      // Apply resistance from armored special and other modifiers
+      let totalResist = 0;
+      if (target.special === 'armored') {
+        totalResist += 0.30;
+      }
+      if (hasModifier(target, 'hardened')) {
+        totalResist += 0.20;
+      }
+      if (hasModifier(target, 'colossus')) {
+        totalResist = 0.40; // Colossus overrides other resistances
+      }
+
+      if (totalResist > 0) {
+        dmg = Math.floor(dmg * (1 - totalResist));
+        appendLog(`${target.name}'s carapace absorbs damage.`);
       }
       
       target.hp -= dmg;
@@ -599,11 +610,30 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         applyWeaponEffects(weapon, target, s, dmg);
       }
       
-      if (target.hp <= 0) {
-        appendLog(`${target.name} downed.`);
-        state.alienKills = (state.alienKills || 0) + 1;
-        state.threat += BALANCE.THREAT_GAIN_PER_ALIEN_KILL || 0;
-        
+        if (target.hp <= 0) {
+          appendLog(`${target.name} downed.`);
+          state.alienKills = (state.alienKills || 0) + 1;
+          state.threat += BALANCE.THREAT_GAIN_PER_ALIEN_KILL || 0;
+
+          // Stalker 'Relentless' modifier: attack again if an ally dies
+          for (const a of aliens) {
+            if (a.hp > 0 && hasModifier(a, 'relentless') && !a._relentlessUsed) {
+              a._relentlessUsed = true; // Prevent infinite attacks in one turn
+              const relentlessTarget = fighters.find(f => f.hp > 0);
+              if (relentlessTarget) {
+                // Perform a single, immediate attack
+                const relentlessDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
+                const defense = calculateDefense(relentlessTarget);
+                const dealt = Math.max(0, relentlessDmg - defense);
+                relentlessTarget.hp -= dealt;
+                appendLog(`Relentless fury! ${a.name} strikes ${relentlessTarget.name} for ${dealt} damage!`);
+                if (relentlessTarget.hp <= 0) {
+                  appendLog(`${relentlessTarget.name} is down!`);
+                }
+              }
+            }
+          }
+          
   // 0.9.0 - Morale gain for killing alien
         s.morale = Math.min(100, s.morale + BALANCE.MORALE_GAIN_ALIEN_KILL);
         
@@ -661,66 +691,79 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       
       // Multi-strike special (queen)
       let attackCount = (a.special === 'multistrike') ? 2 : 1;
-      // 0.8.0 - Empress modifier adds third attack
+      // Empress modifier adds third attack
       if (hasModifier(a, 'empress')) attackCount = 3;
+      // Rapid Fire (Spitter) gives a 30% chance for an extra attack
+      if (hasModifier(a, 'rapid') && Math.random() < 0.30) {
+        attackCount++;
+        logCombat(`${a.name} attacks with rapid speed!`);
+      }
       
       for (let strike = 0; strike < attackCount; strike++) {
-        // choose random survivor alive
         const targ = fighters.find(x => x.hp > 0);
         if (!targ) break;
         
-        // 0.8.0 - Get modifier stat bonuses
         const modStats = applyModifierStatEffects(a);
         
         let aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
         aDmg += modStats.atkBonus;
+
+        // AURA BONUSES
+        const matriarchs = aliens.filter(al => al.hp > 0 && hasModifier(al, 'matriarch'));
+        if (matriarchs.length > 0) aDmg += matriarchs.length;
+        const empresses = aliens.filter(al => al.hp > 0 && hasModifier(al, 'empress'));
+        if (empresses.length > 0) aDmg += empresses.length * 2;
+        const packLeaders = aliens.filter(al => al.hp > 0 && hasModifier(al, 'pack_leader'));
+        if (a.special === 'pack' && packLeaders.length > 0) aDmg += packLeaders.length * 2;
         
-        // 0.8.0 - Wraith: +50% damage after phasing
+        // WRAITH BONUS
         if (hasModifier(a, 'wraith') && a._justPhased) {
           aDmg = Math.floor(aDmg * 1.5);
           appendLog(`${a.name} strikes from the void!`);
-          a._justPhased = false; // Clear flag
+          a._justPhased = false;
         }
         
-        // Apply alien special attack modifiers
+        // AMBUSH
         if (a.special === 'ambush' && a.firstStrike) {
           let ambushMult = 1.5;
-          // 0.8.0 - Lurker modifiers
           if (hasModifier(a, 'silent')) ambushMult = 1.7;
-          if (hasModifier(a, 'nightmare')) ambushMult = 2.0; // Also ignores armor
-          
           aDmg = Math.floor(aDmg * ambushMult);
           a.firstStrike = false;
           appendLog(`${a.name} ambushes from the shadows!`);
         }
-        // 0.8.0 - Cunning: second ambush at 50% HP
         if (hasModifier(a, 'cunning') && a.hp < a.maxHp * 0.5 && !a._cunningUsed) {
           aDmg = Math.floor(aDmg * 1.5);
           a._cunningUsed = true;
           appendLog(`${a.name} strikes with renewed cunning!`);
         }
+
+        // PACK TACTICS
         if (a.special === 'pack') {
           const allyCount = aliens.filter(al => al.hp > 0 && al !== a).length;
           let packBonus = allyCount * 2;
-          
-          // 0.8.0 - Stalker modifiers
           if (hasModifier(a, 'coordinated')) packBonus = Math.floor(packBonus * 1.5);
-          if (hasModifier(a, 'feral') && allyCount > 0) packBonus += 3;
           if (hasModifier(a, 'dire')) packBonus *= 2;
-          
           aDmg += packBonus;
           if (allyCount > 0) appendLog(`${a.name} is empowered by pack tactics.`);
         }
+
+        // PREDATOR
+        if (hasModifier(a, 'predator') && targ.hp < targ.maxHp * 0.5) {
+            aDmg = Math.floor(aDmg * 1.3);
+        }
+
+        // BRUTAL
+        if (hasModifier(a, 'brutal') && Math.random() < 0.15) { // 15% chance for a brutal strike
+            aDmg = Math.floor(aDmg * 1.5);
+            appendLog(`${a.name} lands a brutal strike!`);
+        }
         
         let defense = calculateDefense(targ);
-        // 0.8.0 - Apply survivor defensive abilities
         defense = applyAbilityDefenseModifiers(targ, defense, { fighters });
         
-        // 0.9.0 - Apply armor effects (dodge, reflect, etc.)
         const armor = targ.equipment && targ.equipment.armor;
         const armorEffects = armor ? applyArmorEffects(armor, targ) : {};
         
-        // 0.8.0 - Check for survivor dodge abilities + armor dodge bonus
         const { dodgeChance } = applyAbilityHitModifiers(targ);
         const totalDodge = dodgeChance + (armorEffects.dodgeBonus || 0);
         if (totalDodge > 0 && Math.random() < totalDodge) {
@@ -728,7 +771,6 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
           continue;
         }
         
-        // 0.9.0 - Reflect damage check
         if (armorEffects.reflectChance > 0 && Math.random() < armorEffects.reflectChance) {
           const reflectDmg = Math.floor(aDmg * 0.3);
           a.hp -= reflectDmg;
@@ -739,30 +781,28 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
           }
         }
         
-        // Piercing special (spitter) - ignore 50% of armor
+        // PIERCING & DEBUFFS
         if (a.special === 'piercing') {
           defense = Math.floor(defense * 0.5);
-          // 0.8.0 - Spitter modifiers
-          // 0.9.0 - Hyper-Corrosive: +40% pierce (90% total = 50% base + 40% bonus = only 10% armor remains)
-          if (hasModifier(a, 'corrosive')) defense = Math.floor(defense * 0.10); // 90% ignore total
-          if (hasModifier(a, 'plague')) defense = 0; // Full pierce
-          
+          if (hasModifier(a, 'corrosive')) defense = Math.floor(defense * 0.10);
           appendLog(`${a.name} sprays corrosive bile!`);
         }
+        if (hasModifier(a, 'nightmare')) defense = 0; // Ambush ignores armor
+        if (hasModifier(a, 'toxic')) {
+            defense = Math.max(0, defense - 2);
+            appendLog(`${a.name}'s toxin weakens ${targ.name}'s armor!`);
+        }
         
-        // 0.8.0 - Nightmare modifier ignores armor completely
-        if (hasModifier(a, 'nightmare')) defense = 0;
-        
-        // 0.8.0 - Enraged modifier below 50% HP
+        // ENRAGED
         if (hasModifier(a, 'enraged') && a.hp < a.maxHp * 0.5) {
           aDmg += 4;
           appendLog(`${a.name} is enraged!`);
         }
         
-        // 0.8.0 - Living Shield: Guardian intercepts damage for ally
+        // LIVING SHIELD
         let actualTarget = targ;
         const guardians = fighters.filter(g => g.hp > 0 && hasAbility(g, 'shield') && !g._shieldUsed && g !== targ);
-        if (guardians.length > 0 && Math.random() < 0.50) { // 50% chance to intercept
+        if (guardians.length > 0 && Math.random() < 0.50) {
           actualTarget = guardians[0];
           actualTarget._shieldUsed = true;
           appendLog(`${actualTarget.name} intercepts the attack with Living Shield!`);
@@ -772,24 +812,25 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         actualTarget.hp -= dealt;
         appendLog(`${a.name} strikes ${actualTarget.name} for ${dealt} dmg.`);
         
-        // Check if original target or shield guardian was downed
         if (actualTarget.hp <= 0) {
-          targ = actualTarget; // Update target for downed check
+          targ = actualTarget;
         }
         
-        // 0.8.0 - Venomous: apply poison effect (1 dmg/turn)
-        if (hasModifier(a, 'venomous') && dealt > 0) {
+        // VENOMOUS
+        if ((hasModifier(a, 'venomous') || hasModifier(a, 'plague')) && dealt > 0) {
           actualTarget._poisonStacks = (actualTarget._poisonStacks || 0) + 1;
           appendLog(`${actualTarget.name} is poisoned!`);
         }
-        
-        // 0.8.0 - Rapid Fire: 30% chance to attack twice
-        if (hasModifier(a, 'rapid') && Math.random() < 0.30 && strike === 0) {
-          attackCount++;
+
+        // JUGGERNAUT STUN
+        if (hasModifier(a, 'juggernaut') && dealt > 0 && Math.random() < 0.20) {
+            // No survivor stun in auto-resolve, so we'll just deal extra morale damage
+            actualTarget.morale = Math.max(0, actualTarget.morale - 5);
+            appendLog(`${a.name}'s crushing blow demoralizes ${actualTarget.name}!`);
         }
         
-        // 0.8.0 - Caustic: splash damage to random nearby survivor
-        if (hasModifier(a, 'caustic') && fighters.filter(f => f.hp > 0).length > 1) {
+        // CAUSTIC SPLASH
+        if ((hasModifier(a, 'caustic') || hasModifier(a, 'plague')) && fighters.filter(f => f.hp > 0).length > 1) {
           const splashTargets = fighters.filter(f => f.hp > 0 && f !== targ);
           if (splashTargets.length > 0) {
             const splashTarg = splashTargets[rand(0, splashTargets.length - 1)];
@@ -800,31 +841,25 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         }
         
         if (targ.hp <= 0) {
-          // 0.8.0 - Medic Lifesaver: survive fatal blow once per combat
           if (hasAbility(targ, 'lifesaver') && !targ._lifesaverUsed) {
             targ.hp = 1;
             targ._lifesaverUsed = true;
             appendLog(`${targ.name}'s Lifesaver ability prevents death!`);
           } else {
-            // 0.8.0 - Downed state instead of instant death
             targ.hp = 0;
             targ.downed = true;
             appendLog(`${targ.name} is down! (${dealt} dmg from ${a.name})`);
-            
-            // 0.9.0 - Morale penalty for ally downed
             fighters.forEach(ally => {
               if (ally !== targ && !ally.downed) {
                 ally.morale = Math.max(0, ally.morale - BALANCE.MORALE_LOSS_ALLY_DOWNED);
               }
             });
-            
-            // 0.8.x - Field losses increase raid pressure
             if (context === 'field') {
               state.raidPressure = Math.min((state.raidPressure || 0) + 0.004, 0.03);
               state.threat = clamp(state.threat + 1, 0, 100);
             }
           }
-          break; // Don't continue multi-strike on dead target
+          break;
         }
       }
     }

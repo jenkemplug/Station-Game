@@ -124,8 +124,8 @@ function handleTileEvent(idx) {
     // Successful hazard room clear
     explorer.equipment.armor.durability -= rand(BALANCE.HAZARD_DURABILITY_LOSS[0], BALANCE.HAZARD_DURABILITY_LOSS[1]); // Damage the suit
     if (explorer.equipment.armor.durability <= 0) {
-      appendLog(`${explorer.name}'s Hazmat Suit was destroyed clearing the hazard.`);
-      explorer.equipment.armor = null;
+      explorer.equipment.armor.durability = 0;
+      appendLog(`${explorer.name}'s Hazmat Suit has broken and is no longer functional.`);
     }
 
     // Extra XP for clearing hazard

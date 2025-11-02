@@ -67,6 +67,35 @@ function initTiles() {
   state.explored.add(bi);
 }
 
+function generateNewMap() {
+  const totalTiles = state.mapSize.w * state.mapSize.h;
+  if (state.explored.size < totalTiles) {
+    appendLog('Map must be fully explored to generate a new one.');
+    return;
+  }
+
+  // Generate a new map layout
+  initTiles();
+
+  // Clear explored set, but keep the base tile explored
+  state.explored.clear();
+  const baseIdx = state.baseTile.y * state.mapSize.w + state.baseTile.x;
+  state.explored.add(baseIdx);
+
+  // Provide a reward for clearing the map
+  const scrapReward = 100;
+  const techReward = 10;
+  state.resources.scrap += scrapReward;
+  state.resources.tech += techReward;
+
+  appendLog(`Map cleared! You've been awarded ${scrapReward} scrap and ${techReward} tech.`);
+  appendLog('A new map has been generated.');
+
+  // Update the UI to reflect the new map and rewards
+  updateUI();
+  saveGame('action');
+}
+
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {

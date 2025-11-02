@@ -75,15 +75,15 @@ function tickMissions() {
           if (survivor.equipment.weapon) {
             survivor.equipment.weapon.durability -= rand(BALANCE.EXPEDITION_WEAPON_WEAR[0], BALANCE.EXPEDITION_WEAPON_WEAR[1]);
             if (survivor.equipment.weapon.durability <= 0) {
+              survivor.equipment.weapon.durability = 0;
               report += `${survivor.equipment.weapon.name} broke. `;
-              survivor.equipment.weapon = null;
             }
           }
           if (survivor.equipment.armor) {
             survivor.equipment.armor.durability -= rand(BALANCE.EXPEDITION_ARMOR_WEAR[0], BALANCE.EXPEDITION_ARMOR_WEAR[1]);
             if (survivor.equipment.armor.durability <= 0) {
+              survivor.equipment.armor.durability = 0;
               report += `${survivor.equipment.armor.name} broke. `;
-              survivor.equipment.armor = null;
             }
           }
         } else {

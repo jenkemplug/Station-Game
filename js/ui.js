@@ -336,6 +336,17 @@ function updateUI() {
     el('mapInfo').textContent = mapInfoText;
   }
 
+  // Show "New Map" button when map is fully explored
+  const totalTiles = state.mapSize.w * state.mapSize.h;
+  const btnNewMap = el('btnNewMap');
+  if (btnNewMap) {
+    if (state.explored.size >= totalTiles) {
+      btnNewMap.style.display = 'inline-block';
+    } else {
+      btnNewMap.style.display = 'none';
+    }
+  }
+
   // 0.8.5 - Only update threat panel if values changed
   const last = Number(state.lastRaidAt) || 0;
   const dur = Number(state.raidCooldownMs) || 0;
