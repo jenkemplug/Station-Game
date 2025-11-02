@@ -99,7 +99,7 @@ function generateNewMap() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '1.11.3', // 0.9.3 - Threat rebalance & performance tweaks
+  _version: '0.9.11', // 0.9.3 - Threat rebalance & performance tweaks
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
