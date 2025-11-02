@@ -1,15 +1,22 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.9] - 2025-11-02
+### Changed
+- **Combat Log**:
+  - Increased the height width of the combat log for better readability.
+  - Removed the 20-entry limit, allowing the log to scroll through the entire engagement.
+  - Implemented color-coding for survivor and alien names to match the main notification log.
+  - Added a custom-styled scrollbar to match the rest of the UI.
+
 ## [0.9.8] - 2025-11-02
+### Changed
+- **Threat Growth**: Tripled the minimum threat growth rate to ensure a constant sense of pressure, even with strong defenses.
+
 ### Fixed
-- **Combat**: 
-- Fixed a critical bug where splash damage was not being applied if the primary target was defeated by the initial attack. The effect now correctly triggers even on a killing blow in both interactive and auto-resolve combat.
-- Fixed alien kills not being tracked correctly in the UI
-- **Exploration**:
-- Fixed survivors not being able to explore hazard rooms even with a Hazmat Suit equipped.
-- **Progression**:
-- Increased minimum threat growth to ensure steadier progression of enemy types/modifiers.
+- **UI**: The "Aliens Killed" counter in the Threats & Base panel now correctly displays the total number of kills.
+- **Combat**: Fixed a critical bug where splash damage from weapons like the Grenade Launcher would not trigger in interactive combat if the initial attack killed the primary target.
+- **Exploration**: Fixed a bug that prevented survivors with a Hazmat Suit from exploring Hazard Rooms.
 
 
 ## [0.9.7] - 2025-11-02

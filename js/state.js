@@ -52,7 +52,7 @@ let state = {
 let activeTaskDropdownId = null;
 // preserve per-dropdown scroll position between renders
 const activeTaskDropdownScroll = {};
-let lastRenderedSurvivors = null;
+let lastRenderedSurvivors = {};
 let autoSaveCounter = 0;
 let activeDropdown = null;
 // 0.8.8 - selectedExplorerId and selectedExpeditionSurvivorId moved to state for persistence

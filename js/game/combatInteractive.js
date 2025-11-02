@@ -26,6 +26,23 @@ function getRarityColor(rarity) {
   return colors[rarity] || colors.common;
 }
 
+// Helper functions for colored log text
+function colorSurvivor(name) {
+  return `<span style="color:var(--accent)">${name}</span>`;
+}
+
+function colorAlien(alien) {
+  if (!alien || !alien.name) return 'unknown';
+  const color = getRarityColor(alien.rarity);
+  return `<span style="color:${color}">${alien.name}</span>`;
+}
+
+function colorItem(item) {
+    if (!item || !item.name) return 'unknown';
+    const color = getRarityColor(item.rarity);
+    return `<span style="color:${color}">${item.name}</span>`;
+}
+
 // 0.9.0 - Calculate weapon damage for display (mimics combat.js logic)
 function calculateWeaponDamage(survivor) {
   let damage = 0;
@@ -704,10 +721,28 @@ function interactiveRaidCombat(aliens, guards, turretCount = 0) {
 
 function logCombat(msg, alsoAppend = false) {
   if (!currentCombat) return;
-  currentCombat.log.unshift(msg); // Add to beginning (newest first)
-  // Keep log limited to last 12 entries
-  if (currentCombat.log.length > 12) currentCombat.log.pop(); // Remove from end
-  if (alsoAppend) appendLog(msg);
+
+  let coloredMsg = msg;
+  const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
+  const allEntities = [...party, ...currentCombat.aliens];
+
+  allEntities.forEach(entity => {
+    if (entity && entity.name) {
+      const name = entity.name;
+      let color = 'white'; // Default for survivors
+      if (entity.rarity) { // Aliens have rarity
+        color = getRarityColor(entity.rarity);
+      } else if (entity.class) { // Survivors have a class
+        color = 'var(--accent)';
+      }
+      // Use a regex with word boundaries (\b) to avoid replacing parts of words
+      const regex = new RegExp(`\\b${name}\\b`, 'g');
+      coloredMsg = coloredMsg.replace(regex, `<span style="color:${color}; font-weight: bold;">${name}</span>`);
+    }
+  });
+
+  currentCombat.log.unshift(coloredMsg);
+  if (alsoAppend) appendLog(coloredMsg);
 }
 
 // 0.9.0 - Generate passive effect displays for aliens (like survivor equipment effects)
@@ -1510,24 +1545,24 @@ function renderCombatUI() {
     return `<div class="card-like ${alive ? '' : 'small'} ${targetClass} ${clickableClass}" data-alien-id="${a.id}"><strong style="color: ${nameColor}">${a.name}</strong><div class="small">HP ${Math.max(0,a.hp)}/${a.maxHp}</div>${modifiersHtml}${statsHtml}${passiveEffects}${tempStatusEffects}</div>`;
   }).join('');
 
-  const combatLogHtml = currentCombat.log.map(l => `<div class="small" style="color:var(--muted)">${l}</div>`).join('');
+  const combatLogHtml = currentCombat.log.map(l => `<div class="small" style="padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">${l}</div>`).join('');
 
   content.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div>
         <div style="margin-bottom:6px"><strong>Team</strong> <span class="small">Turn ${currentCombat.turn}</span></div>
-  ${partyHtml || '<div class="small">No combatants</div>'}
-  ${turretHtml}
+        ${partyHtml || '<div class="small">No combatants</div>'}
+        ${turretHtml}
       </div>
       <div id="hostiles-container">
         <div style="margin-bottom:6px"><strong>Hostiles</strong></div>
         ${alienHtml || '<div class="small">Cleared</div>'}
       </div>
     </div>
-    <div style="display: flex; flex-direction: column; padding:8px;background:rgba(0,0,0,0.2);border-radius:4px;height:260px;width:50%;margin:auto;text-align:center;">
-      <div class="small" style="margin-bottom:2px"><strong>Combat Log</strong></div>
-      <div style="overflow-y:auto; display:flex; flex-direction:column; justify-content:flex-end; flex-grow:1;">
-        ${combatLogHtml || '<div class="small" style="color:var(--muted)">No events yet.</div>'}
+    <div style="display: flex; flex-direction: column; padding:12px; background:rgba(0,0,0,0.2); border-radius:4px; height:500px; width:90%; margin:12px auto 0 auto;">
+      <div class="small" style="margin-bottom:8px; text-align:center;"><strong>Combat Log</strong></div>
+      <div class="scrollable-panel" style="overflow-y:auto; flex-grow:1; text-align:center;">
+        ${combatLogHtml || '<div class="small" style="color:var(--muted); text-align:center;">No events yet.</div>'}
       </div>
     </div>
   `;
