@@ -673,9 +673,53 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         }
         
         // loot on kill
-        const loot = pickLoot();
+        let qualityBonus = 0;
+        // Bonus for alien rarity
+        switch (target.rarity) {
+          case 'uncommon': qualityBonus += 0.05; break;
+          case 'rare': qualityBonus += 0.10; break;
+          case 'veryrare': qualityBonus += 0.20; break;
+        }
+        // Bonus for number of modifiers
+        if (target.modifiers && target.modifiers.length > 0) {
+          qualityBonus += target.modifiers.length * 0.03;
+        }
+
+        // Scavenger bonuses from the killer (s)
+        if (s) {
+            // Class bonus
+            if (s.class === 'scavenger' && s.classBonuses && s.classBonuses.loot) {
+                qualityBonus += (s.classBonuses.loot - 1); // e.g. 1.25 -> 0.25
+            }
+            // Treasure Hunter ability
+            if (hasAbility(s, 'treasure')) {
+                qualityBonus += 0.25;
+            }
+            // Golden Nose ability quality bonus
+            if (hasAbility(s, 'goldnose')) {
+                qualityBonus += 0.50;
+            }
+        }
+
+        const loot = pickLoot(qualityBonus);
         const lootMessage = loot.onPickup(state);
         appendLog(`Loot dropped: ${lootMessage}`);
+
+        // Scavenger extra roll abilities
+        if (s) {
+            // Lucky Find - 15% chance for extra loot
+            if (hasAbility(s, 'lucky') && Math.random() < 0.15) {
+                const bonusLoot = pickLoot(qualityBonus);
+                const bonusMessage = bonusLoot.onPickup(state);
+                appendLog(`${s.name}'s Lucky Find triggered: ${bonusMessage}!`);
+            }
+            // Golden Nose - double loot rolls
+            if (hasAbility(s, 'goldnose')) {
+                const extraLoot = pickLoot(qualityBonus);
+                const extraMessage = extraLoot.onPickup(state);
+                appendLog(`${s.name}'s Golden Nose finds exceptional loot: ${extraMessage}!`);
+            }
+        }
         
         // 0.8.0 - Scientist Xenobiologist: tech on alien kill
         if (hasAbility(s, 'xenobiologist')) {

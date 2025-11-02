@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.14] - 2025-11-02
+### Added
+- **Dynamic Loot Quality**: Defeating rarer and more powerful aliens now increases the quality of loot drops. The bonus is calculated based on the alien's rarity and the number of modifiers it has.
+- **Scavenger Kill Bonuses**: The Scavenger's loot-finding abilities (including bonus rolls and quality improvements) now apply to aliens they personally defeat in combat.
+
 ## [0.9.13] - 2025-11-02
 ### Changed
 - **Exploration Balance**: Increased the spawn rate of `Resource` tiles by approximately 50% to make exploration more consistently rewarding.
