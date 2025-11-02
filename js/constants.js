@@ -232,8 +232,8 @@ const BALANCE = {
   // 0.8.0 - System repair costs after failures
   REPAIR_COSTS: {
     filter: { scrap: 35, energy: 15 }, // Increased from 30/12
-    generator: { scrap: 30, energy: 20 }, // Increased from 25/18
-    turret: { scrap: 45, energy: 28 } // Increased from 40/25
+    generator: { scrap: 50, energy: 0 }, // Increased from 25/18
+    turret: { scrap: 45, energy: 30 } // Increased from 40/25
   }
 };
 
