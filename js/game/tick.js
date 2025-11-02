@@ -260,7 +260,7 @@ function applyTick(isOffline = false) {
     }
   }
   
-  // 0.9.0 - Morale recovery
+  // 0.9.5 - Morale recovery (capped at 60)
   const isResourcesHealthy = state.resources.oxygen > BALANCE.OXY_CRITICAL_THRESHOLD && state.resources.food > 0;
   
   // Calculate global morale bonuses from auras like Guardian's Rallying Cry
@@ -271,19 +271,21 @@ function applyTick(isOffline = false) {
   }
 
   state.survivors.forEach(s => {
-    let moraleGain = 0;
-    if (isResourcesHealthy) {
-      moraleGain += BALANCE.MORALE_NATURAL_RECOVERY;
-    }
-    if (s.task === 'Idle') {
-      moraleGain += BALANCE.MORALE_REST_RECOVERY;
-    }
-    
-    // Apply global aura bonuses
-    moraleGain += globalMoraleBonus;
+    if (s.morale < 60) {
+      let moraleGain = 0;
+      if (isResourcesHealthy) {
+        moraleGain += BALANCE.MORALE_NATURAL_RECOVERY;
+      }
+      if (s.task === 'Idle') {
+        moraleGain += BALANCE.MORALE_REST_RECOVERY;
+      }
+      
+      // Apply global aura bonuses
+      moraleGain += globalMoraleBonus;
 
-    if (moraleGain > 0) {
-      s.morale = Math.min(100, s.morale + moraleGain);
+      if (moraleGain > 0) {
+        s.morale = Math.min(60, s.morale + moraleGain);
+      }
     }
   });
   

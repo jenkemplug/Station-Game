@@ -102,6 +102,11 @@ function tickMissions() {
           
           if (survivor.hp <= 0) {
             report += `${survivor.name} was lost.`;
+            state.survivors.forEach(s => {
+              if (s.id !== survivor.id) {
+                s.morale = Math.max(0, (s.morale || 0) - BALANCE.MORALE_LOSS_ALLY_DEATH);
+              }
+            });
             state.survivors = state.survivors.filter(s => s.id !== survivor.id);
           }
         }
