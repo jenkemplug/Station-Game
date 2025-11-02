@@ -2,15 +2,17 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.9.0 (Combat & Systems Polish)
+**Current Version:** 0.9.0 (Major systems & balance)
 
-### 🆕 Latest Updates (v0.8.13)
-- **Starting Resources Increased**: Better early game balance
-  - Food: 30 → 40 (+33%)
-  - Energy: 40 → 50 (+25%)
-  - Scrap: 25 → 35 (+40%)
-- **Food Consumption Rebalanced**: Base consumption increased to 0.1/s, per-survivor to 0.2/s.
-- **Scavenger Salvage Bonuses**: Scavenger class bonuses now apply to junk salvaging (additive stacking)
+### 🆕 Latest Release (v0.9.0)
+- Major systems & balance pass focused on late-game escalation, integrity, morale, and combat polish.
+- Key highlights:
+  - Base Integrity & Morale Systems: integrity tiers with production penalties, manual/base repairs, and morale tiers that affect production, combat, and XP.
+  - Endgame Escalation: threat locks at 100% with escalating difficulty modifiers over time and per-raid survived.
+  - Combat & Damage Rework: removed old flat "skill" scaling; damage now driven by weapon + level/class percentage bonuses. Interactive combat UI overhauled and consumables fully integrated.
+  - Loot, crafting, and recycling improvements: components, rarity colors, and a full recycling system with resource refunds.
+  - Large bugfix sweep: status effects, modifier application, UI flicker fixes, and save migrations.
+  - See `CHANGELOG.md` for the full v0.9.0 notes.
 
 ### 🆕 Previous Updates (v0.8.12)
 - **Food Production Buffed**: 58% increase to food yield (0.6 → 0.95 multiplier)
