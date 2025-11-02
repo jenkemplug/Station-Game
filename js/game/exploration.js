@@ -50,18 +50,19 @@ function handleTileEvent(idx) {
       // Lucky Find - 15% chance for extra loot
       if (hasAbility(explorer, 'lucky') && Math.random() < 0.15) {
         const bonusLoot = pickLoot(qualityBonus);
-        bonusLoot.onPickup(state);
-        appendLog(`${explorer.name}'s Lucky Find triggered!`);
+        const bonusMessage = bonusLoot.onPickup(state);
+        appendLog(`${explorer.name}'s Lucky Find triggered: ${bonusMessage}!`);
       }
       // Golden Nose - double loot rolls
       if (hasAbility(explorer, 'goldnose')) {
         const extraLoot = pickLoot(qualityBonus);
-        extraLoot.onPickup(state);
-        appendLog(`${explorer.name}'s Golden Nose finds exceptional loot!`);
+        const extraMessage = extraLoot.onPickup(state);
+        appendLog(`${explorer.name}'s Golden Nose finds exceptional loot: ${extraMessage}!`);
       }
     }
     
-    appendLog(`Scavenged ${loot.type} at (${x},${y}): ${message}`);
+    // 0.9.0 - Cleaner scavenge notification format
+    appendLog(`🔍 [${x},${y}] ${message}`);
     if (explorer) grantXp(explorer, BALANCE.XP_FROM_LOOT);
     t.type = 'empty';
   } else if (t.type === 'survivor') {
@@ -74,10 +75,38 @@ function handleTileEvent(idx) {
     } else appendLog(`Signs of life at (${x},${y}) but no one remained.`);
     t.type = 'empty';
   } else if (t.type === 'alien') {
-    // immediate encounter: spawn alien(s)
-    // Mark as not cleared initially so retreat can revisit (0.7.2)
-    t.cleared = false;
-    spawnAlienEncounter(idx);
+    // 0.9.0 - Check if aliens already exist on this tile (from previous retreat)
+    if (t.aliens && t.aliens.length > 0) {
+      // Restore alive aliens to full HP (dead aliens stay dead)
+      t.aliens.forEach(alien => {
+        if (alien.hp > 0) {
+          alien.hp = alien.maxHp;
+          alien.firstStrike = true; // Reset combat state
+        }
+      });
+      // Remove dead aliens
+      t.aliens = t.aliens.filter(a => a.hp > 0);
+      
+      if (t.aliens.length > 0) {
+        appendLog(`Re-encountered ${t.aliens.length} alien(s) in this sector.`);
+        // Start combat with existing aliens
+        t.cleared = false;
+        if (typeof interactiveEncounterAtTile === 'function' && state.selectedExplorerId != null) {
+          interactiveEncounterAtTile(idx);
+        } else {
+          resolveSkirmish(t.aliens, 'field', idx);
+        }
+      } else {
+        // All aliens were killed previously
+        appendLog(`The sector is clear of threats.`);
+        t.type = 'empty';
+        t.cleared = true;
+      }
+    } else {
+      // First visit - spawn new aliens
+      t.cleared = false;
+      spawnAlienEncounter(idx);
+    }
   } else if (t.type === 'hazard') {
     const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
     if (!explorer) {

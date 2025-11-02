@@ -19,35 +19,69 @@ function debugAddResource(resource, amount) {
   }
 }
 
+// 0.9.0 - Spawns items using RECIPES or LOOT_TABLE for perfect consistency
 function debugAddItem(itemType) {
-  let item;
-  switch (itemType) {
-    case 'rifle':
-      item = { id: state.nextItemId++, type: 'rifle', name: 'Pulse Rifle', durability: 100, maxDurability: 100 };
-      break;
-    case 'shotgun':
-      item = { id: state.nextItemId++, type: 'shotgun', name: 'Shotgun', durability: 80, maxDurability: 80 };
-      break;
-    case 'armor':
-      item = { id: state.nextItemId++, type: 'armor', name: 'Light Armor', durability: 100, maxDurability: 100 };
-      break;
-    case 'heavyArmor':
-      item = { id: state.nextItemId++, type: 'heavyArmor', name: 'Heavy Armor', durability: 200, maxDurability: 200 };
-      break;
-    case 'hazmatSuit':
-      item = { id: state.nextItemId++, type: 'hazmatSuit', name: 'Hazmat Suit', durability: 150, maxDurability: 150 };
-      break;
-    case 'medkit':
-      item = { id: state.nextItemId++, type: 'medkit', name: 'Medkit' };
-      break;
-    default:
-      appendLog(`[DEBUG] Unknown item type: ${itemType}`);
+  // First, try to find in RECIPES (craftable items)
+  const recipe = RECIPES[itemType];
+  
+  if (recipe) {
+    // Special handling for ammo (not an inventory item)
+    if (itemType === 'ammo') {
+      state.resources.ammo += 50;
+      appendLog('[DEBUG] Added 50 ammo');
+      updateUI();
       return;
+    }
+    
+    // Store inventory count before adding
+    const countBefore = state.inventory.length;
+    
+    // Call the recipe's result function (creates item using canonical logic)
+    // We suppress its normal log by temporarily replacing appendLog
+    const originalAppendLog = window.appendLog;
+    let itemAdded = null;
+    window.appendLog = (msg) => {
+      // Capture the item name from the log message but don't display it yet
+      itemAdded = msg;
+    };
+    
+    recipe.result();
+    
+    // Restore original appendLog
+    window.appendLog = originalAppendLog;
+    
+    // Check if item was added
+    const countAfter = state.inventory.length;
+    if (countAfter > countBefore) {
+      // Item was successfully added - log with [DEBUG] prefix
+      if (itemAdded) {
+        appendLog(`[DEBUG] ${itemAdded}`);
+      } else {
+        appendLog(`[DEBUG] ${recipe.name} added to inventory`);
+      }
+    } else {
+      appendLog('[DEBUG] Inventory full');
+    }
+    
+    updateUI();
+    return;
   }
-  // Debug mode ignores capacity limits
-  state.inventory.push(item);
-  appendLog(`[DEBUG] Added ${item.name} to inventory`);
-  updateUI();
+  
+  // If not in RECIPES, check LOOT_TABLE (components, non-craftable consumables)
+  const lootEntry = LOOT_TABLE.find(entry => entry.type === itemType);
+  
+  if (lootEntry) {
+    // Call the onPickup function which creates the item
+    const result = lootEntry.onPickup(state);
+    if (result) {
+      appendLog(`[DEBUG] ${result}`);
+    }
+    updateUI();
+    return;
+  }
+  
+  // Item not found in either table
+  appendLog(`[DEBUG] Unknown item type: ${itemType} (not in RECIPES or LOOT_TABLE)`);
 }
 
 function debugRecruitSurvivor() {
@@ -77,10 +111,10 @@ function debugMaxMorale() {
   updateUI();
 }
 
-function debugLevelUp() {
+function debugLevelupAll() {
   state.survivors.forEach(s => {
     s.level++;
-    s.skill += 2;
+    // 0.9.0 - Removed skill increment (skill system removed)
     s.maxHp += 5;
     s.hp = s.maxHp;
     s.xp = 0;
@@ -177,6 +211,27 @@ function debugResetThreat() {
   updateUI();
 }
 
+function debugRaiseThreat() {
+  state.threat = Math.min(100, state.threat + 10);
+  appendLog(`[DEBUG] Threat level increased to ${state.threat.toFixed(1)}%`);
+  updateUI();
+}
+
+function debugResetRaidChance() {
+  state.raidChance = 0;
+  if (state.raidCooldownMs) {
+    state.raidCooldownMs = 0;
+  }
+  appendLog('[DEBUG] Raid chance reset to 0% (cooldown cleared)');
+  updateUI();
+}
+
+function debugRaiseRaidChance() {
+  state.raidChance = Math.min(10, state.raidChance + 1);
+  appendLog(`[DEBUG] Raid chance increased to ${state.raidChance.toFixed(2)}%`);
+  updateUI();
+}
+
 function debugRepairBase() {
   state.baseIntegrity = 100;
   appendLog('[DEBUG] Base integrity restored to 100%');
@@ -213,4 +268,24 @@ function debugSkipTime(seconds) {
   appendLog(`[DEBUG] Time skipped. Resources and systems updated.`);
   updateUI();
   saveGame('action');
+}
+
+function debugLockThreat() {
+  state.threat = 100;
+  state.threatLocked = true;
+  appendLog('[DEBUG] Threat locked at 100%. Escalation system active.');
+  updateUI();
+}
+
+function debugRaiseEscalation() {
+  if (!state.threatLocked || state.threat < 100) {
+    appendLog('[DEBUG] Threat must be at 100% and locked for escalation.');
+    return;
+  }
+  state.escalationLevel += 1;
+  const hpBonus = (state.escalationLevel * BALANCE.ESCALATION_HP_MULT * 100).toFixed(0);
+  const atkBonus = (state.escalationLevel * BALANCE.ESCALATION_ATTACK_MULT * 100).toFixed(0);
+  const armorBonus = Math.floor(state.escalationLevel / BALANCE.ESCALATION_ARMOR_LEVELS);
+  appendLog(`[DEBUG] Escalation raised to Level ${state.escalationLevel} (+${hpBonus}% HP, +${atkBonus}% Atk, +${armorBonus} Armor)`);
+  updateUI();
 }

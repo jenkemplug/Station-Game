@@ -3,7 +3,83 @@
 ## Project Overview
 This is a browser-based survival/management game where players manage a space station, survivors, and resources while facing alien threats. The project uses vanilla JavaScript, HTML, and CSS with no external dependencies.
 
-**Current Version:** 0.8.13 (Advanced Systems)
+**Current Version:** 0.9.0 (Complete + Aggressive Rebalance)
+
+## Game Design Philosophy
+
+### **Core Pillars**
+1. **Tactical Combat Over Stats**: Combat should last 5-8 rounds with meaningful decisions each turn. Equipment choices, consumable timing, and ability usage matter more than raw numbers.
+2. **Inevitable Pressure**: Threat is an unstoppable tide. Defenses slow it down but can't reverse it. Players are always on a timer.
+3. **Resource Tension**: Early game has tight energy (forces generator rush). Late game scales consumption with survivor count, creating management pressure.
+4. **High Difficulty**: This is a survival game. Players should lose survivors, fail expeditions, and face hard choices. Death is part of the experience.
+5. **Exploration Risk/Reward**: Hazards offer 3x loot but cost durability. Aliens guard valuable tech. Retreating is a valid tactical choice.
+
+### **Balance Goals**
+- **Combat Duration**: 5-8 rounds on average (not 2-4 instant kills)
+- **Threat Growth**: Always climbing at minimum +0.5%/minute even with max defenses
+- **Raid Frequency**: 1-7% per minute based on threat/exploration (10-15 min cooldowns)
+- **Raid Size**: 2-6 aliens scaling with threat (not 2-7 exponential spam)
+- **Resource Scaling**: Early game: tight energy. Mid game: balanced. Late game: consumption scales with population/systems
+- **Equipment Progression**: Common (2-6 dmg) → Uncommon (4-13 dmg) → Rare (8-20 dmg) → Legendary (12-25 dmg)
+- **Armor Scaling**: Common (2 def) → Uncommon (3 def) → Rare (4-6 def) → Legendary (4-7 def)
+- **Alien Scaling**: HP/damage scale 1.0x → 1.5x and 1.0x → 1.4x with threat (not exponential)
+
+### **Intended Player Experience**
+1. **Early Game (0-20% threat)**: Scramble for energy, learn systems, first alien encounters feel dangerous
+2. **Mid Game (20-60% threat)**: Stable resource loops, tactical combat with rare gear, threat slowly climbing despite defenses
+3. **Late Game (60-100% threat)**: Multiple systems to manage, frequent raids with elite aliens, constant pressure to upgrade and optimize
+4. **Endgame Challenge**: Can you reach 100% threat and survive the Queen raids? Or will the station fall?
+
+## v0.9.0 — All Goals Completed + Aggressive Rebalance
+
+This section captures the completed work for v0.9.0. All major features and fixes are implemented, tested, and verified.
+
+**Summary (high level)**
+- **Goal**: Ship an updated combat UX and systems polish for v0.9.0.
+- **Status**: ✅ **100% COMPLETE**. All 10 major subtasks are finished, including adaptive combat UI, full effect coverage, consumable integration, debug updates, and a final balance pass.
+
+**Completed work (specific)**
+- ✅ **Step 1: Crafting Materials**: Added 8 new component types (Weapon Part, Armor Plating, Electronics, etc.) to the loot table and crafting recipes.
+- ✅ **Step 2: Component Consumption & Inventor**: Crafting recipes now consume components. The Engineer's "Inventor" ability correctly processes these components for bonus tech.
+- ✅ **Step 3: Workbench UI**: Expanded the workbench to show all 47+ craftable items, grouped into 8 categories with rarity colors and detailed tooltips.
+- ✅ **Step 4: Rarity Colors**: Implemented rarity colors (Common, Uncommon, Rare, Legendary) across all UI elements, including inventory, crafting, loot logs, and combat.
+- ✅ **Step 5: All Weapon & Armor Effects**: All 8 weapon effects (stun, burn, splash, phase, etc.) and 8 armor effects (dodge, reflect, regen, etc.) are now fully implemented and functional in combat.
+- ✅ **Step 6: Adaptive Combat UI**: The combat UI now dynamically adapts to the equipped weapon type (melee, ranged, unarmed), showing relevant actions like Strike, Shoot, Aim, and Burst.
+- ✅ **Step 7: Equipment System Compatibility**: Ensured the new item structure (with `damage` arrays and `defense` properties) is backward-compatible with the old type-based system.
+- ✅ **Step 8: 10 Consumables in Combat**: All 10 new consumables are craftable, usable in combat, and apply their unique effects correctly. The medkit button is also fixed.
+- ✅ **Step 9: Debug Menu Expansion**: The debug menu (`Ctrl+D`) has been expanded to spawn all new items, components, and consumables for easy testing.
+- ✅ **Step 10: Comprehensive Balance Pass**:
+    - Rebalanced the entire loot table to match target rarity distributions.
+    - **MAJOR FIX: Removed Skill System** - Skill was causing exponential damage scaling (+23 at level 12). Damage now based purely on weapon × (level/class bonuses).
+    - Shifted leveling bonuses to percentage-based (0% at L1, +2% per level).
+    - Overhauled enemy scaling with threat level for a smoother difficulty curve.
+    - Tuned resource costs, threat growth, and expedition penalties.
+- ✅ **UI/UX Polish**:
+    - Made long panels like the Workbench and Survivor List scrollable.
+    - Fixed dropdowns being clipped in scrollable containers with a dynamic repositioning script.
+    - Prevented scroll-chaining from scrollable panels to the main page.
+    - Optimized UI rendering to prevent unnecessary panel refreshes.
+    - Removed skill display from survivor cards.
+    - Updated damage tooltips: Base Weapon → Bonuses → Final Damage.
+- ✅ **Bug Fixes**:
+    - **Alien Modifiers**: Fixed 7 HP modifiers using wrong calculations. All now apply correctly at spawn.
+    - **Duplicate Names**: Fixed survivors spawning with duplicate names (e.g., two "Lucas").
+
+**Files touched (non-exhaustive)**
+- `js/game/combatInteractive.js` — Major overhaul for adaptive UI, consumables, all weapon/armor effects, damage tooltips.
+- `js/game/combat.js` — Updated damage calculations to remove skill, apply modifiers correctly.
+- `js/game/survivor.js` — Removed skill from creation and level-up.
+- `js/constants.js` — Major balance pass, new item definitions, loot table adjustments, recipe updates, alien modifier fixes.
+- `js/ui.js` — Rarity color integration, workbench rendering, UI optimizations, removed skill display.
+- `js/names.js` — Added duplicate name prevention in getRandomName().
+- `js/debug.js` — Added spawning for all new items.
+- `js/game/threat.js` — Retuned enemy scaling, fixed modifier application.
+- `js/game/crafting.js` — Repair Kit auto-use system, removed old manual repair kit functions.
+- `js/game/recycling.js` — New file for inventory recycling system.
+- `styles.css` — Added styles for scrollable panels, custom scrollbars, dropdown positioning, and recycle popup.
+- `js/dropdownPosition.js` — New file to handle smart dropdown positioning.
+- `index.html` — Added new script references.
+- `CHANGELOG.md` — Documented all changes for v0.9.0.
 
 ## Architecture
 
@@ -106,7 +182,8 @@ js/
 - **Revisitable Content**: Uncleared hazards/aliens can be returned to after retreat
 
 ### 2. Survivor System (`js/game/survivor.js`)
-- **Attributes**: level, xp, skill, hp, maxHp, morale, task, equipment, class, abilities, downed, classBonuses
+- **Attributes**: level, xp, hp, maxHp, morale, task, equipment, class, abilities, downed, classBonuses
+- **NO SKILL**: Skill system removed in 0.9.0 - was redundant with level and caused exponential scaling
 - **Classes**: 8 types (Soldier, Medic, Engineer, Scout, Technician, Scientist, Guardian, Scavenger)
 - **Class Bonuses**: Randomized bonus ranges rolled when recruiting (0.8.10)
   - Soldier: +10-20% combat, +4-8 HP, +2-4 defense
@@ -122,17 +199,23 @@ js/
 - **Abilities**: 40+ special abilities with rarity tiers (uncommon, rare, very rare)
 - **Equipment Slots**: weapon (rifle/shotgun), armor (light/heavy/hazmat)
 - **Tasks**: Idle, Oxygen, Food, Energy, Scrap, Guard
-- **Level Bonuses**: +6% production per level, +0.6 combat damage per level
+- **Level Bonuses**: +2% combat damage per level (0% at L1, +22% at L12), +6% production per level
 - **Recruitment**: Cost scales with survivor count, discounted by exploration progress
-- **Randomized Names**: Starter survivors have random names from 300+ name pool
+- **Randomized Names**: Starter survivors have random names from 300+ name pool (unique per save)
 - **Downed State**: Survivors at 0 HP become downed instead of dying immediately
 - **Release Protection**: Cannot release last survivor (button disabled, backend validation) (0.8.10)
 
 ### 3. Combat System (`js/game/combat.js`, `js/game/combatInteractive.js`)
+- **Damage Formula (0.9.0)**: Weapon Damage × (1 + LevelBonus + ClassBonus)
+  - NO base damage from skill - pure weapon scaling with percentage modifiers
+  - Level bonus: (level - 1) × 0.02 = 0% at L1, +2% per level
+  - Class combat bonus: +10-20% for Soldier, varies by class
+  - Example: Light Machine Gun (13-17) × (1 + 0.22 + 0.15) = 18-23 damage at L12 Soldier
 - **Interactive Combat**: Turn-based overlay with tactical actions
   - Actions: Shoot, Aim (+25% hit), Burst (2 shots + bonus dmg), Guard (+3 def), Medkit, Retreat, Revive
   - Auto-resolve option available for quick battles
   - Combat log tracks all actions and alien specials
+  - Damage tooltips show: Base Weapon → Bonuses → Final Damage
 - **Revival System**: 
   - Field Medics can revive downed allies (25-50% HP)
   - Revive button in interactive combat
@@ -207,36 +290,67 @@ js/
 - **Loot Rarity**: Items can drop in four quality tiers (Common, Uncommon, Rare, Very Rare)
   - Keen Eye: +20% rarity chance (Scavenger uncommon)
   - Treasure Hunter: +40% rarity chance (Scavenger rare)
+- **Recycling System** (`js/game/recycling.js`):
+  - Click crafted items in inventory to recycle for 50% refund (rounded up with Math.ceil)
+  - All 8 crafting components refunded correctly (Weapon Parts, Armor Plating, Electronics, etc.)
+  - Junk cannot be recycled (use Salvage button)
+  - Non-craftable items get default scrap value
+  - Themed confirmation popup shows exact resources before recycling
+- **Repair Kits**: 
+  - Automatically make system repairs free when in inventory
+  - Repair buttons show "Repair (Free with Repair Kit)" when available
+  - Clicking repair consumes one Repair Kit instead of resources
+  - Display "✓ Auto-used on system repairs" in inventory
+  - No manual "Use" button needed
 
 ### 7. Resource Management (`js/game/tick.js`)
 - **Production**: Survivors + systems generate oxygen, food, energy, scrap
-- **Consumption**: Base consumption + per-survivor rates
+- **Consumption Rates (0.9.0 Aggressive Rebalance)**:
+  - **Early Game (3 survivors)**: O2 +3.05/s net, Food +2.48/s net, Energy -0.29/s net (tight, forces generator)
+  - **Mid Game (6 survivors, L3 systems)**: O2 +5.57/s net, Food +0.90/s net, Energy +4.91/s net (balanced)
+  - **Late Game (10 survivors, L5 systems, turrets)**: O2 +6.75/s net, Food +1.28/s net, Energy +7.42/s net (scaling pressure)
+  - O2: 0.12 base + 0.35/survivor (increased from 0.32)
+  - Food: 0.08 base + 0.20/survivor (increased from 0.18)
+  - Energy: 0.18/survivor + 0.06/turret + 0.08/filter level (all increased for late-game pressure)
 - **Critical States**:
-  - Oxygen < 6: Base integrity damage, morale loss
-  - Oxygen = 0: 2-4 HP damage per tick to all survivors
-  - Food = 0: Morale loss, 6% chance of starvation death per tick
-- **System Failures**: Random breakdowns disable production
-  - 1% base chance per system per tick
-  - Failsafe ability: Reduces to 0.5% (Technician rare)
-  - Repair costs: 10-20 scrap, 5-10 energy
+  - Oxygen < 10: Base integrity damage (-0.12/tick), morale loss (-0.5/tick)
+  - Oxygen = 0: 2-5 HP damage per tick to all survivors, severe morale loss (-0.7/tick)
+  - Food = 0: Morale loss (-0.35/tick), 5% chance of starvation death per tick (reduced from 8% for less RNG)
+- **System Failures**: Random breakdowns reduce ALL production by 90% (not just the failed system)
+  - 0.3% base chance per system per tick (~17% per minute, reduced from 1%)
+  - Failsafe ability: -30% per instance with 20% minimum cap (Technician rare)
+  - Repair costs: 35 scrap + 15 energy (filter), 30 scrap + 20 energy (generator)
 - **Inventory Capacity**: 
   - Base: 20 items
   - Hoarder ability: +2 per instance
   - UI shows (current/max) with color coding
 
-### 8. Threat & Raids (`js/game/threat.js`)
-- **Threat Level**: Increases over time, reduced by guards
-- **Raid Chance**: Base 0.4% + contributions from exploration/alienKills, max 7%
-  - Per-minute probability displayed in UI
-  - Reduced by guards (0.25% each) and turrets (0.2% each)
-  - Increased by explored tiles (0.003% each) and alien kills (0.05% each)
-- **Raid Cooldown**: 15-20 minute randomized cooldown between raids (0.7.3)
-- **Defense**: Only guards defend raids (0.7.1); turrets provide automated fire support (0.7.3)
-- **Raid Composition**: Dynamic alien spawning based on threat level (0.7.4)
-  - Low threat: Drones and Lurkers
-  - Mid threat: Stalkers and Spitters
-  - High threat: Broods and Ravagers
-  - Very high threat: Spectres and Queens
+### 8. Threat & Raids (`js/game/threat.js`) - 0.9.0 Aggressive Rebalance
+- **Threat Philosophy**: Threat is an **unstoppable tide**. Defenses slow it down but cannot reverse it. Players are always on a timer.
+- **Threat Growth**: 
+  - Base: 0.050/s + random 0.025/s = 0.075/s maximum growth
+  - Guards: -0.08/s each (reduced from -0.12, less suppression)
+  - Turrets: -0.10/s each (reduced from -0.15, less suppression)
+  - **Minimum Growth Floor**: +0.005/s (threat ALWAYS grows, even with max defenses)
+  - Example: 4 guards + 3 turrets = 0.075 - 0.32 - 0.30 = -0.545 → clamped to +0.005/s minimum
+  - **Tiered Floors**: 0% → 20% → 40% → 60% → 80% (once reached, can't fall below)
+- **Raid Chance Formula (0.9.0 retuned for gradual progression)**:
+  - Base: 0.002 (0.2% per minute baseline)
+  - Per explored tile: 0.00025 (100 tiles = +2.5%)
+  - Per alien kill: 0.0015 (50 kills = +7.5%)
+  - Threat contribution: threat / 3000 (80% threat = +2.7%)
+  - Guards: -0.002 each, Turrets: -0.0015 each (max -5% total reduction)
+  - **Raid Tier Floors**: 0% → 1% → 2.5% → 4.5% → 7% per minute (permanent minimums)
+  - **Max Chance**: 10% per minute (cap to prevent spam)
+- **Raid Cooldown**: 10-15 minutes between raids (reduced from 15-30 for faster testing)
+- **Raid Composition (0.9.0 - more winnable)**: 
+  - Alien count: 2-3 base + (threat/25) × 0.6 = **2-5 aliens** (reduced from 2-7)
+  - Max count: 6 aliens (reduced from 7)
+  - HP scaling: 1.0x → 1.5x at 100% threat (reduced from 1.83x)
+  - Attack scaling: 1.0x → 1.4x at 100% threat (reduced from 1.67x)
+  - Alien type weighted by threat (Drones/Lurkers early → Queens at 90%+)
+  - Modifier chance: 1.0x → 2.0x with threat (more special abilities late game)
+- **Defense**: Only guards defend raids (hardcore mode); turrets provide automated fire support
 - **Raid Outcomes**: Victory reduces threat; defeat = instant game over
 - **No Guards**: Instant game over if raid triggers with no guards on duty
 

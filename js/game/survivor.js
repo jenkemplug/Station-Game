@@ -74,7 +74,7 @@ function recruitSurvivor(name) {
     level: 1,
     xp: 0,
     nextXp: 50,
-    skill: skill,
+    // skill removed - redundant with level (0.9.0)
     hp: baseHp,
     maxHp: baseHp,
     morale: 60,
@@ -153,6 +153,10 @@ function grantXp(survivor, amount) {
   if (hasAbility(survivor, 'studious')) xpBonusAdd += 0.15; // +15% XP
   if (hasAbility(survivor, 'genius')) xpBonusAdd += 0.25; // +25% XP
   
+  // 0.9.0 - Apply morale XP modifier (high morale gives +10% XP)
+  const moraleModifier = getMoraleModifier(survivor);
+  xpMult *= moraleModifier.xp;
+  
   // Apply base mult and additive bonuses
   xpMult *= (1 + xpBonusAdd);
 
@@ -163,12 +167,21 @@ function grantXp(survivor, amount) {
   // Check for level up
   if (survivor.xp >= survivor.nextXp) {
     survivor.level++;
-    survivor.skill += rand(1, 2);
+    // skill removed - redundant with level (0.9.0)
+    
+    // 0.9.0 - Increase max HP by 5, maintaining HP percentage if armor equipped
+    const oldEffectiveMaxHp = getEffectiveMaxHp(survivor);
+    const hpPercentage = survivor.hp / oldEffectiveMaxHp;
     survivor.maxHp += 5;
-    survivor.hp = survivor.maxHp; // Full heal on level up
+    const newEffectiveMaxHp = getEffectiveMaxHp(survivor);
+    survivor.hp = Math.min(Math.round(newEffectiveMaxHp * hpPercentage), newEffectiveMaxHp);
+    
     survivor.xp -= survivor.nextXp; // Carry over excess XP
     survivor.nextXp = Math.floor(survivor.nextXp * 1.5);
     appendLog(`${survivor.name} leveled up to Level ${survivor.level}!`);
+    
+  // 0.9.0 - Morale gain on level up
+    survivor.morale = Math.min(100, survivor.morale + BALANCE.MORALE_GAIN_LEVEL_UP);
   }
 }
 
@@ -190,7 +203,11 @@ function releaseSurvivor(id) {
 function useMedkit(id) {
   const s = state.survivors.find(x => x.id === id);
   if (!s) return;
-  const medkitIndex = state.inventory.findIndex(item => item.type === 'medkit');
+  // 0.9.0 - Updated to use new consumable structure (type: 'consumable', subtype: 'medkit')
+  // Also support old structure (type: 'medkit') for backwards compatibility
+  const medkitIndex = state.inventory.findIndex(item => 
+    item.type === 'medkit' || (item.type === 'consumable' && item.subtype === 'medkit')
+  );
   if (medkitIndex === -1) {
     appendLog('No medkits available.');
     return;
@@ -206,7 +223,9 @@ function useMedkit(id) {
   if (hasAbility(s, 'triage')) healBonusAdd += 0.25; // +25% healing
   healAmount = Math.floor(healAmount * (1 + healBonusAdd));
   
-  s.hp = Math.min(s.maxHp, s.hp + healAmount);
+  // 0.9.0 - Heal up to effective max HP (including armor bonus)
+  const effectiveMaxHp = getEffectiveMaxHp(s);
+  s.hp = Math.min(effectiveMaxHp, s.hp + healAmount);
   s.injured = false;
   appendLog(`${s.name} treated with medkit${healAmount > 10 ? ` (healed ${healAmount})` : ''}.`);
   updateUI();
@@ -215,20 +234,32 @@ function useMedkit(id) {
 function equipBest(id) {
   const s = state.survivors.find(x => x.id === id);
   if (!s) return;
-  // equip if we have weapons
-  const weaponIndex = state.inventory.findIndex(item => item.type === 'rifle' || item.type === 'shotgun');
+  
+  // 0.9.0 - Support both old and new item structure
+  // Old: type = 'rifle', 'shotgun', 'armor', 'heavyArmor', 'hazmatSuit'
+  // New: type = 'weapon' or 'armor'
+  const weaponIndex = state.inventory.findIndex(item => 
+    item.type === 'weapon' || item.type === 'rifle' || item.type === 'shotgun'
+  );
   if (weaponIndex !== -1 && !s.equipment.weapon) {
     const weapon = state.inventory.splice(weaponIndex, 1)[0];
     s.equipment.weapon = weapon;
-    appendLog(`${s.name} equipped a ${weapon.name}.`);
+    // 0.9.0 - Color item name by rarity
+    const coloredName = colorItemName(weapon.name, weapon.rarity);
+    appendLog(`${s.name} equipped a ${coloredName}.`);
     updateUI();
     return;
   }
-  const armorIndex = state.inventory.findIndex(item => item.type === 'armor' || item.type === 'heavyArmor' || item.type === 'hazmatSuit');
+  
+  const armorIndex = state.inventory.findIndex(item => 
+    item.type === 'armor' || item.type === 'heavyArmor' || item.type === 'hazmatSuit'
+  );
   if (armorIndex !== -1 && !s.equipment.armor) {
     const armor = state.inventory.splice(armorIndex, 1)[0];
     s.equipment.armor = armor;
-    appendLog(`${s.name} equipped ${armor.name}.`);
+    // 0.9.0 - Color item name by rarity
+    const coloredArmorName = colorItemName(armor.name, armor.rarity);
+    appendLog(`${s.name} equipped ${coloredArmorName}.`);
     updateUI();
     return;
   }
@@ -236,6 +267,31 @@ function equipBest(id) {
 }
 
 // Equip a specific inventory item to a survivor, auto-detecting slot
+// 0.9.0 - Helper: Calculate effective max HP including armor bonuses
+function getEffectiveMaxHp(survivor) {
+  let effectiveMax = survivor.maxHp || 20;
+  if (survivor.equipment && survivor.equipment.armor && survivor.equipment.armor.effects) {
+    for (const effect of survivor.equipment.armor.effects) {
+      if (effect.startsWith('hpBonus:')) {
+        const bonus = parseInt(effect.split(':')[1]) || 0;
+        effectiveMax += bonus;
+      }
+    }
+  }
+  return effectiveMax;
+}
+
+// 0.9.0 - Helper: Get armor HP bonus
+function getArmorHpBonus(armor) {
+  if (!armor || !armor.effects) return 0;
+  for (const effect of armor.effects) {
+    if (effect.startsWith('hpBonus:')) {
+      return parseInt(effect.split(':')[1]) || 0;
+    }
+  }
+  return 0;
+}
+
 function equipItemToSurvivor(survivorId, itemId) {
   const s = state.survivors.find(x => x.id === survivorId);
   if (!s) return;
@@ -243,32 +299,57 @@ function equipItemToSurvivor(survivorId, itemId) {
   if (idx === -1) { appendLog('Item not found in inventory.'); return; }
   const item = state.inventory[idx];
   let slot = null;
-  if (item.type === 'rifle' || item.type === 'shotgun') slot = 'weapon';
-  if (item.type === 'armor' || item.type === 'heavyArmor' || item.type === 'hazmatSuit') slot = 'armor';
+  
+  // 0.9.0 - Support both old and new item structure
+  // Old structure: type = 'rifle', 'shotgun', 'armor', 'heavyArmor', 'hazmatSuit'
+  // New structure: type = 'weapon' (with weaponType property) or type = 'armor'
+  if (item.type === 'weapon') slot = 'weapon';
+  else if (item.type === 'armor') slot = 'armor';
+  else if (item.type === 'rifle' || item.type === 'shotgun') slot = 'weapon';
+  else if (item.type === 'armor' || item.type === 'heavyArmor' || item.type === 'hazmatSuit') slot = 'armor';
+  
   if (!slot) { appendLog('That item cannot be equipped.'); return; }
 
-  // If slot already occupied, check if inventory has room for it
-  if (slot === 'weapon' && s.equipment.weapon) {
-    if (!canAddToInventory()) {
-      appendLog('Inventory full - cannot swap equipment.');
-      return;
+  // 0.9.0 - Handle armor HP bonus with proportional scaling
+  if (slot === 'armor') {
+    // Calculate current HP percentage
+    const currentMaxHp = getEffectiveMaxHp(s);
+    const hpPercentage = s.hp / currentMaxHp;
+    
+    // Remove old armor bonus if swapping
+    if (s.equipment.armor) {
+      if (!canAddToInventory()) {
+        appendLog('Inventory full - cannot swap equipment.');
+        return;
+      }
+      state.inventory.push(s.equipment.armor);
     }
-    state.inventory.push(s.equipment.weapon);
-  }
-  if (slot === 'armor' && s.equipment.armor) {
-    if (!canAddToInventory()) {
-      appendLog('Inventory full - cannot swap equipment.');
-      return;
+    
+    // Equip new armor
+    s.equipment.armor = item;
+    state.inventory.splice(idx, 1);
+    
+    // Apply new HP proportionally
+    const newMaxHp = getEffectiveMaxHp(s);
+    s.hp = Math.round(newMaxHp * hpPercentage);
+  } else {
+    // Weapon slot handling (unchanged)
+    if (slot === 'weapon' && s.equipment.weapon) {
+      if (!canAddToInventory()) {
+        appendLog('Inventory full - cannot swap equipment.');
+        return;
+      }
+      state.inventory.push(s.equipment.weapon);
     }
-    state.inventory.push(s.equipment.armor);
+    
+    // Assign and remove from inventory
+    s.equipment.weapon = item;
+    state.inventory.splice(idx, 1);
   }
 
-  // Assign and remove from inventory
-  if (slot === 'weapon') s.equipment.weapon = item;
-  else s.equipment.armor = item;
-  state.inventory.splice(idx, 1);
-
-  appendLog(`${s.name} equipped ${item.name}.`);
+  // 0.9.0 - Color item name by rarity
+  const coloredName = colorItemName(item.name, item.rarity);
+  appendLog(`${s.name} equipped ${coloredName}.`);
   updateUI();
   saveGame('action');
 }
@@ -287,9 +368,28 @@ function unequipFromSurvivor(survivorId, slot) {
     return;
   }
   
-  state.inventory.push(eq);
-  if (slot === 'weapon') s.equipment.weapon = null; else s.equipment.armor = null;
-  appendLog(`${s.name} unequipped ${eq.name}.`);
+  // 0.9.0 - Handle armor HP bonus with proportional scaling
+  if (slot === 'armor') {
+    // Calculate current HP percentage
+    const currentMaxHp = getEffectiveMaxHp(s);
+    const hpPercentage = s.hp / currentMaxHp;
+    
+    // Remove armor
+    state.inventory.push(eq);
+    s.equipment.armor = null;
+    
+    // Apply HP proportionally to new max (without armor bonus)
+    const newMaxHp = getEffectiveMaxHp(s);
+    s.hp = Math.min(Math.round(newMaxHp * hpPercentage), newMaxHp);
+  } else {
+    // Weapon unequip (unchanged)
+    state.inventory.push(eq);
+    s.equipment.weapon = null;
+  }
+  
+  // 0.9.0 - Color item name by rarity
+  const coloredName = colorItemName(eq.name, eq.rarity);
+  appendLog(`${s.name} unequipped ${coloredName}.`);
   updateUI();
   saveGame('action');
 }

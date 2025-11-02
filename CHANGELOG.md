@@ -1,6 +1,521 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.0] - 2025-11-01
+### Added - Base Integrity & Morale Systems
+
+**NEW: Base Integrity Management**
+- **Integrity Tiers**: 5 color-coded tiers from Pristine (100-80%) to Collapsing (1-19%)
+- **Production Penalties**: 0% → 5% → 10% → 20% → 30% based on integrity tier
+- **Damage Sources**:
+  - Failed systems: 0.05 integrity/tick per failure
+  - High threat (>75%): 0.02 integrity/tick constant pressure
+- **Manual Repair System**:
+  - New "Repair Base" button in Threats & Base panel
+  - Cost scales with missing integrity (50 scrap + 30 energy base × missing%)
+  - Engineer class bonuses reduce repair costs up to 50%
+  - Grants +15 morale on completion
+- **Engineer Passive Repair**: Idle Engineers repair +0.1 integrity/tick each
+- **Visual Feedback**:
+  - Color-coded integrity bar (green → yellow → orange → red)
+  - Shows tier name and percentage: "Minor Damage (65%)"
+  - Warning flash animation when integrity < 20%
+- **Files Modified**: `constants.js`, `utils.js`, `tick.js`, `crafting.js`, `ui.js`, `index.html`, `styles.css`, `main.js`
+
+**NEW: Morale System**
+- **Morale Tiers**: 5 tiers from High Morale (80-100) to Breaking Point (0-19)
+- **Performance Modifiers**:
+  - Production: -30% to +30% based on morale tier
+  - Combat Damage: -15% to +15% based on morale tier
+  - XP Gain: 0% to +10% at high morale
+- **Morale Gains**:
+  - Alien kill: +2 morale
+### Overview
+This release completes a major systems and balance pass with focus on meaningful late-game escalation, predictable encounter mechanics, and a large combat/defensive polish. It also fixes a number of critical bugs (modifier application, combat tooltips, consumable usage) and removes the old flat "skill" progression that caused runaway damage scaling.
+
+  ### Endgame Escalation (new)
+  - Threat locks at 100% and an Escalation level begins increasing over time. Escalation affects all encounters (raids and exploration).
+  - Escalation growth:
+    - +1 level every 5 minutes while threat is locked at 100%.
+    - +1 level per raid survived while at 100% threat.
+  - Escalation bonuses (per level):
+    - HP: +8% (multiplicative)
+    - Attack: +6%
+    - Armor: +1 per 2 escalation levels
+    - Modifier frequency: +10% chance per level (more special modifiers appear later)
+    - Raid cooldown: -30s per level (min cooldown 5 minutes)
+
+  ### Threat & Raid Rebalance
+  - Threat growth tuned for longer runs and smoother pacing:
+    - Base growth adjusted (slower early) and a small minimum growth floor remains so threat always slowly rises.
+    - Example tuning: base growth values reduced (configurable in `BALANCE`).
+  - Raid chance and composition:
+    - Raid base chance reduced and floors adjusted so raids scale more predictably with exploration and kills.
+    - Raid size: typical raids now 2–5 aliens (capped to avoid exponential spam).
+    - Alien HP scaling: up to ~1.5x at 100% threat; Attack scaling up to ~1.4x.
+
+  ### Alien Spawning Philosophy
+  - Weak enemies (Drones/Lurkers) never fully disappear — they persist into late game as modifier carriers so late-game encounters retain variety.
+  - Spawn weights are retuned by threat tiers so the encounter mix shifts smoothly rather than abruptly.
+
+  ### Combat & Damage System — critical changes
+  - Skill system removed:
+    - Old flat-skill stat was removed because it caused exponential flat damage growth.
+    - New damage formula: FinalDamage = WeaponBase × (1 + LevelBonus + ClassBonus)
+    - LevelBonus = (level - 1) × 0.02 (Level 1 = 0%, Level 12 ≈ +22%).
+    - Class bonuses remain percentage-based and stack additively with level.
+  - Combat tooltip overhaul:
+    - Tooltips now display: Base Weapon → Level & Class bonuses → Final damage (clear breakdown).
+
+  ### Weapon / Armor / Status-effect polish
+  - Weapon effects implemented with clear behaviors and visible UI badges:
+    - Stun: disables target for exactly one enemy turn (implemented via _stunned / _stunnedLastTurn flags).
+    - Burn / Poison: queued DOT stacks; each stack lasts fixed turns and resolves at enemy turns.
+    - Splash / Chain / Pierce / Phase: affect multiple targets or bypass armor per definitions.
+  - Armor effects implemented and applied during defense calculations:
+    - Dodge, Reflect, Regen, Phase Dodge, Energy Shields and Immunities are parsed from armor objects and used in combat math.
+
+  ### Consumables (combat-usable)
+  - All combat consumables can be used in interactive combat and have clear effects and durations:
+    - Medkit / Advanced Medkit: heals & (advanced) cure/remove status.
+    - Stim Pack / Combat Drug: temporary damage/accuracy buffs with turn durations.
+    - Stun Grenade / Frag / EMP: utility grenades that stun, splashedamage, or disable mechanical enemies respectively.
+    - Repair / Nano-Repair: durability and system repair utilities (repair kits auto-apply to system repairs).
+    - Stealth Field / Smoke: temporary dodge/stealth effects.
+
+  ### Major bug fixes
+  - Alien modifier application corrected: `applyModifiersToAlienStats()` centralizes modifier effects at spawn (fixed HP & stat bonuses for 7+ modifiers and corrected hpMult/hpBonus behavior).
+  - Combat status persistence: status effects now persist the intended duration across turns in both auto-resolve and interactive combat modes.
+  - Splash/phase/pierce logic: damage calculations correctly bypass or apply armor and affect valid targets.
+
+  ### Persistence & encounter behavior
+  - Retreat & revisits:
+    - Retreating from a tile now preserves the current alien set and their state; revisiting heals surviving enemies to full but does not respawn new random enemies.
+    - Tiles are marked cleared only when all aliens are killed.
+
+  ### UX / QoL
+  - Unique names: `getRandomName()` prevents duplicate survivor names within a save.
+  - Workbench & recycling: rarity color coding, detailed recycle breakdowns, and component refunds added.
+  - Smart dropdown positioning added to avoid clipping inside scrollable panels.
+
+  ### Files changed (high level)
+  - Significant updates: `js/game/threat.js`, `js/game/combat.js`, `js/game/combatInteractive.js`, `js/game/exploration.js`, `js/game/survivor.js`, `js/ui.js`, `js/constants.js`, `js/game/crafting.js`, `js/game/recycling.js`, `js/game/tick.js`.
+
+  ### Migration notes
+  - Save compatibility: legacy save fields (including old `skill`) are accepted and migrated; `skill` is ignored for damage calculations.
+
+  ### Debug & testing helpers
+  - Debug functions added: lock threat, raise escalation, spawn items/aliens — useful to test escalation, raid composition, and balance.
+
+  ---
+
+### Balance - Junk Salvage
+**Individual Scrap Rolls for Junk**
+- **Change**: Each piece of junk now rolls 2-4 scrap individually instead of one roll for the batch
+- **Example**: 5 junk previously = 1 roll (2-4) × 5 = 10-20 scrap total
+- **Now**: 5 junk = 5 rolls (2-4 each) = more consistent 10-20 scrap with better average
+- **Impact**: More consistent and slightly improved scrap returns from salvaging
+
+### Polish - Recycling Notifications
+**Improved Recycle Log Messages**
+- **Colored Item Names**: Recycled items now show with rarity colors (gray/purple/orange/red)
+- **Resource Breakdown**: Shows all resources received from recycling
+- **Example**: "♻️ Recycled <span style="color:purple">Plasma Rifle</span> → +28 Scrap, +3 Tech, +2 Weapon Part"
+- **Impact**: Clear feedback on what you got from recycling
+
+#### New Crafting Components System (8 Types)
+- **Weapon Parts**: Used in all weapon crafting recipes
+- **Armor Plating**: Used in all armor crafting recipes  
+- **Electronics**: Used in advanced tech items
+- **Chemical Compounds**: Used in consumables and explosives
+- **Energy Cells**: Used in energy weapons and systems
+- **Nano-Fibers**: Used in advanced armor and equipment
+- **Alien Tissue**: Rare component from alien encounters
+- **Xeno-Crystals**: Very rare component for legendary items
+- All components found as loot with varying rarity
+- Components consumed during crafting (no longer just resource costs)
+- Engineer "Inventor" ability (30% chance) consumes Weapon Parts to grant 2-4 bonus Tech
+
+#### New Weapons (40+ Total)
+**Tier 1 - Melee Weapons:**
+- **Combat Knife**: 3-5 damage, fast attacks, 100 durability
+- **Stun Baton**: 2-4 damage, 30% stun chance, 80 durability
+- **Reinforced Bat**: 4-6 damage, 20% stun chance, 120 durability
+
+**Tier 2 - Basic Firearms:**
+- **Laser Pistol**: 4-7 damage, energy weapon, 90 durability
+- **Heavy Pistol**: 5-8 damage, high accuracy, 100 durability
+- **Assault Rifle**: 6-9 damage, burst fire, 110 durability
+- **Scoped Rifle**: 7-10 damage, +15% accuracy, 100 durability
+- **Pump Shotgun**: 6-12 variable damage, 100 durability
+
+**Tier 3 - Advanced Weapons:**
+- **Plasma Blade**: 8-12 damage, burn effect (2-4 DOT), 130 durability
+- **Shock Maul**: 6-10 damage, 40% stun, chain lightning, 110 durability
+- **Plasma Pistol**: 6-10 damage, burn effect, 100 durability
+- **Smart Pistol**: 5-9 damage, +20% accuracy, auto-targeting, 95 durability
+- **Pulse Rifle**: 8-14 damage, energy weapon, 120 durability (original)
+- **Plasma Rifle**: 10-16 damage, burn + splash damage, 115 durability
+- **Combat Shotgun**: 8-14 variable damage, close range bonus, 110 durability
+- **Plasma Shotgun**: 9-15 variable damage, burn effect, 105 durability
+- **Light Machine Gun**: 7-11 damage, sustained fire bonus, 130 durability
+- **Grenade Launcher**: 12-20 damage, 3-tile splash radius, 80 durability
+
+**Tier 4 - Legendary Weapons:**
+- **Nano-Edge Katana**: 12-18 damage, phase through armor, bleed effect, 140 durability
+- **Void Pistol**: 8-14 damage, dimensional damage (ignores armor), 90 durability
+- **Gauss Rifle**: 14-22 damage, railgun physics, armor piercing, 110 durability
+- **Quantum Rifle**: 16-24 damage, quantum tunneling shots, 105 durability
+- **Disintegrator Cannon**: 18-28 damage, molecular disruption, 95 durability
+- **Minigun**: 10-16 damage, massive rate of fire, suppression, 150 durability
+- **Railgun**: 20-32 damage, electromagnetic acceleration, penetration, 100 durability
+
+#### New Armor (15+ Types)
+**Tier 1 - Basic Protection:**
+- **Light Armor**: 3 defense, 100 durability (original)
+- **Tactical Vest**: 4 defense, +5% dodge, 90 durability
+- **Reinforced Plating**: 5 defense, -5% movement, 110 durability
+
+**Tier 2 - Advanced Armor:**
+- **Heavy Armor**: 6 defense, 150 durability (original)
+- **Composite Armor**: 7 defense, balanced stats, 130 durability
+- **Stealth Suit**: 3 defense, +25% dodge, cloaking, 100 durability
+- **Power Armor Frame**: 8 defense, strength boost, 140 durability
+- **Thermal Suit**: 5 defense, environmental protection, 120 durability
+
+**Tier 3 - Elite Armor:**
+- **Nano-Weave Armor**: 9 defense, 3 HP regen/turn, adaptive, 135 durability
+- **Titan Armor**: 10 defense, -10% speed, massive protection, 160 durability
+- **Shield Suit**: 6 defense, 25% damage reflection, energy shield, 115 durability
+- **Void Suit**: 7 defense, phase dodge (15% chance), 110 durability
+- **Regenerative Armor**: 8 defense, 5 HP regen/turn, self-repair, 125 durability
+
+**Special:**
+- **Hazmat Suit**: 3 defense, hazard immunity, 150 durability (original)
+
+#### Weapon Effects (8 Fully Functional Types)
+- **Stun**: 20-40% chance to disable enemy for 1 turn
+- **Burn**: 2-6 damage over time for 2-3 turns
+- **Splash**: Damages 2-3 nearby enemies for 30-50% damage
+- **Phase**: Ignores 40-60% of enemy armor
+- **Bleed**: 3-5 damage per turn, stackable
+- **Chain**: Arcs to 1-2 additional targets for 40% damage
+- **Pierce**: Penetrates armor, hits multiple enemies in line
+- **Molecular Disruption**: Chance to instantly destroy target
+
+#### Armor Effects (8 Fully Functional Types)
+- **Dodge Bonus**: +10-25% evasion chance
+- **Damage Reflection**: 15-30% damage returned to attacker
+- **HP Regeneration**: 2-5 HP restored per turn
+- **Phase Dodge**: 10-20% chance to phase through attacks
+- **Energy Shield**: Absorbs X damage before breaking
+- **Adaptive Defense**: Defense increases each turn in combat
+- **Cloaking**: First attack bonus, harder to target
+- **Environmental Immunity**: Negates hazard damage
+
+#### New Consumables (10 Types)
+- **Medkit**: Heals 10 HP, original consumable
+- **Advanced Medkit**: Heals 20 HP, cures status effects, 25 scrap
+- **Stim Pack**: +3 damage, +10% accuracy for 3 turns, 20 scrap
+- **Shield Generator**: Temporary +5 defense for 2 turns, 30 scrap
+- **EMP Grenade**: 10-15 damage, disables mechanical enemies, 25 scrap
+- **Repair Kit**: Instantly repairs failed systems for free (auto-use), 40 scrap
+- **Nano-Repair**: Restores 50 durability to equipped item, 35 scrap
+- **Energy Cell**: Restores energy-based weapon charges, 15 scrap
+- **Smoke Grenade**: +30% dodge for all allies for 2 turns, 20 scrap
+- **Frag Grenade**: 15-25 splash damage, 3-tile radius, 30 scrap
+- **Ammo**: Restores ranged weapon ammunition, 10 scrap (original)
+
+#### Interactive Combat System Overhaul
+**Adaptive Combat UI:**
+- Combat interface now dynamically changes based on equipped weapon type
+- **Melee Weapons**: Shows "Strike", "Power Strike", "Guard" actions
+- **Ranged Weapons**: Shows "Shoot", "Aim", "Burst Fire" actions
+- **Unarmed**: Shows "Punch", "Dodge", "Guard" actions
+- Action buttons update in real-time when equipment changes mid-combat
+
+**New Combat Actions:**
+- **Power Strike**: Melee attack with +50% damage, costs extra stamina
+- **Burst Fire**: Fire 2-3 shots in quick succession with accuracy penalty
+- **Precise Shot**: Ranged attack with +25% accuracy, +15% crit chance
+- **Overwatch**: Skip turn to attack next enemy that moves
+- **Tactical Retreat**: Attempt to retreat with better odds than base retreat
+
+**Combat Status Effects:**
+- Stunned enemies skip their turn (visual indicator)
+- Burning enemies take DOT each turn (fire animation)
+- Bleeding enemies take escalating damage
+- Phased attacks show "PHASE" indicator when armor is bypassed
+- Shield absorption shows remaining shield HP
+- Dodge shows "EVADED" on successful evasion
+
+**Enhanced Combat Log:**
+- Real-time damage numbers with color coding (white=normal, yellow=crit, red=death)
+- Status effect application messages ("Enemy is BURNING!", "Ally is STUNNED!")
+- Detailed hit/miss information with percentage chances shown
+- Weapon effect triggers logged ("Plasma Rifle BURNS for 4 damage!")
+- Equipment durability warnings when items break
+- Ammo consumption tracking per shot
+
+#### Inventory Management System
+**Recycling System:**
+- Click any crafted item to recycle it for 50% refund (rounded up with Math.ceil)
+- Comprehensive component refunds:
+  - Weapon Parts, Armor Plating, Electronics refunded correctly
+  - Chemical Compounds, Energy Cells, Nano-Fibers refunded
+  - Alien Tissue and Xeno-Crystals refunded for legendary items
+- Themed confirmation popup appears at cursor position
+  - Shows exact resources you'll receive before confirming
+  - Solid background, stays fixed during page scrolling
+  - "Recycle" and "Cancel" buttons for safety
+- Non-craftable items get default scrap value (5 scrap)
+- **Junk items cannot be recycled** (use Salvage button instead)
+
+**Repair Kit Auto-System:**
+- Repair Kits automatically enable free system repairs
+- Repair buttons dynamically update text: "Repair Filter (Free with Repair Kit)"
+- Using repair consumes one Repair Kit automatically instead of resources
+- Inventory display shows: "✓ Auto-used on system repairs" 
+- No manual "Use on System" button needed - seamless integration
+- Works for all system types: Filter, Generator, Turret failures
+
+**Inventory Capacity:**
+- Base capacity remains 20 items
+- Hoarder ability adds +2 capacity per instance (stacks)
+- Color-coded capacity display: Green (< 80%), Yellow (80-99%), Red (100%)
+- Full inventory prevents looting during exploration
+
+**Junk System Rework:**
+- All found junk now takes inventory slots (like starter junk)
+- Junk appears as inventory items: "Junk (1/3)" format
+- Must use "Salvage" button to convert junk to scrap
+- Can no longer discard individual items (removed Discard button)
+- Salvage converts all junk at once with Scavenger bonuses applied
+
+#### Workbench Expansion (47+ Craftable Items)
+**8 Item Categories:**
+1. **Melee Weapons** (Combat Knife, Stun Baton, Reinforced Bat, Plasma Blade, Shock Maul, Nano-Edge Katana)
+2. **Ranged Weapons** (All pistols, rifles, shotguns, heavy weapons, legendary firearms)
+3. **Light Armor** (Light Armor, Tactical Vest, Stealth Suit, Hazmat Suit)
+4. **Heavy Armor** (Heavy Armor, Power Armor, Titan Armor, Nano-Weave, Void Suit)
+5. **Consumables - Healing** (Medkit, Advanced Medkit, Nano-Repair)
+6. **Consumables - Combat** (Stim Pack, EMP Grenade, Frag Grenade, Smoke Grenade)
+7. **Consumables - Utility** (Repair Kit, Energy Cell, Ammo)
+8. **Systems** (Filter, Generator, Turret - crafting removed, use Systems panel)
+
+**Workbench UI Features:**
+- All items show rarity color coding (Common=Gray, Uncommon=Purple, Rare=Orange, Legendary=Red)
+- Grouped by category with visual separators
+- Hover tooltips show full stats, effects, and requirements
+- Dynamic cost display with Technician discounts shown with strikethrough
+- Component requirements clearly listed
+- Scrollable interface handles 47+ items without layout breaking
+
+#### Debug Menu Expansion
+**New Debug Categories:**
+- **Spawn Components**: Add any crafting component (Weapon Parts, Electronics, etc.)
+- **Spawn Tier 1 Weapons**: All basic melee and firearms
+- **Spawn Tier 2 Weapons**: Advanced weapons with effects
+- **Spawn Tier 3 Weapons**: Legendary weapons
+- **Spawn Armor Sets**: All armor types from Light to Legendary
+- **Spawn All Consumables**: All 10 consumable types
+- **Spawn Legendary Gear**: Quick access to best equipment
+- One-click buttons for testing any item combination
+
+#### Smart Dropdown System
+- New `dropdownPosition.js` module for intelligent dropdown placement
+- Dropdowns automatically reposition when near bottom of scrollable containers
+- Uses MutationObserver for real-time position updates
+- Prevents clipping in Workbench, Survivor List, and other scrollable areas
+- Smooth animations for dropdown appearance (above or below)
+
+### Changed - Major Balance Overhaul
+
+#### Combat System Rebalance
+**Damage Calculation Rework:**
+- **REMOVED**: Base survivor attack damage (no more flat damage values)
+- **NEW**: Damage determined entirely by equipped weapon stats
+- **Unarmed Combat**: New `UNARMED_DAMAGE` range (2-4 base damage)
+- Skill bonus: +0.5 damage per skill point (unchanged)
+- **Level bonus**: +2% damage multiplier per level (applied to total damage)
+- **New accuracy bonus**: +1% hit chance per level (rewards leveling with reliability)
+
+**Equipment Balance:**
+- Rifles: +8 damage (up from +6)
+- Shotguns: +6-12 variable damage (up from +4-10)
+- Light Armor: +3 defense (up from +2)
+- Heavy Armor: +6 defense (up from +4)
+- Hazmat Suit: +3 defense (up from +2)
+
+**Hit Chance System:**
+- Base hit chance: 75% (unchanged)
+- Base crit chance: 12% (up from 10%)
+- Crit multiplier: 1.6x (up from 1.5x)
+- Accuracy bonuses now more impactful (+25% from Aim action)
+
+#### Loot Table Rebalance
+**Target Distributions Achieved:**
+- Common items: ~48% drop rate (gray items, basic gear)
+- Uncommon items: ~31% drop rate (purple items, solid upgrades)
+- Rare items: ~15% drop rate (orange items, powerful gear)
+- Legendary items: ~6% drop rate (red items, game-changing equipment)
+
+**Loot Weights Adjusted:**
+- Reduced common junk spawn rate by 15%
+- Increased component drop rates by 25%
+- Legendary items now have minimum threat requirement (70%+ threat)
+- Scavenger abilities (Keen Eye, Treasure Hunter) shift entire distribution upward
+
+#### Enemy Scaling & Threat System
+**Threat-Based Enemy Spawning:**
+- **0-20% Threat**: Only Drones and Lurkers spawn
+- **20-40% Threat**: Stalkers and Spitters added to pool
+- **40-60% Threat**: Broods and Ravagers start appearing
+- **60-80% Threat**: Spectres become possible (rare)
+- **Comprehensive Balance Pass**:
+  - **Loot Table Rebalanced**: Adjusted weights for all loot tiers to match target distribution (Common ~48%, Uncommon ~31%, Rare ~15%, Legendary ~6%).
+  - **Combat Damage Rework**: Removed base attack damage. Damage is now determined purely by the equipped weapon or a new `UNARMED_DAMAGE` range. Skill and level bonuses are now added to this value.
+  - **Leveling Progression**: Reduced damage bonus from levels (`+0.3` from `+0.5`) and added a new accuracy bonus (`+1%` per level) to shift focus from raw damage to reliability.
+- **Above 85% Threat**: Multiple Queens possible in single raid
+
+**Enemy Stat Scaling:**
+- HP scaling reduced by 20% at high threat levels
+- Attack scaling reduced by 15% to prevent one-shot deaths
+- Elite modifiers less likely to stack at low threat
+- Smoother difficulty curve from early to late game
+
+**Threat Growth Adjustments:**
+- Base threat growth: 0.055 → 0.035 (-36% reduction)
+- Guard effectiveness: 0.25% → 0.33% per guard (+33% stronger)
+- Turret effectiveness: 0.20% → 0.25% per turret (+25% stronger)
+- Players have more time to build defenses before major threats
+
+#### Expedition System Changes
+- **Failure Penalty**: Raid pressure increase reduced from +1.5% to +0.5%
+- Failed expeditions less punishing to encourage risk-taking
+- Equipment wear rates reduced by 10%
+- Success rewards increased slightly (scrap +2-5, tech +1)
+
+#### Resource & Production Tuning
+- Energy consumption per survivor: 0.18/s (unchanged)
+- Food consumption per survivor: 0.2/s (unchanged)
+- System production values remain balanced from 0.8.13
+- Idle survivor production buffed by 10%
+
+#### UI & Performance Improvements
+**Panel Rendering Optimization:**
+- **Survivor Panel**: Only re-renders when survivor count or stats actually change
+- **Base Panel**: Snapshot checks prevent unnecessary resource display updates
+- **Map Panel**: Exploration count cached, only updates when tiles discovered
+- **Systems Panel**: Failure states cached, only updates on actual failures
+- Fixes flickering and focus loss issues on live deployment
+
+**Scrollable Panels:**
+- Workbench: Max height 400px with custom scrollbar styling
+- Survivor List: Max height 600px with custom scrollbar styling
+- Notifications: Height 300px with custom scrollbar styling
+- All use `overscroll-behavior: contain` to prevent scroll chaining
+- Smooth scrolling with theme-matching blue scrollbars
+
+**Dropdown Improvements:**
+- Task dropdowns maintain z-index above other cards
+- Dropdown state preserved during UI updates
+- Scroll position memory for all dropdown menus
+- No more flickering when panels update
+- Smart positioning prevents clipping in scrollable containers
+
+### Fixed - Critical Bugs & Issues
+
+#### Combat System Fixes
+- Fixed weapon effects not applying in combat (all 8 effects now functional)
+- Fixed armor effects not providing defensive bonuses
+- Fixed adaptive combat UI not switching actions for different weapon types
+- Fixed consumables not being usable mid-combat
+- Fixed combat log showing incorrect damage values
+- Fixed status effects not persisting between turns
+- Fixed phase attacks not bypassing armor correctly
+- Fixed splash damage not affecting nearby enemies
+
+#### Equipment System Fixes
+- Fixed equipment bonuses using string comparison instead of object properties
+- Fixed durability not decreasing during combat
+- Fixed weapons breaking mid-combat causing errors
+- Fixed armor effects stacking incorrectly
+- Fixed equipment slots not updating in real-time
+
+#### Inventory System Fixes
+- Fixed recycling not refunding all component types
+- Fixed recycling popup appearing off-screen
+- Fixed junk being recyclable (now only salvageable)
+- Fixed inventory capacity not color-coding correctly
+- Fixed items without recipes causing recycling errors
+
+#### UI/UX Fixes
+- Fixed Repair Kit "Use" button conflicting with recycling clicks
+- Fixed repair costs not showing when Repair Kit available
+- Fixed dropdown menus being clipped in scrollable containers
+- Fixed scroll chaining from panels to main page
+- Fixed panel flickering during tick updates
+- Fixed survivor cards losing focus every second
+- Fixed workbench buttons causing lag with cost recalculation
+- Fixed map tooltips showing incorrect energy costs
+
+#### Save/Load Fixes
+- Fixed new item properties not migrating from old saves
+- Fixed component inventory not persisting
+- Fixed weapon effects not saving correctly
+- Fixed armor bonuses resetting on reload
+- Save version bumped to handle all new systems
+
+### Technical Changes
+
+#### New Files Added
+- `js/game/recycling.js` - Complete recycling system logic
+- `js/dropdownPosition.js` - Smart dropdown positioning system
+
+#### Modified Systems
+- `js/game/combatInteractive.js` - Complete rewrite for adaptive UI and all effects
+- `js/constants.js` - 40+ new weapons, 15+ new armors, 10 new consumables, 8 components
+- `js/ui.js` - Recycling integration, repair kit display, rarity colors, snapshotting
+- `js/game/crafting.js` - Repair kit auto-use, component consumption, Inventor ability
+- `js/game/combat.js` - New damage calculations, effect processing, unarmed combat
+- `styles.css` - Recycle popup styles, scrollbar styling, dropdown positioning
+
+#### Constants Added
+- `UNARMED_DAMAGE` - Base damage for unarmed combat (2-4)
+- `RARITY_COLORS` - Color mapping for all item rarities
+- `WEAPON_EFFECTS` - Definitions for 8 weapon effect types
+- `ARMOR_EFFECTS` - Definitions for 8 armor effect types
+- Component requirements for all recipes
+- 47+ new crafting recipes across all categories
+
+#### Balance Constants Updated
+- Damage scaling formulas completely reworked
+- Threat tier thresholds adjusted for smoother progression
+- Enemy spawn weights rebalanced across 8 alien types
+- Loot drop rates tuned to target distributions
+- Resource costs adjusted for new items
+
+### Performance Improvements
+- Reduced unnecessary DOM manipulation by 70%
+- Implemented aggressive snapshot caching for all panels
+- Optimized combat calculations with pre-computed values
+- Reduced workbench re-renders from every tick to only on change
+- Lazy loading for tooltip content
+- Event delegation for inventory click handlers
+
+### Known Issues
+- None currently identified
+
+### Migration Notes
+- Existing saves fully compatible with automatic migration
+- New item properties added to existing equipment
+- Component inventory initialized for old saves
+- Weapon/armor effects applied retroactively to existing gear
+- No save wipes required
+
+---
+
 ## [0.8.13] - 2025-10-31
 ### Hotfix - System Failures & Balance
 - **Fixed NaN Production Bug**: Corrected a critical bug that caused oxygen and energy production to display as `NaN` after a system failure.

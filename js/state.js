@@ -20,7 +20,7 @@ let state = {
   explored: new Set(),
   inventory: [], // Changed to an array to support item durability
   nextItemId: 1,
-  inventoryCapacity: 20, // 0.8.1 - Base carry capacity
+  inventoryCapacity: 30, // 0.9.0 - Increased from 20 to 30 for better early game
   equipment: { turrets: 0, bulkhead: 0 },
   systems: { filter: 0, generator: 0, turret: 0 },
   systemFailures: [], // 0.8.1 - Track system failures
@@ -39,6 +39,10 @@ let state = {
   // 0.8.9 - track highest tier reached (becomes permanent floor)
   highestThreatTier: 0,  // index into BALANCE.THREAT_TIERS
   highestRaidTier: 0,    // index into BALANCE.RAID_TIERS
+  // 0.9.0 - Endgame escalation system (activates at 100% threat)
+  escalationLevel: 0,    // Increments past 100% threat for endless difficulty scaling
+  lastEscalationTime: 0, // Timestamp for time-based escalation
+  threatLocked: false,   // Once at 100%, threat cannot decrease
   missions: [], // active expeditions
   timeNow: Date.now(),
   gameOver: false, // 0.8.10 - Track game over state to prevent respawn on reload
@@ -48,7 +52,7 @@ let state = {
 let activeTaskDropdownId = null;
 // preserve per-dropdown scroll position between renders
 const activeTaskDropdownScroll = {};
-let lastRenderedSurvivors = {};
+let lastRenderedSurvivors = null;
 let autoSaveCounter = 0;
 let activeDropdown = null;
 // 0.8.8 - selectedExplorerId and selectedExpeditionSurvivorId moved to state for persistence

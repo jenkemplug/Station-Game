@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Derelict Station — Expanded Idle</title>
-  <link rel="stylesheet" href="styles.css?v=0.8.11">
+  <link rel="stylesheet" href="styles.css?v=0.9.0">
 </head>
 <body>
 <div class="wrap">
@@ -62,7 +62,7 @@
           <div class="stat-block"><div>O₂ Filter</div><div id="sys-filter">Level 0</div></div>
           <div class="stat-block"><div>Generator</div><div id="sys-generator">Level 0</div></div>
           <div class="stat-block"><div>Turrets</div><div id="sys-turret">Offline</div></div>
-          <div style="display:flex;gap:6px;margin-top:8px">
+          <div style="display:flex;gap:6px;margin-top:48px;justify-content:center">
             <button id="btnUpgradeFilter">Upgrade Filter</button>
             <button id="btnUpgradeGen">Upgrade Generator</button>
             <button id="btnBuildTurret">Build Turret</button>
@@ -97,14 +97,34 @@
         </div>
       </div>
       <!-- This space intentionally left blank -->
-      <div class="panel" style="flex:1;">
+      <div id="threatBasePanel" class="panel" style="flex:1;">
         <strong style="color:var(--accent)">Threats & Base</strong>
         <div class="small" style="margin-top:6px">Manage guard duty and defenses.</div>
         <div style="margin-top:8px">
-          <div>Threat: <span id="threatLevel">Low</span></div>
-          <div>Base Integrity: <span id="baseIntegrity">100%</span></div>
-          <div>Raid Chance (per min): <span id="raidChance">0%</span></div>
-          <div id="raidCooldownRow" class="small" style="display:none;margin-top:4px">Cooldown: <span id="raidCooldown">--:--</span></div>
+          <div id="baseIntegritySection" style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;">
+              <span>Base Integrity:</span>
+              <span id="baseIntegrity" style="font-weight:bold;">100%</span>
+            </div>
+            <div style="width:100%;height:12px;background:#333;border-radius:6px;margin-top:4px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);">
+              <div id="baseIntegrityBar" style="width:100%;height:100%;background:#4ade80;transition:width 0.3s, background 0.3s;border-radius:6px;"></div>
+            </div>
+            <button id="btnRepairBase" style="margin-top:6px;font-size:12px;padding:4px 8px;width:100%;">Repair Base</button>
+          </div>
+          <div class="stats-grid">
+            <div>Threat: <span id="threatLevel">Low</span></div>
+            <div id="escalationRow" style="display:none;color:#ff6b6b;font-weight:bold">
+              Escalation Level: <span id="escalationLevel">0</span>
+            </div>
+            <div>Raid Chance (per min): <span id="raidChance">0%</span></div>
+            <div id="raidCooldownRow" class="small" style="display:none;">Cooldown: <span id="raidCooldown">--:--</span></div>
+            <div>Aliens Killed: <span id="alienKills">0</span></div>
+            <div>Active Guards: <span id="activeGuards">0</span></div>
+            <div>Total Survivors: <span id="totalSurvivors">0</span></div>
+            <div>Active Expeditions: <span id="activeExpeditions">0</span></div>
+            <div>Inventory: <span id="inventoryUsage">0/20</span></div>
+            <div>Explored Tiles: <span id="exploredTiles">0</span></div>
+          </div>
         </div>
       </div>
     </div>
@@ -123,18 +143,22 @@
       <div id="survivorList"></div>
     </div>
     <div class="panel">
-      <strong style="color:var(--accent)">Inventory</strong> <span id="inventoryCapacity" class="small" style="color:var(--muted)"></span>
-      <div class="inventory" id="inventory" style="margin-top:8px"></div>
-      <div style="margin-top:8px" class="small">Tech: <span id="statTech">0</span> • Ammo: <span id="statAmmo">0</span></div>
-      <div style="margin-top:10px">
-        <button id="btnAutoSalvage">Salvage</button>
-        <button id="btnDumpJunk">Discard</button>
+      <div style="flex-shrink:0;">
+        <strong style="color:var(--accent)">Inventory</strong> <span id="inventoryCapacity" class="small" style="color:var(--muted)"></span>
+      </div>
+      <div class="inventory scrollable-panel" id="inventory" style="margin-top:8px;max-height:320px;overflow-y:auto;"></div>
+      <div style="flex-shrink:0;">
+        <div style="margin-top:8px" class="small">Tech: <span id="statTech">0</span> • Ammo: <span id="statAmmo">0</span></div>
+        <div style="margin-top:10px">
+          <button id="btnAutoSalvage">Salvage Junk</button>
+          <button id="btnRecycleAll">Recycle All Items</button>
+        </div>
       </div>
     </div>
   </aside>
 
   <footer>
-    <div>Version 0.8.13 — Advanced Systems</div>
+    <div>Version 0.9.0 — Combat & Systems Polish</div>
     <div>Autosave every 15s • Offline progress supported • Press Ctrl+D for debug panel</div>
   </footer>
 </div>
@@ -143,15 +167,17 @@
 <div id="debugPanel" class="debug-panel" style="display:none;">
   <div class="debug-content">
     <div class="debug-header">
-      <h2>Debug Panel</h2>
-      <button id="btnCloseDebug" class="debug-close">✕</button>
+      <h2>🛠️ Debug Panel</h2>
+      <button id="btnCloseDebug" class="debug-close">✕ Close</button>
     </div>
     
+    <div class="debug-body">
+    
     <div class="debug-section">
-      <h3>Add Resources</h3>
+      <h3>💰 Resources</h3>
       <div class="debug-grid">
         <button onclick="debugAddResource('oxygen', 100)">+100 Oxygen</button>
-                                                        <button onclick="debugAddResource('food', 100)">+100 Food</button>
+        <button onclick="debugAddResource('food', 100)">+100 Food</button>
         <button onclick="debugAddResource('energy', 100)">+100 Energy</button>
         <button onclick="debugAddResource('scrap', 100)">+100 Scrap</button>
         <button onclick="debugAddResource('tech', 10)">+10 Tech</button>
@@ -160,42 +186,15 @@
     </div>
 
     <div class="debug-section">
-      <h3>Add Equipment</h3>
-      <div class="debug-grid">
-        <button onclick="debugAddItem('rifle')">Pulse Rifle</button>
-        <button onclick="debugAddItem('shotgun')">Shotgun</button>
-        <button onclick="debugAddItem('armor')">Light Armor</button>
-        <button onclick="debugAddItem('heavyArmor')">Heavy Armor</button>
-        <button onclick="debugAddItem('hazmatSuit')">Hazmat Suit</button>
-        <button onclick="debugAddItem('medkit')">Medkit</button>
-      </div>
-    </div>
-
-    <div class="debug-section">
-      <h3>Survivor Management</h3>
-      <div class="debug-grid">
-        <button onclick="debugRecruitSurvivor()">Recruit Survivor (Free)</button>
-        <button onclick="debugHealAll()">Heal All Survivors</button>
-        <button onclick="debugMaxMorale()">Max All Morale</button>
-        <button onclick="debugLevelUp()">Level Up All Survivors</button>
-      </div>
-    </div>
-
-    <div class="debug-section">
-      <h3>Map & Exploration</h3>
-      <div class="debug-grid">
-        <button onclick="debugRevealMap()">Reveal All Tiles</button>
-        <button onclick="debugSpawnAliens()">Spawn Aliens (Random)</button>
-        <button onclick="debugClearAliens()">Clear All Aliens</button>
-        <button onclick="debugAddHazards()">Add Hazard Rooms</button>
-      </div>
-    </div>
-
-    <div class="debug-section">
-      <h3>Systems & Base</h3>
+      <h3>🏭 Systems & Base</h3>
       <div class="debug-grid">
         <button onclick="debugUpgradeSystems()">Upgrade All Systems</button>
         <button onclick="debugResetThreat()">Reset Threat</button>
+        <button onclick="debugRaiseThreat()">Raise Threat (+10%)</button>
+        <button onclick="debugLockThreat()">Lock Threat (100%)</button>
+        <button onclick="debugRaiseEscalation()">Raise Escalation (+1)</button>
+        <button onclick="debugResetRaidChance()">Reset Raid Chance</button>
+        <button onclick="debugRaiseRaidChance()">Raise Raid Chance (+1%)</button>
         <button onclick="debugRepairBase()">Repair Base (100%)</button>
         <button onclick="debugTriggerRaid()">Trigger Raid</button>
         <button onclick="debugFailSystem('filter')">Fail Filter</button>
@@ -205,41 +204,183 @@
     </div>
 
     <div class="debug-section">
-      <h3>Time Control</h3>
+      <h3>💊 Consumables & Components</h3>
+      
+      <h4>⚗️ Consumables</h4>
+      <div class="debug-grid">
+        <button onclick="debugAddItem('medkit')">Medkit</button>
+        <button onclick="debugAddItem('advanced_medkit')">Advanced Medkit</button>
+        <button onclick="debugAddItem('stimpack')">Stimpack</button>
+        <button onclick="debugAddItem('repair_kit')">Repair Kit</button>
+        <button onclick="debugAddItem('combat_drug')">Combat Drug</button>
+        <button onclick="debugAddItem('stun_grenade')">Stun Grenade</button>
+        <button onclick="debugAddItem('nanite_injector')">Nanite Injector</button>
+        <button onclick="debugAddItem('revival_kit')">Revival Kit</button>
+        <button onclick="debugAddItem('system_override')">System Override</button>
+        <button onclick="debugAddItem('stealth_field')">Stealth Field</button>
+      </div>
+      
+      <h4>🔧 Components</h4>
+      <div class="debug-grid">
+        <button onclick="debugAddItem('weaponPart')">Weapon Part</button>
+        <button onclick="debugAddItem('electronics')">Electronics</button>
+        <button onclick="debugAddItem('armor_plating')">Armor Plating</button>
+        <button onclick="debugAddItem('power_core')">Power Core</button>
+        <button onclick="debugAddItem('nano_material')">Nano-Material</button>
+        <button onclick="debugAddItem('advanced_component')">Advanced Component</button>
+        <button onclick="debugAddItem('quantum_core')">Quantum Core</button>
+        <button onclick="debugAddItem('alien_artifact')">Alien Artifact</button>
+      </div>
+      
+      <h4>🎨 Rarity Colors</h4>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;padding:8px;background:rgba(0,0,0,0.2);border-radius:4px">
+        <span style="color:var(--rarity-common)">Common</span>
+        <span style="color:var(--rarity-uncommon)">Uncommon</span>
+        <span style="color:var(--rarity-rare)">Rare</span>
+        <span style="color:var(--rarity-legendary)">LEGENDARY</span>
+      </div>
+    </div>
+
+    <div class="debug-section">
+      <h3>👥 Survivor Management</h3>
+      <div class="debug-grid">
+        <button onclick="debugRecruitSurvivor()">Recruit Survivor (Free)</button>
+        <button onclick="debugHealAll()">Heal All Survivors</button>
+        <button onclick="debugMaxMorale()">Max All Morale</button>
+        <button onclick="debugLevelUp()">Level Up All Survivors</button>
+      </div>
+    </div>
+
+    <div class="debug-section">
+      <h3>🗺️ Map & Exploration</h3>
+      <div class="debug-grid">
+        <button onclick="debugRevealMap()">Reveal All Tiles</button>
+        <button onclick="debugSpawnAliens()">Spawn Aliens (Random)</button>
+        <button onclick="debugClearAliens()">Clear All Aliens</button>
+        <button onclick="debugAddHazards()">Add Hazard Rooms</button>
+      </div>
+    </div>
+
+    <div class="debug-section">
+      <h3>⏱️ Time Control</h3>
       <div class="debug-grid">
         <button onclick="debugSkipTime(60)">Skip 1 Minute</button>
         <button onclick="debugSkipTime(300)">Skip 5 Minutes</button>
         <button onclick="debugSkipTime(3600)">Skip 1 Hour</button>
       </div>
     </div>
-  </div>
-</div>
+    
+    <div class="debug-section weapons-armor-section">
+      <h3>⚔️ Weapons & Armor</h3>
+      
+      <h4>🔪 Melee Weapons</h4>
+      <div class="debug-grid">
+        <button onclick="debugAddItem('makeshift_pipe')">Makeshift Pipe</button>
+        <button onclick="debugAddItem('sharpened_tool')">Sharpened Tool</button>
+        <button onclick="debugAddItem('crowbar')">Crowbar</button>
+        <button onclick="debugAddItem('combat_knife')">Combat Knife</button>
+        <button onclick="debugAddItem('stun_baton')">Stun Baton</button>
+        <button onclick="debugAddItem('reinforced_bat')">Reinforced Bat</button>
+        <button onclick="debugAddItem('plasma_blade')">Plasma Blade</button>
+        <button onclick="debugAddItem('shock_maul')">Shock Maul</button>
+        <button onclick="debugAddItem('nano_edge_katana')">Nano-Edge Katana</button>
+      </div>
+      
+      <h4>🔫 Pistols</h4>
+      <div class="debug-grid">
+        <button onclick="debugAddItem('scrap_pistol')">Scrap Pistol</button>
+        <button onclick="debugAddItem('old_revolver')">Old Revolver</button>
+        <button onclick="debugAddItem('laser_pistol')">Laser Pistol</button>
+        <button onclick="debugAddItem('heavy_pistol')">Heavy Pistol</button>
+        <button onclick="debugAddItem('plasma_pistol')">Plasma Pistol</button>
+        <button onclick="debugAddItem('smart_pistol')">Smart Pistol</button>
+        <button onclick="debugAddItem('void_pistol')">Void Pistol</button>
+      </div>
+      
+      <h4>🎯 Rifles</h4>
+      <div class="debug-grid">
+        <button onclick="debugAddItem('assault_rifle')">Assault Rifle</button>
+        <button onclick="debugAddItem('scoped_rifle')">Scoped Rifle</button>
+        <button onclick="debugAddItem('pulse_rifle')">Pulse Rifle</button>
+        <button onclick="debugAddItem('plasma_rifle')">Plasma Rifle</button>
+        <button onclick="debugAddItem('gauss_rifle')">Gauss Rifle</button>
+        <button onclick="debugAddItem('quantum_rifle')">Quantum Rifle</button>
+      </div>
+      
+      <h4>💥 Shotguns</h4>
+      <div class="debug-grid">
+        <button onclick="debugAddItem('pump_shotgun')">Pump Shotgun</button>
+        <button onclick="debugAddItem('combat_shotgun')">Combat Shotgun</button>
+        <button onclick="debugAddItem('plasma_shotgun')">Plasma Shotgun</button>
+        <button onclick="debugAddItem('disintegrator_cannon')">Disintegrator</button>
+      </div>
+      
+      <h4>🔥 Heavy Weapons</h4>
+      <div class="debug-grid">
+        <button onclick="debugAddItem('light_machine_gun')">LMG</button>
+        <button onclick="debugAddItem('grenade_launcher')">Grenade Launcher</button>
+        <button onclick="debugAddItem('minigun')">Minigun</button>
+        <button onclick="debugAddItem('railgun')">Railgun</button>
+      </div>
+      
+      <h4>🛡️ Light Armor</h4>
+      <div class="debug-grid">
+        <button onclick="debugAddItem('scrap_vest')">Scrap Vest</button>
+        <button onclick="debugAddItem('padded_suit')">Padded Suit</button>
+        <button onclick="debugAddItem('light_armor')">Light Armor</button>
+        <button onclick="debugAddItem('tactical_vest')">Tactical Vest</button>
+        <button onclick="debugAddItem('reinforced_plating')">Reinforced Plating</button>
+        <button onclick="debugAddItem('composite_armor')">Composite Armor</button>
+        <button onclick="debugAddItem('stealth_suit')">Stealth Suit</button>
+        <button onclick="debugAddItem('power_armor_frame')">Power Armor Frame</button>
+        <button onclick="debugAddItem('thermal_suit')">Thermal Suit</button>
+        <button onclick="debugAddItem('nano_weave_armor')">Nano-Weave</button>
+        <button onclick="debugAddItem('shield_suit')">Shield Suit</button>
+        <button onclick="debugAddItem('regenerative_armor')">Regenerative Armor</button>
+      </div>
+      
+      <h4>🛡️ Heavy Armor</h4>
+      <div class="debug-grid">
+        <button onclick="debugAddItem('heavy_armor')">Heavy Armor</button>
+        <button onclick="debugAddItem('titan_armor')">Titan Armor</button>
+        <button onclick="debugAddItem('void_suit')">Void Suit</button>
+      </div>
+      
+      <h4>☣️ Hazmat Suits</h4>
+      <div class="debug-grid">
+        <button onclick="debugAddItem('hazmat_suit')">Hazmat Suit</button>
+      </div>
+    </div>
+    
+    </div> <!-- End debug-body -->
+  </div> <!-- End debug-content -->
+</div> <!-- End debug-panel -->
 
-<script src="js/constants.js?v=0.8.11"></script>
-<script src="js/state.js?v=0.8.11"></script>
-<script src="js/utils.js?v=0.8.11"></script>
-<script src="js/names.js?v=0.8.11"></script>
-<script src="js/map.js?v=0.8.11"></script>
-<script src="js/ui.js?v=0.8.11"></script>
+<script src="js/constants.js?v=0.9.0"></script>
+<script src="js/state.js?v=0.9.0"></script>
+<script src="js/utils.js?v=0.9.0"></script>
+<script src="js/names.js?v=0.9.0"></script>
+<script src="js/map.js?v=0.9.0"></script>
+<script src="js/ui.js?v=0.9.0"></script>
   <!-- Modular game system -->
-  <script src="js/game/save.js?v=0.8.11"></script>
-  <script src="js/game/survivor.js?v=0.8.11"></script>
-  <script src="js/game/combat.js?v=0.8.11"></script>
-  <script src="js/game/exploration.js?v=0.8.11"></script>
-  <script src="js/game/crafting.js?v=0.8.11"></script>
-  <script src="js/game/expedition.js?v=0.8.11"></script>
-  <script src="js/game/threat.js?v=0.8.11"></script>
-  <script src="js/game/tick.js?v=0.8.11"></script>
+  <script src="js/game/save.js?v=0.9.0"></script>
+  <script src="js/game/survivor.js?v=0.9.0"></script>
+  <script src="js/game/combat.js?v=0.9.0"></script>
+  <script src="js/game/exploration.js?v=0.9.0"></script>
+  <script src="js/game/crafting.js?v=0.9.0"></script>
+  <script src="js/game/expedition.js?v=0.9.0"></script>
+  <script src="js/game/threat.js?v=0.9.0"></script>
+  <script src="js/game/tick.js?v=0.9.0"></script>
   <!-- End modular game system -->
-<script src="js/debug.js?v=0.8.11"></script>
-<script src="js/main.js?v=0.8.11"></script>
+<script src="js/game/recycling.js?v=0.9.0"></script>
+<script src="js/debug.js?v=0.9.0"></script>
+<script src="js/main.js?v=0.9.0"></script>
 
 <!-- Interactive Combat Overlay -->
 <div id="combatOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-card">
     <div class="modal-header">
       <strong>Engagement</strong>
-      <button id="btnCloseCombat" class="danger">✕</button>
     </div>
     <div id="combatContent" class="combat-grid"></div>
     <div class="combat-actions">
@@ -267,6 +408,6 @@
   </div>
 </div>
 <!-- Interactive combat logic -->
-<script src="js/game/combatInteractive.js?v=0.8.11"></script>
+<script src="js/game/combatInteractive.js?v=0.9.0"></script>
 </body>
 </html>

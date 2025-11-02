@@ -28,20 +28,38 @@ function craft(item) {
   const scrapCost = Math.ceil((r.scrap || 0) * costMult);
   const energyCost = Math.ceil((r.energy || 0) * costMult);
   const techCost = Math.ceil((r.tech || 0) * costMult);
-  const weaponPartCost = r.weaponPart || 0;
   
-  // Check for weapon parts in inventory
-  const weaponPartsInInventory = state.inventory.filter(i => i.type === 'weaponPart').length;
+  // 0.9.0 - Check for component items in inventory (not affected by cost reduction)
+  const componentTypes = ['weaponPart', 'electronics', 'armor_plating', 'power_core', 'nano_material', 'advanced_component', 'quantum_core', 'alien_artifact'];
+  const componentCosts = {};
+  for (const compType of componentTypes) {
+    componentCosts[compType] = r[compType] || 0;
+  }
+  
+  // Count components in inventory
+  const componentCounts = {};
+  for (const compType of componentTypes) {
+    componentCounts[compType] = state.inventory.filter(i => i.type === 'component' && i.subtype === compType).length;
+  }
 
-  if (state.resources.scrap < scrapCost || state.resources.energy < energyCost || state.resources.tech < techCost || weaponPartsInInventory < weaponPartCost) {
-    appendLog('Insufficient resources for ' + item + '.');
+  // Check if we have enough resources and components
+  if (state.resources.scrap < scrapCost || state.resources.energy < energyCost || state.resources.tech < techCost) {
+    appendLog('Insufficient resources for ' + (r.name || item) + '.');
     return;
   }
   
-  // Consume weapon parts
-  if (weaponPartCost > 0) {
-    for (let i = 0; i < weaponPartCost; i++) {
-      const partIndex = state.inventory.findIndex(invItem => invItem.type === 'weaponPart');
+  // Check components
+  for (const compType of componentTypes) {
+    if (componentCounts[compType] < componentCosts[compType]) {
+      appendLog(`Insufficient components for ${r.name || item}. Need ${componentCosts[compType]} ${compType}.`);
+      return;
+    }
+  }
+  
+  // Consume components
+  for (const compType of componentTypes) {
+    for (let i = 0; i < componentCosts[compType]; i++) {
+      const partIndex = state.inventory.findIndex(invItem => invItem.type === 'component' && invItem.subtype === compType);
       if (partIndex !== -1) {
         state.inventory.splice(partIndex, 1);
       }
@@ -64,17 +82,28 @@ function craft(item) {
   
   r.result();
   
-  // 0.8.0 - Inventor: 30% chance to craft bonus rare component when crafting equipment
+  // 0.9.0 - Inventor: 30% chance to create Advanced Component when crafting equipment
   const engineers = state.survivors.filter(s => !s.onMission && s.class === 'engineer');
   const hasInventor = engineers.some(e => hasAbility(e, 'inventor'));
-  if (hasInventor && (item === 'rifle' || item === 'shotgun' || item === 'armor' || item === 'heavyArmor' || item === 'hazmatSuit')) {
+  const isEquipmentCraft = ['rifle', 'shotgun', 'armor', 'heavyArmor', 'hazmatSuit', 
+    'combat_knife', 'stun_baton', 'reinforced_bat', 'laser_pistol', 'heavy_pistol',
+    'assault_rifle', 'scoped_rifle', 'pump_shotgun', 'light_armor', 'tactical_vest',
+    'reinforced_plating', 'plasma_blade', 'shock_maul', 'plasma_pistol', 'smart_pistol',
+    'pulse_rifle', 'plasma_rifle', 'combat_shotgun', 'plasma_shotgun', 'light_machine_gun',
+    'grenade_launcher', 'heavy_armor', 'composite_armor', 'stealth_suit', 'power_armor_frame',
+    'thermal_suit', 'nano_edge_katana', 'void_pistol', 'gauss_rifle', 'quantum_rifle',
+    'disintegrator_cannon', 'minigun', 'railgun', 'nano_weave_armor', 'titan_armor',
+    'shield_suit', 'void_suit', 'regenerative_armor'].includes(item);
+  
+  if (hasInventor && isEquipmentCraft) {
     if (Math.random() < 0.30) {
-      // Find weapon parts in inventory
-      const weaponPartIndex = state.inventory.findIndex(i => i.type === 'weaponPart');
+      // Find a weapon part in inventory to consume
+      const weaponPartIndex = state.inventory.findIndex(i => i.type === 'component' && i.subtype === 'weaponPart');
       if (weaponPartIndex !== -1) {
         state.inventory.splice(weaponPartIndex, 1); // Consume the part
-        state.resources.tech += rand(2, 4); // Grant tech bonus
-        appendLog('🔧 Inventor: Rare component extracted (+2-4 tech)!');
+        const bonusTech = rand(2, 4);
+        state.resources.tech += bonusTech;
+        appendLog(`🔧 Inventor: Extracted ${bonusTech} bonus Tech from spare parts!`);
       }
     }
   }
@@ -173,7 +202,23 @@ function repairSystem(systemType) {
     return;
   }
   
-  // Check resources
+  // 0.9.0 - Check for Repair Kit and use it if available
+  const repairKitIdx = state.inventory.findIndex(i => 
+    i.type === 'consumable' && i.subtype === 'repair_kit'
+  );
+  
+  if (repairKitIdx !== -1) {
+    // Use Repair Kit for free repair
+    state.inventory.splice(repairKitIdx, 1);
+    state.systemFailures.splice(failureIndex, 1);
+    const displayName = systemType.charAt(0).toUpperCase() + systemType.slice(1);
+    appendLog(`🔧 Used Repair Kit to restore ${displayName} system!`);
+    updateUI();
+    saveGame('action');
+    return;
+  }
+  
+  // Check resources (if no Repair Kit)
   if (state.resources.scrap < costs.scrap || state.resources.energy < costs.energy) {
     appendLog(`Need ${costs.scrap} scrap and ${costs.energy} energy to repair ${systemType}.`);
     return;
@@ -182,10 +227,54 @@ function repairSystem(systemType) {
   // Deduct costs and restore system
   state.resources.scrap -= costs.scrap;
   state.resources.energy -= costs.energy;
-  state.systems[systemType]++;
+  // Remove the failure (don't level up the system)
   state.systemFailures.splice(failureIndex, 1);
   
   appendLog(`✅ ${systemType.charAt(0).toUpperCase() + systemType.slice(1)} system repaired!`);
+  
+  updateUI();
+  saveGame('action');
+}
+
+// 0.9.0 - Repair base integrity
+function repairBase() {
+  if (state.baseIntegrity >= 100) {
+    appendLog('Base integrity is already at 100%.');
+    return;
+  }
+  
+  const missingIntegrity = 100 - state.baseIntegrity;
+  let scrapCost = Math.ceil(BALANCE.BASE_REPAIR_SCRAP_COST * (missingIntegrity / 100));
+  let energyCost = Math.ceil(BALANCE.BASE_REPAIR_ENERGY_COST * (missingIntegrity / 100));
+  
+  // Engineer class bonuses reduce repair costs
+  let costReduction = 0;
+  state.survivors.forEach(s => {
+    if (s.classBonuses && s.classBonuses.repair) {
+      costReduction += (1 - s.classBonuses.repair); // e.g., 0.85 -> 0.15 reduction
+    }
+    if (hasAbility(s, 'efficient')) {
+      costReduction += 0.15;
+    }
+  });
+  
+  scrapCost = Math.ceil(scrapCost * (1 - Math.min(0.5, costReduction))); // Cap at 50% reduction
+  energyCost = Math.ceil(energyCost * (1 - Math.min(0.5, costReduction)));
+  
+  // Check resources
+  if (state.resources.scrap < scrapCost || state.resources.energy < energyCost) {
+    appendLog(`Need ${scrapCost} scrap and ${energyCost} energy to repair base to 100%.`);
+    return;
+  }
+  
+  // Deduct costs and repair
+  state.resources.scrap -= scrapCost;
+  state.resources.energy -= energyCost;
+  const oldIntegrity = Math.floor(state.baseIntegrity);
+  state.baseIntegrity = 100;
+  
+  appendLog(`🔧 Base repaired from ${oldIntegrity}% to 100%! Cost: ${scrapCost} scrap, ${energyCost} energy.`);
+  
   updateUI();
   saveGame('action');
 }
@@ -197,7 +286,11 @@ function autoSalvage() {
     return;
   }
   
-  let baseScrap = junkItems.length * rand(2, 4);
+  // 0.9.0 - Roll scrap for each individual piece of junk
+  let baseScrap = 0;
+  for (let i = 0; i < junkItems.length; i++) {
+    baseScrap += rand(2, 4);
+  }
   
   // 0.8.13 - Apply Scavenger scrap bonuses to salvaging (additive)
   const activeScavengers = state.survivors.filter(s => !s.onMission && s.class === 'scavenger');
@@ -227,23 +320,20 @@ function repairItem(itemId) {
 
   let baseCost = Math.ceil((item.maxDurability - item.durability) * BALANCE.REPAIR_COST_PER_POINT);
   
-  // 0.8.11 - Engineer class bonus: repair cost reduction (additive stacking)
-  const activeEngineers = state.survivors.filter(s => !s.onMission && s.class === 'engineer');
-  let costReductionAdd = 0;
+  // Engineer class and ability cost reduction
+  let costReduction = 0;
+  const engineers = state.survivors.filter(s => !s.onMission && s.class === 'engineer');
   
-  activeEngineers.forEach(eng => {
+  engineers.forEach(eng => {
     if (eng.classBonuses && eng.classBonuses.repair) {
-      // classBonuses.repair is stored as multiplier (0.75-0.85), convert to reduction
-      costReductionAdd += (1 - eng.classBonuses.repair); // e.g., 0.80 -> 0.20 (20% reduction)
+      costReduction += (1 - eng.classBonuses.repair);
+    }
+    if (hasAbility(eng, 'quickfix')) {
+      costReduction += 0.20; // Quick Fix ability
     }
   });
   
-  // 0.8.11 - Engineer Quick Fix ability: -20% repair costs (additive stacking)
-  const quickFixCount = state.survivors.filter(s => !s.onMission && hasAbility(s, 'quickfix')).length;
-  costReductionAdd += quickFixCount * 0.20;
-  
-  // Apply cost reduction (cap at 90% reduction)
-  const costMult = Math.max(0.1, 1 - costReductionAdd);
+  const costMult = Math.max(0.1, 1 - costReduction);
   const repairCost = Math.ceil(baseCost * costMult);
   
   if (state.resources.scrap < repairCost) {
@@ -253,6 +343,7 @@ function repairItem(itemId) {
 
   state.resources.scrap -= repairCost;
   item.durability = item.maxDurability;
-  appendLog(`${item.name} repaired for ${repairCost} scrap.`);
+  const coloredName = colorItemName(item.name, item.rarity);
+  appendLog(`${coloredName} repaired for ${repairCost} scrap.`);
   updateUI();
 }

@@ -70,7 +70,7 @@ function initTiles() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '1.10.3', // 0.8.9 - Added tier tracking
+  _version: '1.11.0', // 0.9.0 - Added escalation system (escalationLevel, lastEscalationTime, threatLocked)
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
@@ -100,6 +100,9 @@ function makeSaveSnapshot() {
   selectedExpeditionSurvivorId: state.selectedExpeditionSurvivorId,
   highestThreatTier: state.highestThreatTier,
   highestRaidTier: state.highestRaidTier,
+  escalationLevel: state.escalationLevel,
+  lastEscalationTime: state.lastEscalationTime,
+  threatLocked: state.threatLocked,
     missions: state.missions,
     timeNow: Date.now()
   };
@@ -157,7 +160,7 @@ function loadGame() {
           state.inventory = []; // Reset inventory for old save formats
         }
         state.nextItemId = parsed.nextItemId || 1;
-        state.inventoryCapacity = Number(parsed.inventoryCapacity) || 20;
+        state.inventoryCapacity = Number(parsed.inventoryCapacity) || 30;
 
         state.equipment = Object.assign({}, state.equipment, parsed.equipment || {});
         state.systems = Object.assign({}, state.systems, parsed.systems || {});
@@ -181,6 +184,11 @@ function loadGame() {
         // 0.8.9 - Restore tier tracking
         state.highestThreatTier = Number(parsed.highestThreatTier) || 0;
         state.highestRaidTier = Number(parsed.highestRaidTier) || 0;
+        
+        // 0.9.0 - Restore escalation system
+        state.escalationLevel = Number(parsed.escalationLevel) || 0;
+        state.lastEscalationTime = Number(parsed.lastEscalationTime) || 0;
+        state.threatLocked = !!parsed.threatLocked;
 
         // sanitize numeric resource fields
         for (const k of ['oxygen', 'food', 'energy', 'scrap', 'tech', 'ammo']) {
@@ -200,7 +208,7 @@ function loadGame() {
             skill: Number(s.skill) || 1,
             hp: Number(s.hp) || 1,
             maxHp: Number(s.maxHp) || 1,
-            morale: Number(s.morale) || 0,
+            morale: Number(s.morale) || 60, // 0.9.0 - Default to 60 (Stable tier) for migrated saves
             role: s.role || 'Idle',
             task: s.task || 'Idle',
             injured: !!s.injured,
@@ -247,8 +255,7 @@ function loadGame() {
         // ensure tiles exist
         if (!state.tiles || state.tiles.length === 0) initTiles();
 
-  state.isNewGame = false;
-  appendLog('[Loaded save]');
+        appendLog('[Loaded save]');
         handleOffline();
         return;
       }
@@ -258,7 +265,6 @@ function loadGame() {
     }
   }
   // 0.8.10 - Reset to defaults for new game
-  state.isNewGame = true;
   state.highestThreatTier = 0;
   state.highestRaidTier = 0;
   initTiles();

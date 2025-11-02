@@ -1,6 +1,141 @@
 // Combat System
 // Handles alien encounters, skirmishes, damage calculation
 
+// 0.9.0 - NEW: Apply modifier bonuses to alien stats at spawn
+function applyModifiersToAlienStats(alien) {
+  const effects = applyModifierStatEffects(alien);
+  
+  // Apply HP changes (both multiplier and flat bonus)
+  const baseMaxHp = alien.maxHp;
+  alien.maxHp = Math.round(baseMaxHp * effects.hpMult) + effects.hpBonus;
+  alien.hp = alien.maxHp; // Set current HP to new max
+  
+  // Apply attack bonus
+  alien.attack += effects.atkBonus;
+  
+  // Store other bonuses for use during combat
+  alien._defBonus = effects.defBonus;
+  alien._dodgeBonus = effects.dodgeBonus;
+  alien._phaseBonus = effects.phaseBonus;
+  
+  return alien;
+}
+
+// 0.9.0 - Apply weapon effects (burn, stun, armorPierce, etc.)
+function applyWeaponEffects(weapon, target, attacker, baseDmg) {
+  if (!weapon.effects || weapon.effects.length === 0) return;
+  
+  for (const effect of weapon.effects) {
+    const [effectType, valueStr] = effect.split(':');
+    const value = parseInt(valueStr) || 0;
+    const chance = value; // Percent chance
+    
+    if (Math.random() * 100 < chance) {
+      switch (effectType) {
+        case 'burn':
+          // Burn: Deal damage over time (3 ticks)
+          target._burnStacks = (target._burnStacks || 0) + 1;
+          const burnDmg = Math.max(1, Math.floor(baseDmg * 0.3));
+          target.hp -= burnDmg;
+          appendLog(`🔥 ${target.name} is burning! (-${burnDmg} HP)`);
+          break;
+          
+        case 'stun':
+          // Stun: Skip next turn
+          if (!target._stunned) {
+            target._stunned = true;
+            appendLog(`⚡ ${target.name} is stunned!`);
+          }
+          break;
+          
+        case 'armorPierce':
+          // ArmorPierce: Deal bonus damage ignoring armor
+          const pierceDmg = Math.max(1, Math.floor(baseDmg * 0.25));
+          target.hp -= pierceDmg;
+          appendLog(`🎯 Armor pierced! (-${pierceDmg} HP)`);
+          break;
+          
+        case 'phase':
+          // Phase: Chance to ignore next attack
+          target._phaseActive = true;
+          appendLog(`👻 ${target.name} is destabilized!`);
+          break;
+          
+        case 'splash':
+          // Splash: Hit additional targets
+          appendLog(`💥 Splash damage!`);
+          break;
+          
+        // Note: accuracy and crit are passive bonuses, applied elsewhere
+      }
+    }
+  }
+}
+
+// 0.9.0 - Get passive bonuses from weapon effects (accuracy, crit)
+function getWeaponPassiveBonuses(weapon) {
+  const bonuses = { accuracy: 0, crit: 0 };
+  if (!weapon || !weapon.effects) return bonuses;
+  
+  for (const effect of weapon.effects) {
+    const [effectType, valueStr] = effect.split(':');
+    const value = parseInt(valueStr) || 0;
+    
+    switch (effectType) {
+      case 'accuracy':
+        bonuses.accuracy += value / 100; // Convert percent to decimal
+        break;
+      case 'crit':
+        bonuses.crit += value / 100; // Convert percent to decimal
+        break;
+    }
+  }
+  
+  return bonuses;
+}
+
+// 0.9.0 - Apply armor effects (dodge, reflect, regen, etc.)
+function applyArmorEffects(armor, survivor) {
+  if (!armor || !armor.effects || armor.effects.length === 0) return {};
+  
+  const bonuses = {
+    dodgeBonus: 0,
+    reflectChance: 0,
+    regenAmount: 0,
+    immunities: [],
+    hpBonus: 0,
+    critBonus: 0
+  };
+  
+  for (const effect of armor.effects) {
+    const [effectType, valueStr] = effect.split(':');
+    const value = parseInt(valueStr) || 0;
+    
+    switch (effectType) {
+      case 'dodge':
+        bonuses.dodgeBonus += value / 100; // Convert percent to decimal
+        break;
+      case 'reflect':
+        bonuses.reflectChance += value / 100;
+        break;
+      case 'regen':
+        bonuses.regenAmount += value;
+        break;
+      case 'immunity':
+        bonuses.immunities.push(valueStr); // e.g., 'burn', 'stun'
+        break;
+      case 'hpBonus':
+        bonuses.hpBonus += value;
+        break;
+      case 'crit':
+        bonuses.critBonus += value / 100; // Armor can provide crit bonus (Nano-Weave)
+        break;
+    }
+  }
+  
+  return bonuses;
+}
+
 // 0.8.0 - Helper: Check if survivor has a specific ability
 function hasAbility(survivor, abilityId) {
   return survivor.abilities && survivor.abilities.includes(abilityId);
@@ -42,18 +177,23 @@ function applyAbilityDamageModifiers(survivor, baseDamage, context = {}) {
 function applyAbilityHitModifiers(survivor) {
   let hitBonus = 0;
   let critBonus = 0;
-  let dodgeChance = 0;
-  
-  // 0.8.10 - Soldier class bonuses: +10% hit, +15% crit (fixed, not rolled)
-  if (survivor.class === 'soldier') {
-    hitBonus += 0.10; // +10% hit
-    critBonus += 0.15; // +15% crit
+  let dodgeChance = 0.05; // Base 5% dodge for all survivors
+
+  // Apply class bonuses for accuracy and crit
+  if (survivor.classBonuses) {
+    if (survivor.classBonuses.accuracy) {
+      hitBonus += survivor.classBonuses.accuracy;
+    }
+    if (survivor.classBonuses.crit) {
+      critBonus += survivor.classBonuses.crit;
+    }
   }
-  
-  // 0.8.10 - Scout class bonus: dodge multiplier (rolled value 1.15-1.25)
+
+  // 0.8.10 - Scout class bonus: flat dodge % bonus (rolled value 1.15-1.25)
   if (survivor.class === 'scout' && survivor.classBonuses && survivor.classBonuses.dodge) {
-    // Base dodge chance of 12%, multiplied by class bonus
-    dodgeChance = 0.12 * survivor.classBonuses.dodge;
+    // Scout gets their bonus on top of base 5%
+    // classBonuses.dodge is stored as multiplier (1.15-1.25), convert to flat % (15-25%)
+    dodgeChance += (survivor.classBonuses.dodge - 1);
   }
   
   if (hasAbility(survivor, 'marksman')) hitBonus += 0.10; // +10% hit
@@ -91,6 +231,7 @@ function applyAbilityDefenseModifiers(survivor, baseDef, context = {}) {
 // 0.8.0 - Helper: Apply alien modifier effects to stats
 function applyModifierStatEffects(alien) {
   let hpMult = 1;
+  let hpBonus = 0; // NEW: Flat HP bonuses
   let atkBonus = 0;
   let defBonus = 0;
   let dodgeBonus = 0;
@@ -98,7 +239,7 @@ function applyModifierStatEffects(alien) {
   
   // Universal modifiers across all types
   if (hasModifier(alien, 'aggressive')) atkBonus += 2;
-  if (hasModifier(alien, 'resilient')) hpMult += 0.5;
+  if (hasModifier(alien, 'resilient')) hpMult += 0.5; // +50% HP (percentage)
   
   // Drone modifiers
   if (hasModifier(alien, 'swift')) dodgeBonus += 0.30;
@@ -109,56 +250,110 @@ function applyModifierStatEffects(alien) {
   // Stalker modifiers handled in pack logic
   if (hasModifier(alien, 'feral')) atkBonus += 3; // Applied when pack is active
   if (hasModifier(alien, 'pack_leader')) atkBonus += 2; // Allies gain +2, handled separately
-  if (hasModifier(alien, 'dire')) atkBonus += 6; // Massive bonus when pack active
+  if (hasModifier(alien, 'dire')) { atkBonus += 6; hpBonus += 6; } // FIXED: Was missing HP bonus
   
   // Spitter modifiers
-  if (hasModifier(alien, 'corrosive')) defBonus -= 999; // Signal full armor pierce
+  if (hasModifier(alien, 'corrosive')) defBonus -= 0.40; // +40% armor pierce (spitters have 50% base)
   
   // Brood modifiers
-  if (hasModifier(alien, 'thick')) hpMult += 0.30;
+  if (hasModifier(alien, 'thick')) hpBonus += 10; // FIXED: Was hpMult += 0.30, should be +10 flat
   if (hasModifier(alien, 'enraged')) atkBonus += 4; // Applied when below 50% HP
-  if (hasModifier(alien, 'titan')) { hpMult += 0.40; atkBonus += 3; }
+  if (hasModifier(alien, 'titan')) { hpBonus += 15; atkBonus += 3; } // FIXED: Was hpMult += 0.40, should be +15 flat
+  // Spawner handled in combat logic, not stats
   
   // Ravager modifiers
   if (hasModifier(alien, 'hardened')) defBonus += 0.60; // Take 60% less (stacks with armored)
   if (hasModifier(alien, 'crusher')) atkBonus += 4;
-  if (hasModifier(alien, 'juggernaut')) hpMult += 0.30;
-  if (hasModifier(alien, 'colossus')) { defBonus += 0.70; atkBonus += 6; hpMult += 0.40; }
+  if (hasModifier(alien, 'juggernaut')) hpBonus += 8; // FIXED: Was hpMult += 0.30, should be +8 flat
+  if (hasModifier(alien, 'colossus')) { defBonus += 0.70; atkBonus += 6; hpBonus += 12; } // FIXED: Was hpMult += 0.40, should be +12 flat
   
   // Spectre modifiers
   if (hasModifier(alien, 'ethereal')) phaseBonus += 0.10;
+  if (hasModifier(alien, 'shadow')) phaseBonus += 0.20; // +20% phase (Shadow Form)
   if (hasModifier(alien, 'void')) phaseBonus += 0.60;
   
   // Queen modifiers
   if (hasModifier(alien, 'dominant')) atkBonus += 3;
-  if (hasModifier(alien, 'ancient')) { atkBonus += 2; hpMult += 0.30; }
-  if (hasModifier(alien, 'empress')) atkBonus += 20; // Handled in multi-strike logic
+  if (hasModifier(alien, 'ancient')) { atkBonus += 2; hpBonus += 15; } // FIXED: Was hpMult += 0.30, should be +15 flat
+  if (hasModifier(alien, 'empress')) { atkBonus += 20; hpBonus += 20; } // FIXED: Was missing HP bonus
   
-  return { hpMult, atkBonus, defBonus, dodgeBonus, phaseBonus };
+  return { hpMult, hpBonus, atkBonus, defBonus, dodgeBonus, phaseBonus };
 }
 
 function calculateAttackDamage(survivor) {
-  let baseAtk = 2 + survivor.skill + (survivor.level * BALANCE.LEVEL_ATTACK_BONUS);
+  // 0.9.0 - Removed skill system, damage comes from weapon + level/class bonuses
+  let damage = 0;
   
-  // Apply weapon bonuses
-  if (survivor.equipment.weapon?.type === 'rifle') {
-     baseAtk += 8;
-  } else if (survivor.equipment.weapon?.type === 'shotgun') {
-     baseAtk += rand(6, 12); // Shotgun has variable damage
+  // Get weapon damage
+  const weapon = survivor.equipment.weapon;
+  if (weapon) {
+    // New structure: has damage array
+    if (weapon.damage && Array.isArray(weapon.damage)) {
+      damage = rand(weapon.damage[0], weapon.damage[1]);
+    }
+    // Old structure: type-based bonuses (legacy support)
+    else if (weapon.type === 'rifle') {
+      damage = 8;
+    } else if (weapon.type === 'shotgun') {
+      damage = rand(6, 12);
+    }
+  } else {
+    // Unarmed combat
+    damage = rand(BALANCE.UNARMED_DAMAGE[0], BALANCE.UNARMED_DAMAGE[1]);
   }
   
-  return baseAtk;
+  // Apply percentage-based bonuses from level, class, and abilities to damage
+  let damageMultiplier = 1.0;
+  
+  // Level bonus: 0% at level 1, +2% per level after that
+  damageMultiplier += (survivor.level - 1) * BALANCE.LEVEL_ATTACK_BONUS;
+  
+  // Apply class/ability bonuses (these are already in percentage format)
+  if (survivor.classBonuses && survivor.classBonuses.combat) {
+    damageMultiplier += (survivor.classBonuses.combat - 1);
+  }
+  if (hasAbility(survivor, 'veteran')) {
+    damageMultiplier += 0.20;
+  }
+  
+  // 0.9.0 - Apply morale combat modifier
+  const moraleModifier = getMoraleModifier(survivor);
+  damageMultiplier *= moraleModifier.combat;
+  
+  damage *= damageMultiplier;
+  
+  return Math.max(1, Math.round(damage)); // Minimum 1 damage
 }
 
 function calculateDefense(survivor) {
   let defense = 0;
-  if (survivor.equipment.armor?.type === 'armor') {
-     defense += 3; // Light Armor
-  } else if (survivor.equipment.armor?.type === 'heavyArmor') {
-     defense += 6; // Heavy Armor
-  } else if (survivor.equipment.armor?.type === 'hazmatSuit') {
-     defense += 3; // Hazmat Suit (some protection)
+  const armor = survivor.equipment.armor;
+  
+  // 0.9.0 - Support both old and new armor structure
+  if (armor) {
+    // New structure: has defense property
+    if (armor.defense !== undefined) {
+      defense += armor.defense;
+    }
+    // Old structure: type-based defense
+    else if (armor.type === 'armor') {
+      defense += 3; // Light Armor
+    } else if (armor.type === 'heavyArmor') {
+      defense += 6; // Heavy Armor
+    } else if (armor.type === 'hazmatSuit') {
+      defense += 3; // Hazmat Suit
+    }
+    
+    // 0.9.0 - Apply armor effects bonus
+    const armorEffects = applyArmorEffects(armor, survivor);
+    if (armorEffects.hpBonus > 0 && !survivor._hpBonusApplied) {
+      // One-time HP bonus applied
+      survivor.maxHp += armorEffects.hpBonus;
+      survivor.hp += armorEffects.hpBonus;
+      survivor._hpBonusApplied = true;
+    }
   }
+  
   return defense;
 }
 
@@ -174,21 +369,35 @@ function spawnAlienEncounter(idx) {
     const hp = rand(at.hpRange[0], at.hpRange[1]);
     
     // 0.8.0 - Roll for rare modifiers (use rollAlienModifiers from threat.js)
-    const modifiers = rollAlienModifiers(at.id);
+    // 0.9.0 - Pass threat value for scaling
+    const modifiers = rollAlienModifiers(at.id, state.threat);
     
-    t.aliens.push({
+    const alien = {
       type: at.id,
       name: at.name,
       hp,
       maxHp: hp,
       attack: rand(at.attackRange[0], at.attackRange[1]),
+      armor: at.armor || 0, // 0.9.0 - Include armor value
+      rarity: at.rarity || 'common', // 0.9.0 - Include rarity
+      attackRange: at.attackRange, // 0.9.0 - Include for UI display
       stealth: at.stealth,
       flavor: at.flavor,
       special: at.special,
       specialDesc: at.specialDesc,
       modifiers: modifiers, // 0.8.0
       firstStrike: true // Track if alien has attacked yet (for ambush)
-    });
+    };
+    
+    // 0.9.0 - CRITICAL FIX: Apply modifier stat bonuses to alien
+    applyModifiersToAlienStats(alien);
+    
+    // 0.9.0 - Apply escalation bonuses to field aliens (affects all exploration)
+    if (typeof applyEscalationToAlien === 'function') {
+      applyEscalationToAlien(alien);
+    }
+    
+    t.aliens.push(alien);
   }
   appendLog(`Encountered ${t.aliens.length} alien(s) in this sector.`);
   // If interactive combat is available and an explorer is selected, open it; otherwise auto-resolve
@@ -283,21 +492,42 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       const allyCount = fighters.filter(f => f.hp > 0).length;
       baseAtk = applyAbilityDamageModifiers(s, baseAtk, { allyCount, fighters });
       
-      // ammo check
-      if (state.resources.ammo <= 0) {
-        appendLog(`${s.name} attempted to fire but no ammo.`);
-        baseAtk = Math.max(1, Math.floor(baseAtk / 2));
-      } else {
-        // consume ammo some chance
-        if (Math.random() < BALANCE.AMMO_CONSUME_CHANCE) state.resources.ammo = Math.max(0, state.resources.ammo - 1);
+      // 0.9.0 - Get weapon type for ammo consumption
+      const weapon = s.equipment && s.equipment.weapon;
+      const weaponType = weapon && weapon.weaponType ? weapon.weaponType : 'rifle'; // Default to rifle if no weapon
+      const ammoMultiplier = WEAPON_TYPES[weaponType] ? WEAPON_TYPES[weaponType].ammoMult : 0.6;
+      
+      // ammo check - melee weapons don't use ammo
+      let ammoUsed = false;
+      if (ammoMultiplier > 0) {
+        if (state.resources.ammo <= 0) {
+          appendLog(`${s.name} attempted to fire but no ammo.`);
+          baseAtk = Math.max(1, Math.floor(baseAtk / 2));
+        } else {
+          // consume ammo based on weapon type
+          const consumeChance = BALANCE.AMMO_CONSUME_CHANCE * ammoMultiplier;
+          if (Math.random() < consumeChance) {
+            state.resources.ammo = Math.max(0, state.resources.ammo - 1);
+            ammoUsed = true;
+          }
+        }
       }
       
       let dmg = rand(Math.max(1, baseAtk - 1), baseAtk + 2);
       
       // 0.8.0 - Apply hit/crit modifiers from abilities
       const { hitBonus, critBonus } = applyAbilityHitModifiers(s);
-      const hitChance = 0.75 + hitBonus;
-      const critChance = 0.12 + critBonus;
+      
+      // 0.9.0 - Add weapon passive bonuses (accuracy, crit)
+      const weaponBonuses = weapon ? getWeaponPassiveBonuses(weapon) : { accuracy: 0, crit: 0 };
+      
+      // 0.9.0 - Add armor crit bonus and level accuracy bonus
+      const armor = s.equipment && s.equipment.armor;
+      const armorEffects = armor ? applyArmorEffects(armor, s) : {};
+      const levelAccuracyBonus = s.level * BALANCE.LEVEL_ACCURACY_BONUS;
+      
+      const hitChance = BALANCE.BASE_HIT_CHANCE + hitBonus + weaponBonuses.accuracy + levelAccuracyBonus;
+      const critChance = BALANCE.CRIT_CHANCE + critBonus + weaponBonuses.crit + (armorEffects.critBonus || 0);
       
       // Miss check
       if (Math.random() > hitChance) {
@@ -353,35 +583,58 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       target.hp -= dmg;
       appendLog(`${s.name} hits ${target.name} for ${dmg} dmg.`);
       
+      // 0.9.0 - Apply weapon effects
+      if (weapon && weapon.effects && weapon.effects.length > 0 && target.hp > 0) {
+        applyWeaponEffects(weapon, target, s, dmg);
+      }
+      
       if (target.hp <= 0) {
         appendLog(`${target.name} downed.`);
         state.alienKills = (state.alienKills || 0) + 1;
+        
+  // 0.9.0 - Morale gain for killing alien
+        s.morale = Math.min(100, s.morale + BALANCE.MORALE_GAIN_ALIEN_KILL);
         
         // 0.8.0 - Spawner: summon drone on death
         if (hasModifier(target, 'spawner')) {
           const droneType = ALIEN_TYPES.find(at => at.id === 'drone');
           if (droneType) {
             const spawnedHp = rand(droneType.hpRange[0], droneType.hpRange[1]);
-            aliens.push({
+            const spawnedDrone = {
               type: 'drone',
               name: 'Spawned Drone',
               hp: spawnedHp,
               maxHp: spawnedHp,
               attack: rand(droneType.attackRange[0], droneType.attackRange[1]),
+              armor: droneType.armor || 0, // 0.9.0 - Include armor value
+              rarity: droneType.rarity || 'common', // 0.9.0 - Include rarity
+              attackRange: droneType.attackRange, // 0.9.0 - Include for UI display
               stealth: droneType.stealth,
               flavor: droneType.flavor,
               special: droneType.special,
               specialDesc: droneType.specialDesc,
               modifiers: [],
               firstStrike: true
-            });
+            };
+            
+            // 0.9.0 - CRITICAL FIX: Apply modifier bonuses (even though spawned drones have no modifiers, this is future-proof)
+            applyModifiersToAlienStats(spawnedDrone);
+            
+            // 0.9.0 - Apply escalation bonuses to spawned aliens
+            if (typeof applyEscalationToAlien === 'function') {
+              applyEscalationToAlien(spawnedDrone);
+            }
+            
+            aliens.push(spawnedDrone);
             appendLog(`${target.name} spawns a drone as it dies!`);
           }
         }
         
         // loot on kill
         const loot = pickLoot();
-        loot.onPickup(state);
+        const lootMessage = loot.onPickup(state);
+        appendLog(`Loot dropped: ${lootMessage}`);
+        
         // 0.8.0 - Scientist Xenobiologist: tech on alien kill
         if (hasAbility(s, 'xenobiologist')) {
           state.resources.tech += 1;
@@ -451,18 +704,35 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         // 0.8.0 - Apply survivor defensive abilities
         defense = applyAbilityDefenseModifiers(targ, defense, { fighters });
         
-        // 0.8.0 - Check for survivor dodge abilities
+        // 0.9.0 - Apply armor effects (dodge, reflect, etc.)
+        const armor = targ.equipment && targ.equipment.armor;
+        const armorEffects = armor ? applyArmorEffects(armor, targ) : {};
+        
+        // 0.8.0 - Check for survivor dodge abilities + armor dodge bonus
         const { dodgeChance } = applyAbilityHitModifiers(targ);
-        if (dodgeChance > 0 && Math.random() < dodgeChance) {
+        const totalDodge = dodgeChance + (armorEffects.dodgeBonus || 0);
+        if (totalDodge > 0 && Math.random() < totalDodge) {
           appendLog(`${targ.name} dodges the attack!`);
           continue;
+        }
+        
+        // 0.9.0 - Reflect damage check
+        if (armorEffects.reflectChance > 0 && Math.random() < armorEffects.reflectChance) {
+          const reflectDmg = Math.floor(aDmg * 0.3);
+          a.hp -= reflectDmg;
+          appendLog(`⚡ ${targ.name}'s armor reflects ${reflectDmg} damage!`);
+          if (a.hp <= 0) {
+            appendLog(`${a.name} is destroyed by reflected damage!`);
+            continue;
+          }
         }
         
         // Piercing special (spitter) - ignore 50% of armor
         if (a.special === 'piercing') {
           defense = Math.floor(defense * 0.5);
           // 0.8.0 - Spitter modifiers
-          if (hasModifier(a, 'corrosive')) defense = Math.floor(defense * 0.30); // 70% ignore
+          // 0.9.0 - Hyper-Corrosive: +40% pierce (90% total = 50% base + 40% bonus = only 10% armor remains)
+          if (hasModifier(a, 'corrosive')) defense = Math.floor(defense * 0.10); // 90% ignore total
           if (hasModifier(a, 'plague')) defense = 0; // Full pierce
           
           appendLog(`${a.name} sprays corrosive bile!`);
@@ -528,6 +798,14 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
             targ.hp = 0;
             targ.downed = true;
             appendLog(`${targ.name} is down! (${dealt} dmg from ${a.name})`);
+            
+            // 0.9.0 - Morale penalty for ally downed
+            fighters.forEach(ally => {
+              if (ally !== targ && !ally.downed) {
+                ally.morale = Math.max(0, ally.morale - BALANCE.MORALE_LOSS_ALLY_DOWNED);
+              }
+            });
+            
             // 0.8.x - Field losses increase raid pressure
             if (context === 'field') {
               state.raidPressure = Math.min((state.raidPressure || 0) + 0.004, 0.03);
@@ -553,6 +831,28 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       }
     }
     
+    // 0.9.0 - Armor regeneration phase
+    for (const s of fighters) {
+      if (s.hp <= 0) continue;
+      const armor = s.equipment && s.equipment.armor;
+      if (armor) {
+        const armorEffects = applyArmorEffects(armor, s);
+        if (armorEffects.regenAmount > 0) {
+          // Calculate effective max HP including armor bonus
+          let effectiveMaxHp = s.maxHp;
+          if (armor.effects) {
+            for (const effect of armor.effects) {
+              if (effect.startsWith('hpBonus:')) {
+                effectiveMaxHp += parseInt(effect.split(':')[1]) || 0;
+              }
+            }
+          }
+          s.hp = Math.min(effectiveMaxHp, s.hp + armorEffects.regenAmount);
+          appendLog(`${s.name}'s armor regenerates ${armorEffects.regenAmount} HP.`);
+        }
+      }
+    }
+    
     // quick break safety
     if (Math.random() < 0.001) break;
   }
@@ -567,6 +867,12 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         return true; // Keep survivor
       }
       appendLog(`${s.name} was lost in combat.`);
+      
+  // 0.9.0 - Morale penalty for ally death
+      state.survivors.forEach(ally => {
+        ally.morale = Math.max(0, ally.morale - BALANCE.MORALE_LOSS_ALLY_DEATH);
+      });
+      
       return false;
     }
     return true;
@@ -593,6 +899,26 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
     if (s.hp > 0) {
       const xpGain = rand(BALANCE.COMBAT_XP_RANGE[0], BALANCE.COMBAT_XP_RANGE[1]);
       grantXp(s, xpGain);
+      
+  // 0.9.0 - Morale gain for combat victory
+      s.morale = Math.min(100, s.morale + BALANCE.MORALE_GAIN_COMBAT_WIN);
+    }
+  }
+  
+  // 0.9.0 - Apply durability loss to all fighters' equipment
+  for (const s of fighters) {
+    if (!s) continue;
+    
+    // Weapon durability loss (8-15 per combat)
+    if (s.equipment && s.equipment.weapon && s.equipment.weapon.durability !== undefined) {
+      const weaponLoss = rand(8, 15);
+      s.equipment.weapon.durability = Math.max(0, s.equipment.weapon.durability - weaponLoss);
+    }
+    
+    // Armor durability loss (10-18 per combat)
+    if (s.equipment && s.equipment.armor && s.equipment.armor.durability !== undefined) {
+      const armorLoss = rand(10, 18);
+      s.equipment.armor.durability = Math.max(0, s.equipment.armor.durability - armorLoss);
     }
   }
   

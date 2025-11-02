@@ -2,18 +2,36 @@
 // Handles threat level management and base raids
 
 // 0.8.2 - Weight alien types by threat for consistent progression
+// 0.9.0 - Rebalanced to keep early enemies viable late-game (with more modifiers)
 function pickAlienTypeByThreat(threatValue) {
   const t = Math.max(0, Math.min(100, Number(threatValue) || 0));
+  
+  // Philosophy: Early enemies never disappear, just become less common
+  // Late game = mix of weak enemies with lots of modifiers + elite enemies
   const weights = [
-    { id: 'drone',   w: t < 20 ? 7 : t < 40 ? 4 : t < 60 ? 2 : 1 },
-    { id: 'lurker',  w: t < 30 ? 6 : t < 50 ? 4 : 2 },
-    { id: 'stalker', w: t < 35 ? 3 : t < 60 ? 6 : 4 },
-    { id: 'spitter', w: t < 45 ? 2 : t < 70 ? 5 : 4 },
-    { id: 'brood',   w: t < 55 ? 1 : t < 75 ? 4 : 6 },
-    { id: 'ravager', w: t < 60 ? 0 : t < 80 ? 3 : 6 },
-    { id: 'spectre', w: t < 70 ? 0 : 3 },
-    { id: 'queen',   w: t < 90 ? 0 : 2 }
+    // Drone & Lurker: Always present, decrease from dominant to rare
+    { id: 'drone',   w: t < 25 ? 10 : t < 50 ? 6 : t < 75 ? 3 : 2 }, // 10→6→3→2 (always present)
+    { id: 'lurker',  w: t < 25 ? 8 : t < 50 ? 5 : t < 75 ? 3 : 2 },  // 8→5→3→2 (always present)
+    
+    // Stalker & Spitter: Mid-game introduction, remain common
+    { id: 'stalker', w: t < 25 ? 0 : t < 50 ? 7 : t < 75 ? 6 : 4 },  // 0→7→6→4 (mid→late viable)
+    { id: 'spitter', w: t < 25 ? 0 : t < 50 ? 6 : t < 75 ? 5 : 4 },  // 0→6→5→4 (mid→late viable)
+    
+    // Brood & Ravager: Late-game tanks, become more common
+    { id: 'brood',   w: t < 50 ? 0 : t < 75 ? 5 : 6 },               // 0→0→5→6 (late-game focus)
+    { id: 'ravager', w: t < 50 ? 0 : t < 75 ? 4 : 6 },               // 0→0→4→6 (late-game focus)
+    
+    // Spectre & Queen: Endgame elites at 75%+
+    { id: 'spectre', w: t < 75 ? 0 : 5 },                            // 0→0→0→5 (endgame only)
+    { id: 'queen',   w: t < 75 ? 0 : 4 }                             // 0→0→0→4 (endgame only)
   ];
+  
+  // Weight distribution examples:
+  // 0-24%: Drone(10) + Lurker(8) = 18 total (56% drone, 44% lurker)
+  // 25-49%: Drone(6) + Lurker(5) + Stalker(7) + Spitter(6) = 24 total (balanced mix)
+  // 50-74%: All 6 types = 29 total (diverse encounters)
+  // 75-100%: All 8 types = 29 total (early enemies become modifier carriers)
+  
   const total = weights.reduce((s, x) => s + x.w, 0) || 1;
   let r = Math.random() * total;
   for (const w of weights) {
@@ -26,14 +44,70 @@ function pickAlienTypeByThreat(threatValue) {
   return ALIEN_TYPES[0];
 }
 
-// 0.8.0 - Helper: Roll for alien rare modifiers
-function rollAlienModifiers(alienType) {
+// 0.9.0 - Endgame Escalation System
+// Handles difficulty scaling past 100% threat
+function handleEscalation() {
+  if (!state.threatLocked || state.threat < 100) return;
+  
+  // Time-based escalation: +1 level every 5 minutes at 100%
+  const now = Date.now();
+  const timeSinceLastEscalation = now - (state.lastEscalationTime || now);
+  const escalationInterval = (BALANCE.ESCALATION_TIME_INTERVAL_SEC || 300) * 1000;
+  
+  if (timeSinceLastEscalation >= escalationInterval) {
+    state.escalationLevel = (state.escalationLevel || 0) + 1;
+    state.lastEscalationTime = now;
+    
+    const hpBonus = Math.round(state.escalationLevel * (BALANCE.ESCALATION_HP_MULT || 0.08) * 100);
+    const atkBonus = Math.round(state.escalationLevel * (BALANCE.ESCALATION_ATTACK_MULT || 0.06) * 100);
+    const armorBonus = Math.floor(state.escalationLevel / 2) * (BALANCE.ESCALATION_ARMOR_PER_2_LEVELS || 1);
+    
+    appendLog(`🔥 ESCALATION LEVEL ${state.escalationLevel}: All aliens now have +${hpBonus}% HP, +${atkBonus}% attack, +${armorBonus} armor.`);
+  }
+}
+
+// 0.9.0 - Apply escalation bonuses to alien stats
+// Used by both raid generation and field exploration
+function applyEscalationToAlien(alien) {
+  if (!state.escalationLevel || state.escalationLevel <= 0) return;
+  
+  const escLevel = state.escalationLevel;
+  const hpMult = 1 + escLevel * (BALANCE.ESCALATION_HP_MULT || 0.08);
+  const atkMult = 1 + escLevel * (BALANCE.ESCALATION_ATTACK_MULT || 0.06);
+  const armorBonus = Math.floor(escLevel / 2) * (BALANCE.ESCALATION_ARMOR_PER_2_LEVELS || 1);
+  
+  // Apply HP bonus
+  alien.maxHp = Math.round(alien.maxHp * hpMult);
+  alien.hp = Math.round(alien.hp * hpMult);
+  
+  // Apply attack bonus
+  alien.attack = Math.round(alien.attack * atkMult);
+  if (alien.attackRange) {
+    alien.attackRange[0] = Math.round(alien.attackRange[0] * atkMult);
+    alien.attackRange[1] = Math.round(alien.attackRange[1] * atkMult);
+  }
+  
+  // Apply armor bonus
+  alien.armor = (alien.armor || 0) + armorBonus;
+}
+
+// 0.8.0 - Helper: Roll for alien rare modifiers (0.9.0 - threat + escalation scaling)
+function rollAlienModifiers(alienType, threatValue = 0) {
   const modifiers = [];
   const mods = ALIEN_MODIFIERS[alienType];
   if (!mods) return modifiers;
+  
+  // 0.9.0 - Threat + Escalation increases modifier chance
+  // Threat: At 0% = 1.0x, at 100% = 2.0x
+  // Escalation: +10% per level (level 5 = +50%)
+  const t = Math.max(0, Math.min(100, Number(threatValue) || 0));
+  const threatMultiplier = 1.0 + (t / 100);
+  const escalationMultiplier = 1.0 + (state.escalationLevel || 0) * (BALANCE.ESCALATION_MODIFIER_MULT || 0.10);
+  const totalMultiplier = threatMultiplier * escalationMultiplier;
 
   for (const mod of mods) {
-    if (Math.random() < mod.chance) {
+    const adjustedChance = Math.min(0.5, mod.chance * totalMultiplier); // Cap at 50%
+    if (Math.random() < adjustedChance) {
       modifiers.push(mod.id);
     }
   }
@@ -41,47 +115,72 @@ function rollAlienModifiers(alienType) {
 }
 
 function evaluateThreat() {
-  // 0.8.9 - Threat drift with tiered floors: grows slowly; guards and turrets suppress it
+  // 0.9.0 - Threat system rebalanced for longer runs with endgame escalation
   const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission).length;
   const turrets = state.systems.turret || 0;
   const prevThreat = state.threat || 0;
-  const threatChange = BALANCE.THREAT_GROWTH_BASE
-    + Math.random() * BALANCE.THREAT_GROWTH_RAND
-    - guards * BALANCE.GUARD_THREAT_REDUCTION
-    - turrets * (BALANCE.TURRET_THREAT_REDUCTION || 0);
   
-  // 0.8.9 - Tiered floor system: check if we've hit a new tier
-  const tiers = BALANCE.THREAT_TIERS || [0];
-  const currentTierIndex = state.highestThreatTier || 0;
-  const currentFloor = tiers[currentTierIndex] || 0;
-  
-  // Calculate new threat (can go above or below current value)
-  let newThreat = clamp(state.threat + threatChange, 0, 100);
-  
-  // Check if we've crossed into a new tier
-  for (let i = currentTierIndex + 1; i < tiers.length; i++) {
-    if (newThreat >= tiers[i]) {
-      state.highestThreatTier = i;
-      const tierPercent = tiers[i];
-      appendLog(`⚠️ THREAT MILESTONE: Station threat has reached ${tierPercent}%. This level becomes the new permanent minimum.`);
+  // 0.9.0 - Once at 100%, threat is locked (escalation takes over)
+  if (state.threatLocked && state.threat >= 100) {
+    state.threat = 100;
+    handleEscalation(); // Increment escalation level instead
+    // Continue to evaluate raids
+  } else {
+    // Normal threat growth calculation
+    const threatChange = BALANCE.THREAT_GROWTH_BASE
+      + Math.random() * BALANCE.THREAT_GROWTH_RAND
+      - guards * BALANCE.GUARD_THREAT_REDUCTION
+      - turrets * (BALANCE.TURRET_THREAT_REDUCTION || 0);
+    
+    // 0.9.0 - Enforce minimum threat growth: defenses slow it, but can't stop it
+    const minimumGrowth = BALANCE.THREAT_GROWTH_MINIMUM || 0.005;
+    const effectiveThreatChange = Math.max(minimumGrowth, threatChange);
+    
+    // 0.9.0 - Wider tier system for longer runs
+    const tiers = BALANCE.THREAT_TIERS || [0];
+    const currentTierIndex = state.highestThreatTier || 0;
+    const currentFloor = tiers[currentTierIndex] || 0;
+    
+    // Calculate new threat (always growing due to minimum)
+    let newThreat = clamp(state.threat + effectiveThreatChange, 0, 100);
+    
+    // Check if we've crossed into a new tier
+    for (let i = currentTierIndex + 1; i < tiers.length; i++) {
+      if (newThreat >= tiers[i]) {
+        state.highestThreatTier = i;
+        const tierPercent = tiers[i];
+        
+        // Special handling for 100% threshold
+        if (tierPercent >= 100) {
+          state.threatLocked = true;
+          state.lastEscalationTime = Date.now();
+          appendLog(`🔴 CRITICAL: Station threat has reached 100%. Threat is now LOCKED. Escalation protocol initiated.`);
+        } else {
+          appendLog(`⚠️ THREAT MILESTONE: Station threat has reached ${tierPercent}%. This level becomes the new permanent minimum.`);
+        }
+      }
     }
+    
+    // Apply floor: cannot go below highest tier reached
+    const activeFloor = tiers[state.highestThreatTier || 0] || 0;
+    state.threat = Math.max(newThreat, activeFloor);
   }
-  
-  // Apply floor: cannot go below highest tier reached
-  const activeFloor = tiers[state.highestThreatTier || 0] || 0;
-  state.threat = Math.max(newThreat, activeFloor);
   
   // Notify on notable threat changes and quartile crossings (throttled)
   try {
     const nowMs = Date.now();
     const lastNote = Number(state.lastThreatNoticeAt) || 0;
     const throttleMs = 20000; // 20s between notices
-    const prevQuart = Math.floor(prevThreat / 25);
-    const newQuart = Math.floor(state.threat / 25);
-    const crossedQuart = prevQuart !== newQuart; // 0→1 at 25%, etc.
-    if (crossedQuart && (nowMs - lastNote) > throttleMs) {
-      const dir = newQuart > prevQuart ? 'crossed above' : 'fell below';
-      appendLog(`Threat ${dir} ${Math.min(100, newQuart * 25)}%. Higher threat increases raid odds; guards and turrets slow growth.`);
+    
+    // Check if we crossed a tier threshold (not quartile)
+    const tiers = BALANCE.THREAT_TIERS || [0, 25, 50, 75, 100];
+    const prevTier = tiers.findIndex(t => prevThreat < t);
+    const currentTier = tiers.findIndex(t => state.threat < t);
+    const crossedTier = prevTier !== currentTier && prevTier !== -1 && currentTier !== -1;
+    
+    if (crossedTier && (nowMs - lastNote) > throttleMs && !state.threatLocked) {
+      const tierValue = tiers[prevTier];
+      appendLog(`⚠️ Threat crossed ${tierValue}%. Alien encounters become stronger. This level is now the permanent minimum.`);
       state.lastThreatNoticeAt = nowMs;
     }
   } catch (e) { /* noop */ }
@@ -146,54 +245,75 @@ function evaluateThreat() {
 function resolveRaid() {
   appendLog('Alarm: unidentified activity detected near the base — a raid is incoming.');
   state.lastRaidAt = Date.now();
-  // Randomize next cooldown in [MIN, MAX]
-  const cdMin = (BALANCE.RAID_MIN_INTERVAL_SEC || 900);
-  const cdMax = (BALANCE.RAID_MAX_INTERVAL_SEC || 1200);
-  state.raidCooldownMs = rand(cdMin, cdMax) * 1000;
+  
+  // 0.9.0 - Escalation reduces raid cooldown (raids get more frequent)
+  const cdMin = (BALANCE.RAID_MIN_INTERVAL_SEC || 600);
+  const cdMax = (BALANCE.RAID_MAX_INTERVAL_SEC || 900);
+  const escReduction = (state.escalationLevel || 0) * (BALANCE.ESCALATION_RAID_COOLDOWN_REDUCTION || 30);
+  const adjustedMin = Math.max(300, cdMin - escReduction); // Min 5 minutes
+  const adjustedMax = Math.max(adjustedMin + 60, cdMax - escReduction);
+  state.raidCooldownMs = rand(adjustedMin, adjustedMax) * 1000;
   
   // Generate raid aliens based on threat level
-  const baseCount = rand(2, 4);
-  const scale = Math.floor(state.threat / 20);
-  const alienCount = Math.min(7, baseCount + Math.max(1, Math.floor(scale * 0.8)));
+  // 0.9.0 - Reduced alien count scaling for winnable late-game encounters
+  const baseCount = rand(2, 3); // Reduced from rand(2, 4)
+  const scale = Math.floor(state.threat / 25); // Increased divisor from 20 to 25 (slower scaling)
+  const alienCount = Math.min(6, baseCount + Math.max(1, Math.floor(scale * 0.6))); // Reduced multiplier from 0.8 to 0.6, max from 7 to 6
   const raidAliens = [];
   for (let i = 0; i < alienCount; i++) {
     const at = pickAlienTypeByThreat(state.threat);
     let hp = rand(at.hpRange[0], at.hpRange[1]);
-    // Slight scaling based on threat to make raids hit harder
-    const hMult = 1 + (state.threat || 0) / 120;
-    const aMult = 1 + (state.threat || 0) / 150;
+    // 0.9.0 - Reduced scaling multipliers for more tactical combat
+    const hMult = 1 + (state.threat || 0) / 200; // Increased divisor from 120 to 200 (1.0 → 1.5x instead of 1.83x)
+    const aMult = 1 + (state.threat || 0) / 250; // Increased divisor from 150 to 250 (1.0 → 1.4x instead of 1.67x)
     hp = Math.round(hp * hMult);
     
     // 0.8.0 - Roll for rare modifiers
-    const modifiers = rollAlienModifiers(at.id);
+    // 0.9.0 - Pass threat value for scaling (now includes escalation)
+    const modifiers = rollAlienModifiers(at.id, state.threat);
     
-    raidAliens.push({
+    const alien = {
       id: `raid_${Date.now()}_${i}`,
       type: at.id,
       name: at.name,
       hp,
       maxHp: hp,
       attack: Math.round(rand(at.attackRange[0], at.attackRange[1]) * aMult),
+      armor: at.armor || 0, // 0.9.0 - Include armor value
+      rarity: at.rarity || 'common', // 0.9.0 - Include rarity
+      attackRange: [at.attackRange[0], Math.round(at.attackRange[1] * aMult)], // 0.9.0 - Scaled range for display
       stealth: at.stealth,
       flavor: at.flavor,
       special: at.special,
       specialDesc: at.specialDesc,
       modifiers: modifiers, // 0.8.0
       firstStrike: true
-    });
+    };
+    
+    // 0.9.0 - CRITICAL FIX: Apply modifier stat bonuses to alien
+    if (typeof applyModifiersToAlienStats === 'function') {
+      applyModifiersToAlienStats(alien);
+    }
+    
+    // 0.9.0 - Apply escalation bonuses to raid aliens
+    applyEscalationToAlien(alien);
+    
+    raidAliens.push(alien);
   }
 
   // ONLY guards defend the base (0.7.1 - hardcore defense). Turrets now assist (0.7.3).
   const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission);
   const turretCount = state.systems.turret || 0;
   
-  // If no guards, instant game over
   if (guards.length === 0) {
-    appendLog('A massive raid overruns the station! No guards were on duty.');
-    state.gameOver = true;
-    showGameOver('The station was overrun.');
+    // No guards = instant game over
+    appendLog('No guards on duty. The base is overrun.');
+    triggerGameOver('The aliens breached the base with no resistance. All is lost.');
     return;
   }
+  
+  // 0.9.0 - Increment escalation level for each raid survived at 100%
+  // (Will be incremented after combat resolves successfully)
   
   // Check if interactive combat is available
   if (typeof interactiveRaidCombat === 'function') {

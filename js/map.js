@@ -1,18 +1,26 @@
 // Map utilities for exploration and tile management
 function isAdjacent(x1, y1, x2, y2) {
-  return Math.abs(x1 - x2) <= 1 && Math.abs(y1 - y2) <= 1;
+  // 0.9.0 - Only orthogonal (parallel) tiles, not diagonal
+  const dx = Math.abs(x1 - x2);
+  const dy = Math.abs(y1 - y2);
+  return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
 }
 
 function getAdjacentTiles(x, y, mapSize) {
+  // 0.9.0 - Only return orthogonal adjacent tiles (up, down, left, right)
   const adjacent = [];
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      if (dx === 0 && dy === 0) continue;
-      const ax = x + dx;
-      const ay = y + dy;
-      if (ax >= 0 && ax < mapSize.w && ay >= 0 && ay < mapSize.h) {
-        adjacent.push({ x: ax, y: ay, idx: ay * mapSize.w + ax });
-      }
+  const directions = [
+    { dx: 0, dy: -1 },  // Up
+    { dx: 0, dy: 1 },   // Down
+    { dx: -1, dy: 0 },  // Left
+    { dx: 1, dy: 0 }    // Right
+  ];
+  
+  for (const dir of directions) {
+    const ax = x + dir.dx;
+    const ay = y + dir.dy;
+    if (ax >= 0 && ax < mapSize.w && ay >= 0 && ay < mapSize.h) {
+      adjacent.push({ x: ax, y: ay, idx: ay * mapSize.w + ax });
     }
   }
   return adjacent;

@@ -64,8 +64,21 @@ const SURVIVOR_NAMES = [
 // Get a random name and optionally remove it from the list
 function getRandomName(remove = true) {
     if (SURVIVOR_NAMES.length === 0) return 'Unknown';
-    const idx = Math.floor(Math.random() * SURVIVOR_NAMES.length);
-    const name = SURVIVOR_NAMES[idx];
-    if (remove) SURVIVOR_NAMES.splice(idx, 1);
+    
+    // 0.9.0 - Check against existing survivor names to prevent duplicates
+    const existingNames = state.survivors.map(s => s.name);
+    const availableNames = SURVIVOR_NAMES.filter(name => !existingNames.includes(name));
+    
+    if (availableNames.length === 0) return 'Unknown'; // Fallback if somehow all names are taken
+    
+    const idx = Math.floor(Math.random() * availableNames.length);
+    const name = availableNames[idx];
+    
+    if (remove) {
+        // Remove from the main pool
+        const mainIdx = SURVIVOR_NAMES.indexOf(name);
+        if (mainIdx !== -1) SURVIVOR_NAMES.splice(mainIdx, 1);
+    }
+    
     return name;
 }

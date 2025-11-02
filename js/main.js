@@ -24,6 +24,13 @@ function bindUI() {
   el('btnRepairTurret').onclick = () => {
     repairSystem('turret');
   };
+  
+  // 0.9.0 - Base repair button
+  el('btnRepairBase').onclick = () => {
+    repairBase();
+    saveGame('action');
+    updateUI();
+  };
 
   // 0.8.1 - Workbench buttons now dynamically rendered in renderWorkbench()
 
@@ -32,16 +39,9 @@ function bindUI() {
     autoSalvage();
     saveGame('action');
   };
-  el('btnDumpJunk').onclick = () => {
-    const initialCount = state.inventory.length;
-    state.inventory = state.inventory.filter(item => item.type !== 'junk');
-    const removedCount = initialCount - state.inventory.length;
-    if (removedCount > 0) {
-      appendLog(`Discarded ${removedCount} junk items.`);
-    } else {
-      appendLog('No junk to discard.');
-    }
-    updateUI();
+  
+  el('btnRecycleAll').onclick = (e) => {
+    recycleAllItems(e);
     saveGame('action');
   };
 
@@ -120,7 +120,7 @@ function resetGame() {
   state.explored = new Set();
   state.inventory = [];
   state.nextItemId = 1;
-  state.inventoryCapacity = 20;
+  state.inventoryCapacity = 30;
   state.equipment = {
     turrets: 0,
     bulkhead: 0
@@ -327,9 +327,9 @@ if (state.gameOver) {
     const starterName2 = getRandomName();
     recruitSurvivor(starterName1);
     recruitSurvivor(starterName2);
-    // Add initial junk items
+    // Add initial junk items (0.9.0 - marked as common rarity for UI coloring)
     for (let i = 0; i < 3; i++) {
-      state.inventory.push({ id: state.nextItemId++, type: 'junk', name: 'Junk' });
+      state.inventory.push({ id: state.nextItemId++, type: 'junk', name: 'Junk', rarity: 'common' });
     }
     saveGame('action');
   }

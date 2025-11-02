@@ -18,17 +18,22 @@ function applyTick(isOffline = false) {
     if (hasAbility(s, 'overclock')) classBonus += 0.30; // +30% production (energy cost handled separately)
     if (hasAbility(s, 'mastermind')) classBonus += 0.25; // +25% all systems
     
-    const finalBonus = 1 + classBonus;
+    // 0.9.0 - Apply morale modifier to production
+    const moraleModifier = getMoraleModifier(s);
+    const finalBonus = (1 + classBonus) * moraleModifier.production;
     
     switch (s.task) {
       case 'Oxygen':
-        prod.oxygen += (BALANCE.SURVIVOR_PROD.Oxygen.base + s.skill * BALANCE.SURVIVOR_PROD.Oxygen.perSkill) * levelBonus * finalBonus;
+        // 0.9.0 - Removed skill, use base production only (scaled by level & class)
+        prod.oxygen += BALANCE.SURVIVOR_PROD.Oxygen.base * levelBonus * finalBonus;
         break;
       case 'Food':
-        prod.food += (BALANCE.SURVIVOR_PROD.Food.base + s.skill * BALANCE.SURVIVOR_PROD.Food.perSkill) * levelBonus * finalBonus;
+        // 0.9.0 - Removed skill, use base production only (scaled by level & class)
+        prod.food += BALANCE.SURVIVOR_PROD.Food.base * levelBonus * finalBonus;
         break;
       case 'Energy':
-        prod.energy += (BALANCE.SURVIVOR_PROD.Energy.base + s.skill * BALANCE.SURVIVOR_PROD.Energy.perSkill) * levelBonus * finalBonus;
+        // 0.9.0 - Removed skill, use base production only (scaled by level & class)
+        prod.energy += BALANCE.SURVIVOR_PROD.Energy.base * levelBonus * finalBonus;
         break;
       case 'Scrap':
         let scrapBonus = classBonus;
@@ -38,7 +43,8 @@ function applyTick(isOffline = false) {
         }
         // 0.8.11 - Scavenger Salvage Expert (ability, additive)
         if (hasAbility(s, 'salvage')) scrapBonus += 0.25;
-        prod.scrap += (BALANCE.SURVIVOR_PROD.Scrap.base + s.skill * BALANCE.SURVIVOR_PROD.Scrap.perSkill) * levelBonus * (1 + scrapBonus);
+        // 0.9.0 - Removed skill, use base production only (scaled by level & class)
+        prod.scrap += BALANCE.SURVIVOR_PROD.Scrap.base * levelBonus * (1 + scrapBonus);
         break;
       case 'Guard':
         /* reduces threat growth */ break;
@@ -70,6 +76,24 @@ function applyTick(isOffline = false) {
   }
   if (!isGeneratorFailed) {
     prod.energy += (BALANCE.BASE_SYSTEM_PRODUCTION.energy + state.systems.generator * 1.4) * BALANCE.SYSTEM_GENERATOR_MULT * systemBonus;
+  }
+  
+  // 0.9.0 - System failures reduce ALL production by 90% (not just system production)
+  if (isFilterFailed) {
+    prod.oxygen *= 0.10; // 90% reduction
+  }
+  if (isGeneratorFailed) {
+    prod.energy *= 0.10; // 90% reduction
+  }
+  
+  // 0.9.0 - Apply base integrity production penalty
+  const integrityTier = getIntegrityTier(state.baseIntegrity);
+  const integrityPenalty = BALANCE.INTEGRITY_PROD_PENALTY[integrityTier] || 0;
+  if (integrityPenalty > 0) {
+    prod.oxygen *= (1 - integrityPenalty);
+    prod.food *= (1 - integrityPenalty);
+    prod.energy *= (1 - integrityPenalty);
+    prod.scrap *= (1 - integrityPenalty);
   }
   
   // apply production multiplier for survivors/systems
@@ -155,6 +179,85 @@ function applyTick(isOffline = false) {
       state.survivors.splice(idx, 1);
     }
   }
+
+  // 0.9.0 - Base Integrity damage sources
+  // Damage from failed systems
+  const failedSystemCount = state.systemFailures.length;
+  if (failedSystemCount > 0) {
+    state.baseIntegrity -= failedSystemCount * BALANCE.INTEGRITY_DAMAGE_PER_FAILED_SYSTEM;
+  }
+  
+  // Damage at high threat
+  if (state.threat > 75) {
+    state.baseIntegrity -= BALANCE.INTEGRITY_DAMAGE_HIGH_THREAT;
+  }
+  
+  // Engineer passive repair (Idle Engineers slowly repair base)
+  const idleEngineers = state.survivors.filter(s => 
+    !s.onMission && 
+    s.task === 'Idle' && 
+    (s.class === 'Engineer' || hasAbility(s, 'efficient'))
+  );
+  if (idleEngineers.length > 0) {
+    state.baseIntegrity += idleEngineers.length * BALANCE.ENGINEER_PASSIVE_REPAIR;
+  }
+  
+  // 0.9.0 - Morale passive changes from crises
+  const crisisMoraleLoss = (s) => {
+    let loss = 0;
+    if (state.baseIntegrity < 40) loss += BALANCE.MORALE_LOSS_LOW_INTEGRITY;
+    if (state.threat > 75) loss += BALANCE.MORALE_LOSS_HIGH_THREAT;
+    if (state.systemFailures.length > 0) loss += (BALANCE.MORALE_LOSS_SYSTEM_FAILURE * state.systemFailures.length);
+    if (loss > 0) {
+      s.morale = Math.max(0, s.morale - loss);
+    }
+  };
+  
+  state.survivors.forEach(crisisMoraleLoss);
+  
+  // 0.9.0 - Desertion System (hourly checks)
+  if (state.baseIntegrity < 40) {
+    state.survivors.forEach(s => {
+      s.morale = Math.max(0, s.morale - BALANCE.MORALE_LOSS_BASE_CRITICAL);
+    });
+  }
+  
+  // Morale loss from high threat
+  if (state.threat > 75) {
+    state.survivors.forEach(s => {
+      s.morale = Math.max(0, s.morale - BALANCE.MORALE_LOSS_HIGH_THREAT);
+    });
+  }
+  
+  // Morale loss from failed systems
+  if (failedSystemCount > 0) {
+    state.survivors.forEach(s => {
+      s.morale = Math.max(0, s.morale - failedSystemCount * BALANCE.MORALE_LOSS_SYSTEM_FAILURE);
+    });
+  }
+  
+  // Desertion checks (hourly: 3600 ticks = 1 hour)
+  if (state.secondsPlayed % 3600 === 0 && state.survivors.length > 1) { // Don't desert if last survivor
+    const desertionCandidates = state.survivors.filter(s => !s.onMission);
+    for (const s of desertionCandidates) {
+      const moraleTier = getMoraleTier(s.morale);
+      let desertChance = 0;
+      if (moraleTier === 3) desertChance = BALANCE.MORALE_DESPONDENT_DESERT_CHANCE; // 2% per hour
+      if (moraleTier === 4) desertChance = BALANCE.MORALE_BREAKING_DESERT_CHANCE; // 5% per hour
+      
+      if (desertChance > 0 && Math.random() < desertChance) {
+        appendLog(`${s.name} has deserted the station due to low morale.`);
+        const idx = state.survivors.indexOf(s);
+        if (idx !== -1) {
+          state.survivors.splice(idx, 1);
+          // Desertion lowers remaining survivors' morale
+          state.survivors.forEach(remaining => {
+            remaining.morale = Math.max(0, remaining.morale - 8);
+          });
+        }
+      }
+    }
+  }
   
   // base integrity clamp
   state.baseIntegrity = clamp(state.baseIntegrity, -20, 100);
@@ -198,12 +301,12 @@ function applyTick(isOffline = false) {
     
     // Overclock increases failure rate by +50% each (additive)
     failureRateMod += overclockCount * 0.5;
-    // Failsafe reduces failure rate by -50% each (additive)
-    failureRateMod -= failsafeCount * 0.5;
-    // Clamp to minimum 10% failure rate
-    failureRateMod = Math.max(0.1, failureRateMod);
+    // Failsafe reduces failure rate by -30% each (additive)
+    failureRateMod -= failsafeCount * 0.3;
+    // Clamp to minimum 20% failure rate
+    failureRateMod = Math.max(0.2, failureRateMod);
     
-    const baseFailureChance = 0.01; // 1% base chance per system
+    const baseFailureChance = 0.003; // 0.3% base chance per system per tick (~17% per minute)
     const failureChance = baseFailureChance * failureRateMod;
     
     // Filter failures - can fail even at level 0

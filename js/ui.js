@@ -1,12 +1,176 @@
 function appendLog(text) {
   const t = `[${new Date().toLocaleTimeString()}] ${text}`;
   const node = document.createElement('div');
-  node.textContent = t;
+  // 0.9.0 - Support HTML for colored item names in log messages
+  node.innerHTML = t;
   const logEl = el('log');
   logEl.prepend(node);
   while (logEl.childNodes.length > MAX_LOG) {
     logEl.removeChild(logEl.lastChild);
   }
+}
+
+// 0.9.0 - Generate tooltip for items and recipes (plain text for native tooltips)
+function getItemTooltip(item, isRecipe = false) {
+  if (!item) return '';
+  
+  // If passed a recipe key string, extract item data from recipe result
+  if (typeof item === 'string') {
+    const recipe = RECIPES[item];
+    if (recipe && recipe.result) {
+      // Extract item data from result function by parsing it
+      const resultStr = recipe.result.toString();
+      const extractValue = (pattern) => {
+        const match = resultStr.match(pattern);
+        return match ? match[1] : null;
+      };
+      
+      item = {
+        name: recipe.name || item,
+        rarity: recipe.rarity || 'common',
+        type: extractValue(/type:\s*['"](\w+)['"]/),
+        subtype: extractValue(/subtype:\s*['"](\w+)['"]/),
+        weaponType: extractValue(/weaponType:\s*['"](\w+)['"]/),
+        damage: (() => {
+          const match = resultStr.match(/damage:\s*\[(\d+),\s*(\d+)\]/);
+          return match ? [parseInt(match[1]), parseInt(match[2])] : null;
+        })(),
+        defense: (() => {
+          const match = resultStr.match(/defense:\s*(\d+)/);
+          return match ? parseInt(match[1]) : null;
+        })(),
+        maxDurability: (() => {
+          const match = resultStr.match(/maxDurability:\s*(\d+)/);
+          return match ? parseInt(match[1]) : null;
+        })(),
+        effects: (() => {
+          const match = resultStr.match(/effects:\s*\[([^\]]+)\]/);
+          if (!match) return null;
+          return match[1].split(',').map(e => e.trim().replace(/['"]/g, ''));
+        })()
+      };
+      isRecipe = true;
+    }
+  }
+  
+  const parts = [];
+  
+  // Item name and rarity
+  if (item.name) {
+    parts.push(`${item.name}`);
+  }
+  if (item.rarity) {
+    // 0.9.0 - Format rarity with spaces
+    const rarityDisplay = item.rarity === 'veryrare' ? 'LEGENDARY' : item.rarity.toUpperCase();
+    parts.push(`[${rarityDisplay}]`);
+  }
+  
+  // Helper function to format effect descriptions
+  const formatEffect = (eff, baseDamage = null) => {
+    const [name, value] = eff.split(':');
+    const val = parseInt(value) || 0;
+    
+    switch(name.toLowerCase()) {
+      case 'burn':
+        // Burn deals 2 damage per stack per turn for 3 turns (each stack independent)
+        return `Burn: ${val}% chance (2 dmg/turn for 3 turns per stack)`;
+      
+      case 'splash':
+        // Splash has a chance to deal 50% damage to adjacent targets
+        return `Splash: ${val}% chance to hit adjacent enemies for 50% damage`;
+      
+      case 'armorpierce':
+        // ArmorPierce reduces target's armor by percentage (for wielder's attacks only)
+        return `Armor Pierce: Wielder ignores ${val}% of target armor`;
+      
+      case 'stun':
+        return `Stun: ${val}% chance to stun (enemy skips turn)`;
+      
+      case 'phase':
+        return `Phase: ${val}% chance to destabilize enemy (50% chance to fail next attack)`;
+      
+      case 'burst':
+        return `Burst: Fires ${val + 1} total shot${val > 0 ? 's' : ''} per attack`;
+      
+      case 'crit':
+        return `Critical: +${val}% crit chance (1.6x damage on crit)`;
+      
+      case 'accuracy':
+        return `Accuracy: +${val}% hit chance`;
+      
+      case 'dodge':
+        return `Dodge: +${val}% chance to evade attacks`;
+      
+      case 'reflect':
+        return `Reflect: ${val}% chance to reflect 50% damage back`;
+      
+      case 'regen':
+        return `Regeneration: Heal ${val} HP at start of each turn`;
+      
+      case 'hpbonus':
+        return `HP Bonus: +${val} max HP when equipped`;
+      
+      case 'retreat':
+        return `Retreat: +${val}% chance to successfully flee combat`;
+      
+      case 'immunity':
+        return `Immunity: Immune to ${value} effects`;
+      
+      default:
+        return `${name.charAt(0).toUpperCase() + name.slice(1)}${val ? ` (+${val})` : ''}`;
+    }
+  };
+  
+  // Weapon stats
+  if (item.weaponType || item.type === 'weapon') {
+    if (item.weaponType) {
+      parts.push(`Type: ${item.weaponType.charAt(0).toUpperCase() + item.weaponType.slice(1)}`);
+    }
+    if (item.damage) {
+      parts.push(`Damage: ${item.damage[0]}-${item.damage[1]}`);
+    }
+    if (item.durability !== undefined && !isRecipe) {
+      parts.push(`Durability: ${item.durability}/${item.maxDurability}`);
+    } else if (item.maxDurability) {
+      parts.push(`Durability: ${item.maxDurability}`);
+    }
+    if (item.effects && item.effects.length > 0) {
+      parts.push(`Effects:`);
+      item.effects.forEach(eff => {
+        parts.push(`  • ${formatEffect(eff, item.damage)}`);
+      });
+    }
+  }
+  
+  // Armor stats
+  if (item.type === 'armor' || (item.defense !== undefined && item.defense !== null)) {
+    if (item.defense !== undefined && item.defense !== null) {
+      parts.push(`Defense: ${item.defense}`);
+    }
+    if (item.durability !== undefined && !isRecipe) {
+      parts.push(`Durability: ${item.durability}/${item.maxDurability}`);
+    } else if (item.maxDurability) {
+      parts.push(`Durability: ${item.maxDurability}`);
+    }
+    if (item.effects && item.effects.length > 0) {
+      parts.push(`Effects:`);
+      item.effects.forEach(eff => {
+        parts.push(`  • ${formatEffect(eff)}`);
+      });
+    }
+  }
+  
+  // Component type
+  if (item.type === 'component') {
+    parts.push(`[Crafting Material]`);
+  }
+  
+  // Consumable type
+  if (item.type === 'consumable' || item.subtype?.includes('medkit') || item.subtype?.includes('stimpack')) {
+    parts.push(`[Consumable Item]`);
+  }
+  
+  return parts.join('\n');
 }
 
 // Snapshot caches to avoid unnecessary DOM re-renders that break hover/focus
@@ -125,18 +289,32 @@ function updateUI() {
     el('btnRepairGenerator').style.display = genFailures > 0 ? 'inline-block' : 'none';
     el('btnRepairTurret').style.display = turretFailures > 0 ? 'inline-block' : 'none';
     
-    // Update repair button text with costs
+    // Update repair button text with costs (or FREE if Repair Kit available)
+    const hasRepairKit = state.inventory.some(i => i.type === 'consumable' && i.subtype === 'repair_kit');
+    
     if (filterFailures > 0) {
-      const costs = BALANCE.REPAIR_COSTS.filter;
-      el('btnRepairFilter').textContent = `Repair Filter (${costs.scrap}s/${costs.energy}e)`;
+      if (hasRepairKit) {
+        el('btnRepairFilter').textContent = `Repair Filter (Free with Repair Kit)`;
+      } else {
+        const costs = BALANCE.REPAIR_COSTS.filter;
+        el('btnRepairFilter').textContent = `Repair Filter (${costs.scrap}s/${costs.energy}e)`;
+      }
     }
     if (genFailures > 0) {
-      const costs = BALANCE.REPAIR_COSTS.generator;
-      el('btnRepairGenerator').textContent = `Repair Generator (${costs.scrap}s/${costs.energy}e)`;
+      if (hasRepairKit) {
+        el('btnRepairGenerator').textContent = `Repair Generator (Free with Repair Kit)`;
+      } else {
+        const costs = BALANCE.REPAIR_COSTS.generator;
+        el('btnRepairGenerator').textContent = `Repair Generator (${costs.scrap}s/${costs.energy}e)`;
+      }
     }
     if (turretFailures > 0) {
-      const costs = BALANCE.REPAIR_COSTS.turret;
-      el('btnRepairTurret').textContent = `Repair Turret (${costs.scrap}s/${costs.energy}e)`;
+      if (hasRepairKit) {
+        el('btnRepairTurret').textContent = `Repair Turret (Free with Repair Kit)`;
+      } else {
+        const costs = BALANCE.REPAIR_COSTS.turret;
+        el('btnRepairTurret').textContent = `Repair Turret (${costs.scrap}s/${costs.energy}e)`;
+      }
     }
   }
 
@@ -167,7 +345,16 @@ function updateUI() {
     cooldownSec: totalSec,
     tech: state.resources.tech,
     ammo: state.resources.ammo,
-    played: state.secondsPlayed
+    played: state.secondsPlayed,
+    alienKills: state.alienKills,
+    activeGuards: state.survivors.filter(s => s.task === 'Guard' && !s.onMission).length,
+    totalSurvivors: state.survivors.length,
+    activeExpeditions: state.missions.length,
+    inventoryUsage: state.inventory.length,
+    inventoryCapacity: getInventoryCapacity(),
+    exploredTiles: state.explored.size,
+    escalationLevel: state.escalationLevel,
+    threatLocked: state.threatLocked
   });
   
   if (lastRenderedThreatSnapshot !== threatSnapshot) {
@@ -175,8 +362,118 @@ function updateUI() {
     
     el('threatLevel').textContent = threatText();
     // Clarify what threat means via tooltip
-    try { el('threatLevel').title = 'Threat reflects alien activity around the station. Higher threat means more and stronger raids. Guards and turrets slow threat growth.'; } catch(e) {}
-    el('baseIntegrity').textContent = `${Math.max(0, Math.floor(state.baseIntegrity))}%`;
+    const threatTooltip = state.threatLocked 
+      ? 'Threat is locked at 100%. Escalation level now controls difficulty scaling for all aliens (raids and exploration).' 
+      : `Threat reflects alien activity around the station.
+
+Higher threat increases:
+• Raid frequency and size
+• Alien stats (HP, attack) in ALL encounters
+• Special ability chances
+• Stronger alien types appearing
+
+Threat Floors (permanent minimums once reached):
+• 0% → 25% → 50% → 75% → 100% (locks permanently)
+
+Guards and turrets slow threat growth (min +0.5%/min).
+Threat locks at 100% (escalation takes over).`;
+    try { el('threatLevel').title = threatTooltip; } catch(e) {}
+    
+    // Show escalation level when threat is locked at 100%
+    const escRow = document.getElementById('escalationRow');
+    const escLevel = document.getElementById('escalationLevel');
+    if (escRow && escLevel && state.threatLocked && state.threat >= 100) {
+      const hpBonus = (state.escalationLevel * BALANCE.ESCALATION_HP_MULT * 100).toFixed(0);
+      const atkBonus = (state.escalationLevel * BALANCE.ESCALATION_ATTACK_MULT * 100).toFixed(0);
+      const armorBonus = Math.floor(state.escalationLevel / BALANCE.ESCALATION_ARMOR_LEVELS);
+      const modBonus = (state.escalationLevel * BALANCE.ESCALATION_MODIFIER_MULT * 100).toFixed(0);
+      
+      escLevel.textContent = state.escalationLevel;
+      escRow.style.display = '';
+      
+      // Add detailed tooltip showing bonuses
+      try {
+        escRow.title = `Endgame Difficulty Scaling\n\nAll aliens (raids AND exploration) gain:\n+${hpBonus}% HP\n+${atkBonus}% Attack\n+${armorBonus} Armor\n+${modBonus}% Special Ability Chance\n\nEscalation increases:\n• Every 5 minutes at 100% threat\n• Each raid survived at 100% threat\n• Reduces raid cooldowns by 30s per level`;
+      } catch(e) {}
+    } else if (escRow) {
+      escRow.style.display = 'none';
+    }
+    
+    // Base Integrity with tier color and bar
+    const integrity = Math.max(0, Math.floor(state.baseIntegrity));
+    const integrityTier = getIntegrityTier(integrity);
+    const integrityName = getIntegrityTierName(integrityTier);
+    const integrityColor = getIntegrityTierColor(integrityTier);
+    
+    // Build integrity tooltip
+    const integrityPenalty = [0, 5, 10, 20, 30][integrityTier];
+    const integrityTooltip = `${integrityName}\n\nProduction Penalty: -${integrityPenalty}%\n\nDamage Sources:\n• Failed systems: -0.05/tick each\n• High threat (>75%): -0.02/tick\n\nRepair:\n• Manual repair button below\n• Idle Engineers: +0.1/tick each`;
+    
+    el('baseIntegrity').textContent = `${integrityName} (${integrity}%)`;
+    el('baseIntegrity').style.color = integrityColor;
+    el('baseIntegrity').style.fontWeight = 'bold';
+    
+    // Add tooltip to the entire section
+    const integritySection = el('baseIntegritySection');
+    if (integritySection) {
+      integritySection.title = integrityTooltip;
+    }
+    
+    // Update integrity bar
+    const integrityBar = el('baseIntegrityBar');
+    if (integrityBar) {
+      integrityBar.style.width = `${integrity}%`;
+      integrityBar.style.background = integrityColor;
+    }
+    
+    // Update repair button
+    const repairBtn = el('btnRepairBase');
+    if (repairBtn) {
+      const missingIntegrity = 100 - integrity;
+      if (missingIntegrity <= 0) {
+        repairBtn.disabled = true;
+        repairBtn.textContent = 'Base at Full Integrity';
+        repairBtn.title = 'Base integrity is at 100%. No repairs needed.';
+      } else {
+        // Calculate repair cost with Engineer bonuses
+        const engineers = state.survivors.filter(s => s.class === 'Engineer');
+        let costMult = 1.0;
+        engineers.forEach(eng => {
+          const bonus = eng.classBonuses?.repairCostReduction || 0;
+          costMult -= bonus;
+        });
+        costMult = Math.max(0.5, costMult); // Cap at 50% reduction
+        
+        const scrapCost = Math.ceil(BALANCE.BASE_REPAIR_SCRAP_COST * (missingIntegrity / 100) * costMult);
+        const energyCost = Math.ceil(BALANCE.BASE_REPAIR_ENERGY_COST * (missingIntegrity / 100) * costMult);
+        
+        const canAfford = state.resources.scrap >= scrapCost && state.resources.energy >= energyCost;
+        repairBtn.disabled = !canAfford;
+        repairBtn.textContent = `Repair Base (${scrapCost}s, ${energyCost}e)`;
+        
+        let tooltipText = `Repair ${missingIntegrity}% integrity for ${scrapCost} scrap and ${energyCost} energy.`;
+        if (engineers.length > 0) {
+          const discount = Math.floor((1 - costMult) * 100);
+          tooltipText += `\n\nEngineer discount: -${discount}% cost`;
+        }
+        repairBtn.title = tooltipText;
+      }
+    }
+    
+    // Warning flash for critical thresholds
+    const threatPanel = el('threatBasePanel');
+    if (threatPanel) {
+      // Check if base integrity is critical (<20%) OR any survivor has breaking point morale (<20)
+      const integrityIsCritical = integrity < 20;
+      const anyMoraleCritical = state.survivors.some(s => s.morale < 20);
+      
+      if (integrityIsCritical || anyMoraleCritical) {
+        threatPanel.classList.add('critical-warning');
+      } else {
+        threatPanel.classList.remove('critical-warning');
+      }
+    }
+    
     const rcEl = document.getElementById('raidChance');
     if (rcEl) {
       const pct = (Number(state.raidChance) || 0) * 100;
@@ -200,11 +497,18 @@ function updateUI() {
       }
     }
     
-    el('timePlayed').textContent = `Played: ${formatTime(state.secondsPlayed)}`;
+    el('activeGuards').textContent = state.survivors.filter(s => s.task === 'Guard' && !s.onMission).length;
+    el('totalSurvivors').textContent = state.survivors.length;
+    el('activeExpeditions').textContent = state.missions.length;
+    el('inventoryUsage').textContent = `${state.inventory.length}/${getInventoryCapacity()}`;
+    el('exploredTiles').textContent = state.explored.size;
 
     // (loot preview removed)
     el('statTech').textContent = state.resources.tech;
     el('statAmmo').textContent = state.resources.ammo;
+    
+    // Update time played display in header
+    el('timePlayed').textContent = `Time: ${formatTime(state.secondsPlayed)}`;
   }
 
   // 0.8.1 - Render workbench with dynamic costs
@@ -232,65 +536,61 @@ function renderExplorerSelect() {
     return;
   }
 
-  // 0.8.8 - Use state.selectedExplorerId for persistence
+  // Use state.selectedExplorerId for persistence
   if (!state.selectedExplorerId || !availableSurvivors.some(s => s.id === state.selectedExplorerId)) {
     state.selectedExplorerId = availableSurvivors[0].id;
   }
 
-  const dropdown = document.createElement('div');
-  dropdown.className = 'task-dropdown';
-
-  const button = document.createElement('button');
-  button.className = 'task-dropdown-button';
-  button.type = 'button';
+  // Create selector with arrow buttons
+  const selector = document.createElement('div');
+  selector.className = 'task-selector';
+  
+  const upArrow = document.createElement('button');
+  upArrow.className = 'task-arrow task-arrow-up';
+  upArrow.type = 'button';
+  upArrow.textContent = '▲';
+  upArrow.title = 'Previous explorer';
+  
+  const display = document.createElement('div');
+  display.className = 'task-display';
   const selectedSurvivor = availableSurvivors.find(s => s.id === state.selectedExplorerId);
-  button.textContent = selectedSurvivor ? `Explorer: ${selectedSurvivor.name}` : 'Select Explorer';
-
-  const content = document.createElement('div');
-  content.className = 'task-dropdown-content';
-
-  availableSurvivors.forEach(s => {
-    const item = document.createElement('div');
-    item.className = 'task-dropdown-item' + (s.id === state.selectedExplorerId ? ' selected' : '');
-    item.textContent = s.name;
-    item.onclick = (e) => {
-      e.stopPropagation();
-      state.selectedExplorerId = s.id;
-      const selectedSurvivor = state.survivors.find(sur => sur.id === s.id);
-      if (selectedSurvivor) {
-        button.textContent = `Explorer: ${selectedSurvivor.name}`;
-      }
-      dropdown.classList.remove('open');
-      activeDropdown = null;
-      
-      // Manually update the 'selected' class on items without a full re-render
-      content.querySelectorAll('.task-dropdown-item').forEach(el => el.classList.remove('selected'));
-      item.classList.add('selected');
-    };
-    content.appendChild(item);
-  });
-
-  button.onclick = (e) => {
+  display.textContent = selectedSurvivor ? selectedSurvivor.name : 'Select Explorer';
+  display.title = 'Selected for exploration';
+  
+  const downArrow = document.createElement('button');
+  downArrow.className = 'task-arrow task-arrow-down';
+  downArrow.type = 'button';
+  downArrow.textContent = '▼';
+  downArrow.title = 'Next explorer';
+  
+  // Up arrow click handler (previous explorer)
+  upArrow.addEventListener('click', (e) => {
     e.stopPropagation();
-    const currentlyOpen = dropdown.classList.contains('open');
+    const currentIdx = availableSurvivors.findIndex(s => s.id === state.selectedExplorerId);
+    let newIdx = currentIdx - 1;
+    if (newIdx < 0) newIdx = availableSurvivors.length - 1; // Wrap to end
     
-    document.querySelectorAll('.task-dropdown.open').forEach(el => el.classList.remove('open'));
-
-    if (!currentlyOpen) {
-      dropdown.classList.add('open');
-      activeDropdown = { type: 'explorer' };
-    } else {
-      activeDropdown = null;
-    }
-  };
-
-  if (activeDropdown && activeDropdown.type === 'explorer') {
-    dropdown.classList.add('open');
-  }
-
-  dropdown.appendChild(button);
-  dropdown.appendChild(content);
-  cont.appendChild(dropdown);
+    state.selectedExplorerId = availableSurvivors[newIdx].id;
+    display.textContent = availableSurvivors[newIdx].name;
+    appendLog(`${availableSurvivors[newIdx].name} selected for exploration.`);
+  });
+  
+  // Down arrow click handler (next explorer)
+  downArrow.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const currentIdx = availableSurvivors.findIndex(s => s.id === state.selectedExplorerId);
+    let newIdx = currentIdx + 1;
+    if (newIdx >= availableSurvivors.length) newIdx = 0; // Wrap to start
+    
+    state.selectedExplorerId = availableSurvivors[newIdx].id;
+    display.textContent = availableSurvivors[newIdx].name;
+    appendLog(`${availableSurvivors[newIdx].name} selected for exploration.`);
+  });
+  
+  selector.appendChild(upArrow);
+  selector.appendChild(display);
+  selector.appendChild(downArrow);
+  cont.appendChild(selector);
 }
 
 function updateExpeditionTimers() {
@@ -311,128 +611,146 @@ function updateExpeditionTimers() {
 function renderSurvivors() {
   const cont = el('survivorList');
 
-  // Create a snapshot of just the core survivor data (excluding mission progress)
+  // Create a snapshot of just the core survivor data (excluding mission progress AND morale)
   const currentSurvivorsSnapshot = JSON.stringify(state.survivors.map(s => ({
-    ...s,
-    onMission: s.onMission // Include only the flag, not the progress
+    id: s.id,
+    name: s.name,
+    level: s.level,
+    xp: s.xp,
+    nextXp: s.nextXp,
+    hp: s.hp,
+    maxHp: s.maxHp,
+    class: s.class,
+    task: s.task,
+    onMission: s.onMission,
+    abilities: s.abilities,
+    equipment: s.equipment,
+    downed: s.downed,
+    injured: s.injured
+    // Explicitly exclude morale to prevent re-render on every tick
   })));
 
-  // Only do full re-render if core survivor data changed
-  if (lastRenderedSurvivors === currentSurvivorsSnapshot) {
+  // Only do full re-render if core survivor data changed (and we have survivors)
+  if (lastRenderedSurvivors === currentSurvivorsSnapshot && state.survivors.length > 0) {
     updateExpeditionTimers();
+    // Update morale bars without full re-render
+    state.survivors.forEach(s => {
+      const moraleBar = el(`moraleBar-${s.id}`);
+      const moraleText = el(`morale-${s.id}`);
+      const moraleSection = el(`moraleSection-${s.id}`);
+      if (moraleBar && moraleText && moraleSection) {
+        const morale = Math.floor(s.morale || 0);
+        const moraleTier = getMoraleTier(morale);
+        const moraleTierName = getMoraleTierName(moraleTier);
+        const moraleColor = getMoraleTierColor(moraleTier);
+        moraleBar.style.width = `${morale}%`;
+        moraleBar.style.background = moraleColor;
+        moraleText.textContent = `${moraleTierName} (${morale})`;
+        moraleText.style.color = moraleColor;
+        
+        // Update tooltip dynamically
+        const moraleModifiers = getMoraleModifier({ morale: morale });
+        const prodMod = Math.round((moraleModifiers.production - 1) * 100);
+        const combatMod = Math.round((moraleModifiers.combat - 1) * 100);
+        const xpMod = Math.round((moraleModifiers.xp - 1) * 100);
+        moraleSection.title = `${moraleTierName}\n\nCurrent Modifiers:\n• Production: ${prodMod >= 0 ? '+' : ''}${prodMod}%\n• Combat Damage: ${combatMod >= 0 ? '+' : ''}${combatMod}%\n• XP Gain: ${xpMod >= 0 ? '+' : ''}${xpMod}%\n\nGains: Kills, victories, level ups\nLosses: Deaths, retreats, crises`;
+      }
+    });
     return;
   }
 
   lastRenderedSurvivors = currentSurvivorsSnapshot;
 
-  // Store the open dropdown states before re-render
-  const openDropdowns = Array.from(cont.querySelectorAll('.task-dropdown.open')).map(dropdown => {
-    const survivorCard = dropdown.closest('.survivor-card');
-    const survivorId = dropdown.querySelector('.task-dropdown-button').closest('[data-id]')?.dataset.id;
-    const scrollTop = dropdown.querySelector('.task-dropdown-content').scrollTop;
-    return { survivorId, scrollTop };
-  });
-
   cont.innerHTML = '';
   if (state.survivors.length === 0) {
+    console.log('[DEBUG] No survivors, showing message');
     cont.textContent = 'No survivors present.';
     return;
   }
   state.survivors.forEach(s => {
     const card = document.createElement('div');
     card.className = 'survivor-card';
-    const healthPct = Math.max(0, Math.floor((s.hp / s.maxHp) * 100));
-    const morale = Math.floor(s.morale);
+    
+    // 0.9.0 - Calculate effective max HP including armor bonuses
+    const effectiveMaxHp = getEffectiveMaxHp(s);
+    const healthPct = Math.max(0, Math.floor((s.hp / effectiveMaxHp) * 100));
+    const morale = Math.floor(s.morale || 0);
 
-    // Create custom dropdown for tasks
-    const dropdown = document.createElement('div');
-    dropdown.className = 'task-dropdown';
-    dropdown.dataset.id = s.id;
-
-    const button = document.createElement('button');
-    button.className = 'task-dropdown-button';
-    button.type = 'button'; // Prevent form submission behavior
-    button.textContent = s.task || 'Idle';
-
-    const content = document.createElement('div');
-    content.className = 'task-dropdown-content';
-
-    // restore previous scroll position for this dropdown (if any)
-    setTimeout(() => {
-      try {
-        content.scrollTop = activeTaskDropdownScroll[s.id] || 0;
-      } catch (e) { }
-    }, 0);
-    // save scroll position as the user scrolls
-    content.addEventListener('scroll', () => {
-      activeTaskDropdownScroll[s.id] = content.scrollTop;
-    });
-
-    TASKS.forEach(task => {
-      const item = document.createElement('div');
-      item.className = 'task-dropdown-item' + (task === s.task ? ' selected' : '');
-      item.textContent = task;
+    // Create task selector with arrow buttons
+    const taskSelector = document.createElement('div');
+    taskSelector.className = 'task-selector';
+    
+    const upArrow = document.createElement('button');
+    upArrow.className = 'task-arrow task-arrow-up';
+    upArrow.type = 'button';
+    upArrow.textContent = '▲';
+    upArrow.title = 'Previous task';
+    
+    const taskDisplay = document.createElement('div');
+    taskDisplay.className = 'task-display';
+    taskDisplay.textContent = s.task || 'Idle';
+    taskDisplay.title = 'Selected task';
+    
+    const downArrow = document.createElement('button');
+    downArrow.className = 'task-arrow task-arrow-down';
+    downArrow.type = 'button';
+    downArrow.textContent = '▼';
+    downArrow.title = 'Next task';
+    
+    // Get current task index
+    const currentIndex = TASKS.indexOf(s.task || 'Idle');
+    
+    // Up arrow click handler (previous task)
+    upArrow.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const currentIdx = TASKS.indexOf(s.task || 'Idle');
+      let newIdx = currentIdx - 1;
+      if (newIdx < 0) newIdx = TASKS.length - 1; // Wrap to end
       
-      // 0.8.10 - Disable Guard task if max guards reached (excluding this survivor if already a guard)
-      if (task === 'Guard') {
+      const newTask = TASKS[newIdx];
+      
+      // Check guard limit
+      if (newTask === 'Guard') {
         const currentGuards = state.survivors.filter(surv => surv.task === 'Guard' && surv.id !== s.id && !surv.onMission).length;
         const maxGuards = BALANCE.MAX_GUARDS || 4;
         if (currentGuards >= maxGuards) {
-          item.classList.add('disabled');
-          item.title = `Maximum guards (${maxGuards}) reached`;
-          item.style.opacity = '0.4';
-          item.style.cursor = 'not-allowed';
-          item.style.color = 'var(--muted)';
-        }
-      }
-
-      // click handler — use plain click to avoid interfering with default browser behavior
-      item.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (item.classList.contains('disabled')) {
-          appendLog(`Cannot assign more guards. Maximum: ${BALANCE.MAX_GUARDS || 4}`);
+          appendLog(`Cannot assign more guards. Maximum: ${maxGuards}`);
           updateUI();
           return;
         }
-        
-        // Close the dropdown and clear the active state
-        dropdown.classList.remove('open');
-        card.classList.remove('dropdown-open');
-        activeDropdown = null;
-
-        // Assign the task (this will trigger a UI update)
-        assignTask(s.id, task);
-      });
-
-      content.appendChild(item);
-    });
-
-    button.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const currentlyOpen = dropdown.classList.contains('open');
-
-      // Close all other dropdowns first
-      document.querySelectorAll('.task-dropdown.open').forEach(el => {
-        el.classList.remove('open');
-        el.closest('.survivor-card')?.classList.remove('dropdown-open');
-      });
-
-      if (!currentlyOpen) {
-        dropdown.classList.add('open');
-        card.classList.add('dropdown-open');
-        activeDropdown = { type: 'task', survivorId: s.id };
-      } else {
-        activeDropdown = null;
       }
+      
+      assignTask(s.id, newTask);
     });
     
-    dropdown.appendChild(button);
-    dropdown.appendChild(content);
+    // Down arrow click handler (next task)
+    downArrow.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const currentIdx = TASKS.indexOf(s.task || 'Idle');
+      let newIdx = currentIdx + 1;
+      if (newIdx >= TASKS.length) newIdx = 0; // Wrap to start
+      
+      const newTask = TASKS[newIdx];
+      
+      // Check guard limit
+      if (newTask === 'Guard') {
+        const currentGuards = state.survivors.filter(surv => surv.task === 'Guard' && surv.id !== s.id && !surv.onMission).length;
+        const maxGuards = BALANCE.MAX_GUARDS || 4;
+        if (currentGuards >= maxGuards) {
+          appendLog(`Cannot assign more guards. Maximum: ${maxGuards}`);
+          updateUI();
+          return;
+        }
+      }
+      
+      assignTask(s.id, newTask);
+    });
+    
+    taskSelector.appendChild(upArrow);
+    taskSelector.appendChild(taskDisplay);
+    taskSelector.appendChild(downArrow);
 
-    // restore open state if this dropdown was active before a re-render
-    if (activeDropdown && activeDropdown.type === 'task' && activeDropdown.survivorId === s.id) {
-      dropdown.classList.add('open');
-    }    // Get expedition time remaining if on mission
+    // Get expedition time remaining if on mission
     let expeditionStatus = '';
     if (s.onMission) {
       const activeMission = state.missions.find(m => m.party.includes(s.id) && m.status === 'active');
@@ -446,11 +764,11 @@ function renderSurvivors() {
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong style="color:var(--accent)">${s.name}</strong><div class="small" id="survivor-${s.id}-status">Lvl ${s.level} • ${s.onMission ? expeditionStatus : (s.task || 'Idle')}</div></div>
-        <div class="small">${healthPct}% HP • Morale ${morale}</div>
+        <div><strong style="color:var(--accent)">${s.name}</strong><div class="small" id="survivor-${s.id}-status"><span title="Level increases max HP and combat effectiveness.">Lvl ${s.level}</span> • ${s.onMission ? expeditionStatus : (s.task || 'Idle')}</div></div>
+        <div class="small">HP ${s.hp}/${effectiveMaxHp}</div>
       </div>
       <div style="margin-top:6px" class="small">
-        Skill: ${s.skill} • Exp: ${s.xp}/${s.nextXp} ${s.injured ? ' • Injured' : ''}
+        Exp: ${s.xp}/${s.nextXp} ${s.injured ? ' • Injured' : ''}
       </div>
       ${(() => {
         // 0.8.0 - Display class and abilities with tooltips
@@ -501,15 +819,62 @@ function renderSurvivors() {
           bonusLines.push(`Scrap: +${Math.round(scrapBonusAdd * 100)}%`);
         }
         
-        // Combat bonus (Soldier class + abilities) - 0.8.11 additive
+        // Combat bonus (Soldier class + abilities + level)
         let combatBonusAdd = 0;
         if (s.classBonuses && s.classBonuses.combat) combatBonusAdd += (s.classBonuses.combat - 1);
         if (hasAbility(s, 'veteran')) combatBonusAdd += 0.20;
+        combatBonusAdd += (s.level - 1) * BALANCE.LEVEL_ATTACK_BONUS;
         if (combatBonusAdd > 0) {
           bonusLines.push(`Combat: +${Math.round(combatBonusAdd * 100)}%`);
         }
         
-        // Healing bonus (Medic class + abilities) - 0.8.11 additive
+        // Accuracy bonus (from level, abilities, and equipment)
+        let totalAccuracyBonus = 0;
+        totalAccuracyBonus += (s.level - 1) * BALANCE.LEVEL_ACCURACY_BONUS;
+        if (s.classBonuses && s.classBonuses.accuracy) {
+          totalAccuracyBonus += s.classBonuses.accuracy;
+        }
+        if (hasAbility(s, 'marksman')) {
+          totalAccuracyBonus += 0.10;
+        }
+        const weapon = s.equipment.weapon;
+        if (weapon && weapon.effects) {
+          const accuracyEffect = weapon.effects.find(e => e.startsWith('accuracy:'));
+          if (accuracyEffect) {
+            const value = parseInt(accuracyEffect.split(':')[1]) || 0;
+            totalAccuracyBonus += value / 100;
+          }
+        }
+        if (totalAccuracyBonus > 0) {
+          bonusLines.push(`Accuracy: +${Math.round(totalAccuracyBonus * 100)}%`);
+        }
+
+        // Crit chance bonus
+        let totalCritBonus = 0;
+        if (s.classBonuses && s.classBonuses.crit) {
+            totalCritBonus += s.classBonuses.crit;
+        }
+        if (hasAbility(s, 'tactical')) {
+            totalCritBonus += 0.15;
+        }
+        if (weapon && weapon.effects) {
+            const critEffect = weapon.effects.find(e => e.startsWith('crit:'));
+            if (critEffect) {
+                const value = parseInt(critEffect.split(':')[1]) || 0;
+                totalCritBonus += value / 100;
+            }
+        }
+        const armor = s.equipment.armor;
+        if (armor && armor.effects) {
+            const critEffect = armor.effects.find(e => e.startsWith('crit:'));
+            if (critEffect) {
+                const value = parseInt(critEffect.split(':')[1]) || 0;
+                totalCritBonus += value / 100;
+            }
+        }
+        if (totalCritBonus > 0) {
+            bonusLines.push(`Crit Chance: +${Math.round(totalCritBonus * 100)}%`);
+        }
         let healingBonusAdd = 0;
         if (s.classBonuses && s.classBonuses.healing) healingBonusAdd += (s.classBonuses.healing - 1);
         if (hasAbility(s, 'triage')) healingBonusAdd += 0.25;
@@ -520,9 +885,10 @@ function renderSurvivors() {
         // Defense (Guardian/Soldier class + abilities + armor)
         let defenseBonus = 0;
         if (s.classBonuses && s.classBonuses.defense) defenseBonus += s.classBonuses.defense;
-        if (s.equipment.armor?.type === 'armor') defenseBonus += 3;
-        if (s.equipment.armor?.type === 'heavyArmor') defenseBonus += 6;
-        if (s.equipment.armor?.type === 'hazmatSuit') defenseBonus += 3;
+        // Read defense value directly from armor item (works for all armor types)
+        if (s.equipment.armor && s.equipment.armor.defense !== undefined) {
+          defenseBonus += s.equipment.armor.defense;
+        }
         if (hasAbility(s, 'stalwart') && s.task === 'Guard') defenseBonus += 3;
         if (hasAbility(s, 'fortress')) defenseBonus += 5;
         if (defenseBonus > 0) {
@@ -532,12 +898,24 @@ function renderSurvivors() {
         // Dodge (Scout class + abilities)
         let dodgeChance = 0;
         if (s.class === 'scout' && s.classBonuses && s.classBonuses.dodge) {
-          dodgeChance = 0.12 * s.classBonuses.dodge;
+          dodgeChance += (s.classBonuses.dodge - 1);
         }
         if (hasAbility(s, 'evasive')) dodgeChance += 0.20;
         if (hasAbility(s, 'ghost')) dodgeChance += 0.35;
         if (dodgeChance > 0) {
           bonusLines.push(`Dodge: ${Math.round(dodgeChance * 100)}%`);
+        }
+        
+        // Retreat bonus (Scout class + abilities)
+        let retreatBonus = 0;
+        if (s.classBonuses && s.classBonuses.retreat) {
+          retreatBonus += (s.classBonuses.retreat - 1);
+        }
+        if (hasAbility(s, 'ghost')) {
+          retreatBonus += 0.25;
+        }
+        if (retreatBonus > 0) {
+          bonusLines.push(`Retreat: +${Math.round(retreatBonus * 100)}%`);
         }
         
         // Exploration cost (Scout class + abilities) - Note: multiplicative is okay for cost reduction
@@ -548,16 +926,17 @@ function renderSurvivors() {
           bonusLines.push(`Exploration: ${Math.round((1 - explorationCostMult) * 100)}% cheaper`);
         }
         
-        // Loot quality (Scavenger class + abilities) - already additive
+        // Loot quality (Scavenger class + abilities)
         let lootBonus = 0;
         if (s.classBonuses && s.classBonuses.loot) lootBonus += (s.classBonuses.loot - 1);
         if (hasAbility(s, 'keen')) lootBonus += 0.20;
-        if (hasAbility(s, 'treasure')) lootBonus += 0.40;
+        if (hasAbility(s, 'treasure')) lootBonus += 0.25;
+        if (hasAbility(s, 'goldnose')) lootBonus += 0.50;
         if (lootBonus > 0) {
-          bonusLines.push(`Loot: +${Math.round(lootBonus * 100)}% quality`);
+          bonusLines.push(`Loot: +${Math.round(lootBonus * 100)}% rarity`);
         }
         
-        // Crafting cost (Technician class + abilities) - Note: multiplicative for cost display
+        // Crafting cost (Technician class + abilities)
         let craftingCostMult = 1;
         if (s.classBonuses && s.classBonuses.crafting) craftingCostMult *= s.classBonuses.crafting;
         if (hasAbility(s, 'resourceful')) craftingCostMult *= 0.90;
@@ -565,8 +944,16 @@ function renderSurvivors() {
         if (craftingCostMult < 1) {
           bonusLines.push(`Crafting: ${Math.round((1 - craftingCostMult) * 100)}% cheaper`);
         }
+
+        // Repair cost (Engineer class + abilities)
+        let repairCostMult = 1;
+        if (s.classBonuses && s.classBonuses.repair) repairCostMult *= s.classBonuses.repair;
+        if (hasAbility(s, 'quickfix')) repairCostMult *= 0.80;
+        if (repairCostMult < 1) {
+            bonusLines.push(`Repair: ${Math.round((1 - repairCostMult) * 100)}% cheaper`);
+        }
         
-        // Durability (Technician class + abilities) - 0.8.11 additive
+        // Durability (Technician class + abilities)
         let durabilityBonusAdd = 0;
         if (s.classBonuses && s.classBonuses.durability) durabilityBonusAdd += (s.classBonuses.durability - 1);
         if (hasAbility(s, 'durable')) durabilityBonusAdd += 0.20;
@@ -575,18 +962,34 @@ function renderSurvivors() {
           bonusLines.push(`Durability: +${Math.round(durabilityBonusAdd * 100)}%`);
         }
         
-        // Morale (Guardian class)
+        // Morale (Guardian class + abilities)
+        let moraleBonus = 0;
         if (s.classBonuses && s.classBonuses.morale && s.classBonuses.morale > 1) {
-          bonusLines.push(`Morale: +${Math.round((s.classBonuses.morale - 1) * 100)}% aura`);
+            moraleBonus += (s.classBonuses.morale - 1);
+        }
+        if (hasAbility(s, 'rallying')) {
+            moraleBonus += 0.05;
+        }
+        if (moraleBonus > 0) {
+            bonusLines.push(`Morale Aura: +${Math.round(moraleBonus * 100)}%`);
         }
         
-        // XP bonus (Scientist class + abilities, excluding level) - 0.8.11 additive
+        // XP bonus (Scientist class + abilities)
         let xpBonusAdd = 0;
         if (s.classBonuses && s.classBonuses.xp) xpBonusAdd += (s.classBonuses.xp - 1);
         if (hasAbility(s, 'studious')) xpBonusAdd += 0.15;
         if (hasAbility(s, 'genius')) xpBonusAdd += 0.25;
         if (xpBonusAdd > 0) {
           bonusLines.push(`XP: +${Math.round(xpBonusAdd * 100)}%`);
+        }
+
+        // Misc bonuses
+        if (hasAbility(s, 'veteran')) {
+            bonusLines.push(`Max HP: +10`);
+        }
+        const hoarderCount = s.abilities.filter(a => a === 'hoarder').length;
+        if (hoarderCount > 0) {
+            bonusLines.push(`Inventory: +${hoarderCount * 2}`);
         }
         
         if (bonusLines.length > 0) {
@@ -598,10 +1001,26 @@ function renderSurvivors() {
         return classDisplay;
       })()}
       <div style="margin-top:4px; font-size: 11px; color: var(--muted);">
-        Equipped: ${s.equipment.weapon?.name || 'None'} / ${s.equipment.armor?.name || 'None'}
+        Equipped: ${(() => {
+          const weaponColor = s.equipment.weapon?.rarity ? (RARITY_COLORS[s.equipment.weapon.rarity] || '#ffffff') : '#ffffff';
+          const armorColor = s.equipment.armor?.rarity ? (RARITY_COLORS[s.equipment.armor.rarity] || '#ffffff') : '#ffffff';
+          const weaponTooltip = s.equipment.weapon ? getItemTooltip(s.equipment.weapon) : '';
+          const armorTooltip = s.equipment.armor ? getItemTooltip(s.equipment.armor) : '';
+          const weaponName = s.equipment.weapon?.name ? `<span style="color:${weaponColor}" title="${weaponTooltip}">${s.equipment.weapon.name}</span>` : 'None';
+          const armorName = s.equipment.armor?.name ? `<span style="color:${armorColor}" title="${armorTooltip}">${s.equipment.armor.name}</span>` : 'None';
+          return `${weaponName} / ${armorName}`;
+        })()}
+      </div>
+      <div id="moraleSection-${s.id}" style="margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;">
+          <span>Morale:</span>
+          <span id="morale-${s.id}" style="font-weight:bold; color: ${getMoraleTierColor(getMoraleTier(morale))}">${getMoraleTierName(getMoraleTier(morale))} (${morale})</span>
+        </div>
+        <div style="width:100%;height:8px;background:#333;border-radius:4px;margin-top:2px;box-shadow:inset 0 1px 2px rgba(0,0,0,0.3);">
+          <div id="moraleBar-${s.id}" style="width:${morale}%;height:100%;background:${getMoraleTierColor(getMoraleTier(morale))};transition:width 0.3s, background 0.3s;border-radius:4px;"></div>
+        </div>
       </div>
       <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
-        <div style="flex:0 0 auto">Task: </div>
         <div id="task-select-${s.id}" style="flex:1"></div>
         <button data-id="${s.id}" class="equip" style="flex:0 0 auto">Equip</button>
         <button data-id="${s.id}" class="heal" style="flex:0 0 auto">Use Medkit</button>
@@ -609,8 +1028,19 @@ function renderSurvivors() {
       </div>
     `;
     cont.appendChild(card);
-    // Insert the custom dropdown
-    el(`task-select-${s.id}`).appendChild(dropdown);
+    // Insert the task selector with arrows
+    el(`task-select-${s.id}`).appendChild(taskSelector);
+    
+    // Add morale tooltip to the entire section
+    const moraleSection = el(`moraleSection-${s.id}`);
+    if (moraleSection) {
+      const survivorMorale = Math.floor(s.morale || 0);
+      const moraleModifiers = getMoraleModifier({ morale: survivorMorale });
+      const prodMod = Math.round((moraleModifiers.production - 1) * 100);
+      const combatMod = Math.round((moraleModifiers.combat - 1) * 100);
+      const xpMod = Math.round((moraleModifiers.xp - 1) * 100);
+      moraleSection.title = `${getMoraleTierName(getMoraleTier(survivorMorale))}\n\nCurrent Modifiers:\n• Production: ${prodMod >= 0 ? '+' : ''}${prodMod}%\n• Combat Damage: ${combatMod >= 0 ? '+' : ''}${combatMod}%\n• XP Gain: ${xpMod >= 0 ? '+' : ''}${xpMod}%\n\nGains: Kills, victories, level ups\nLosses: Deaths, retreats, crises`;
+    }
   });
 
   // bind controls
@@ -645,20 +1075,38 @@ function renderLoadoutContent() {
   const s = state.survivors.find(x => x.id === activeLoadoutSurvivorId);
   if (!s) { cont.innerHTML = '<div class="small">No survivor selected.</div>'; return; }
 
-  const equippedWeapon = s.equipment.weapon ? `${s.equipment.weapon.name} ${s.equipment.weapon.durability !== undefined ? `(${s.equipment.weapon.durability}/${s.equipment.weapon.maxDurability})` : ''}` : 'None';
-  const equippedArmor = s.equipment.armor ? `${s.equipment.armor.name} ${s.equipment.armor.durability !== undefined ? `(${s.equipment.armor.durability}/${s.equipment.armor.maxDurability})` : ''}` : 'None';
+  // 0.9.0 - Apply rarity colors to equipped items
+  const weaponColor = s.equipment.weapon?.rarity ? (RARITY_COLORS[s.equipment.weapon.rarity] || '#ffffff') : '#ffffff';
+  const armorColor = s.equipment.armor?.rarity ? (RARITY_COLORS[s.equipment.armor.rarity] || '#ffffff') : '#ffffff';
+  const weaponTooltip = s.equipment.weapon ? getItemTooltip(s.equipment.weapon) : '';
+  const armorTooltip = s.equipment.armor ? getItemTooltip(s.equipment.armor) : '';
+  const equippedWeapon = s.equipment.weapon ? `<span style="color:${weaponColor}" title="${weaponTooltip}">${s.equipment.weapon.name}</span> ${s.equipment.weapon.durability !== undefined ? `(${s.equipment.weapon.durability}/${s.equipment.weapon.maxDurability})` : ''}` : 'None';
+  const equippedArmor = s.equipment.armor ? `<span style="color:${armorColor}" title="${armorTooltip}">${s.equipment.armor.name}</span> ${s.equipment.armor.durability !== undefined ? `(${s.equipment.armor.durability}/${s.equipment.armor.maxDurability})` : ''}` : 'None';
 
-  const weapons = state.inventory.filter(i => i.type === 'rifle' || i.type === 'shotgun');
-  const armors = state.inventory.filter(i => i.type === 'armor' || i.type === 'heavyArmor' || i.type === 'hazmatSuit');
+  const weapons = state.inventory.filter(i => i.type === 'weapon');
+  const armors = state.inventory.filter(i => i.type === 'armor');
 
-  const weaponList = weapons.map(i => `<div class="inv-row"><span>${i.name} ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-weapon">Equip</button></div>`).join('') || '<div class="small">No weapons in inventory.</div>';
-  const armorList = armors.map(i => `<div class="inv-row"><span>${i.name} ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-armor">Equip</button></div>`).join('') || '<div class="small">No armor in inventory.</div>';
+  // 0.9.0 - Apply rarity colors and tooltips to inventory items
+  const weaponList = weapons.map(i => {
+    const color = i.rarity ? (RARITY_COLORS[i.rarity] || '#ffffff') : '#ffffff';
+    const tooltip = getItemTooltip(i);
+    return `<div class="inv-row"><span><span style="color:${color}" title="${tooltip}">${i.name}</span> ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-weapon">Equip</button></div>`;
+  }).join('') || '<div class="small">No weapons in inventory.</div>';
+  
+  const armorList = armors.map(i => {
+    const color = i.rarity ? (RARITY_COLORS[i.rarity] || '#ffffff') : '#ffffff';
+    const tooltip = getItemTooltip(i);
+    return `<div class="inv-row"><span><span style="color:${color}" title="${tooltip}">${i.name}</span> ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-armor">Equip</button></div>`;
+  }).join('') || '<div class="small">No armor in inventory.</div>';
+
+  // 0.9.0 - Calculate effective max HP including armor bonuses
+  const effectiveMaxHp = getEffectiveMaxHp(s);
 
   cont.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:16px">
       <div style="display:flex;gap:16px;flex-wrap:wrap">
         <div style="flex:1;min-width:260px">
-          <div><strong>${s.name}</strong> <span class="small">Lvl ${s.level} • HP ${s.hp}/${s.maxHp}</span></div>
+          <div><strong>${s.name}</strong> <span class="small">Lvl ${s.level} • HP ${s.hp}/${effectiveMaxHp}</span></div>
           <div class="small" style="margin-top:4px;color:var(--muted)">Ammo: ${state.resources.ammo}</div>
         </div>
       </div>
@@ -822,6 +1270,14 @@ function renderInventory() {
   state.inventory.forEach(item => {
     const node = document.createElement('div');
     node.className = 'inv-item';
+    
+    // 0.9.0 - Only junk cannot be recycled (use Salvage button for junk)
+    const isRecyclable = item.type !== 'junk';
+    if (isRecyclable) {
+      node.onclick = (e) => recycleItem(item.id, e);
+      node.style.cursor = 'pointer';
+    }
+    
     let durabilityInfo = '';
     if (item.durability !== undefined) {
       durabilityInfo = ` (${item.durability}/${item.maxDurability})`;
@@ -829,8 +1285,23 @@ function renderInventory() {
     // Capitalize first letter of item name
     const displayName = item.name || item.type;
     const capitalizedName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
-    node.textContent = `${capitalizedName}${durabilityInfo}`;
-    if (item.durability < item.maxDurability) {
+    
+    // 0.9.0 - Apply rarity color to item name
+    const rarityColor = item.rarity ? (RARITY_COLORS[item.rarity] || '#ffffff') : '#ffffff';
+    node.innerHTML = `<span style="color:${rarityColor}">${capitalizedName}</span>${durabilityInfo}`;
+    
+    // 0.9.0 - Add tooltip (no help cursor icon)
+    node.title = getItemTooltip(item);
+    
+    // 0.9.0 - Repair Kit info message (automatically used when repairing systems)
+    if (item.type === 'consumable' && item.subtype === 'repair_kit') {
+      const infoText = document.createElement('div');
+      infoText.style.cssText = 'font-size:11px;color:var(--success);margin-top:4px;';
+      infoText.textContent = '✓ Auto-used on system repairs';
+      node.appendChild(infoText);
+    }
+    // Regular durability repair for weapons/armor
+    else if (item.durability < item.maxDurability) {
       const repairButton = document.createElement('button');
       repairButton.textContent = 'Repair';
       repairButton.onclick = () => repairItem(item.id);
@@ -863,158 +1334,257 @@ function renderExpeditionSurvivorSelect() {
     return;
   }
 
-  // 0.8.8 - Use state.selectedExpeditionSurvivorId for persistence
+  // Use state.selectedExpeditionSurvivorId for persistence
   if (!state.selectedExpeditionSurvivorId || !availableSurvivors.some(s => s.id === state.selectedExpeditionSurvivorId)) {
     state.selectedExpeditionSurvivorId = availableSurvivors[0].id;
   }
 
-  const dropdown = document.createElement('div');
-  dropdown.className = 'task-dropdown';
-
-  const button = document.createElement('button');
-  button.className = 'task-dropdown-button';
-  button.type = 'button';
+  // Create selector with arrow buttons
+  const selector = document.createElement('div');
+  selector.className = 'task-selector';
+  
+  const upArrow = document.createElement('button');
+  upArrow.className = 'task-arrow task-arrow-up';
+  upArrow.type = 'button';
+  upArrow.textContent = '▲';
+  upArrow.title = 'Previous survivor';
+  
+  const display = document.createElement('div');
+  display.className = 'task-display';
   const selectedSurvivor = availableSurvivors.find(s => s.id === state.selectedExpeditionSurvivorId);
-  button.textContent = selectedSurvivor ? selectedSurvivor.name : 'Select Survivor';
-
-  const content = document.createElement('div');
-  content.className = 'task-dropdown-content';
-
-  availableSurvivors.forEach(s => {
-    const item = document.createElement('div');
-    item.className = 'task-dropdown-item' + (s.id === state.selectedExpeditionSurvivorId ? ' selected' : '');
-    item.textContent = s.name;
-    item.onclick = (e) => {
-      e.stopPropagation();
-      state.selectedExpeditionSurvivorId = s.id;
-      button.textContent = s.name;
-      dropdown.classList.remove('open');
-      activeDropdown = null;
-      // Re-render only the items to update the 'selected' class
-      content.querySelectorAll('.task-dropdown-item').forEach(el => {
-        el.classList.remove('selected');
-      });
-      item.classList.add('selected');
-    };
-    content.appendChild(item);
-  });
-
-  button.onclick = (e) => {
+  display.textContent = selectedSurvivor ? selectedSurvivor.name : 'Select Survivor';
+  display.title = 'Selected for expedition';
+  
+  const downArrow = document.createElement('button');
+  downArrow.className = 'task-arrow task-arrow-down';
+  downArrow.type = 'button';
+  downArrow.textContent = '▼';
+  downArrow.title = 'Next survivor';
+  
+  // Up arrow click handler (previous survivor)
+  upArrow.addEventListener('click', (e) => {
     e.stopPropagation();
-    const currentlyOpen = dropdown.classList.contains('open');
+    const currentIdx = availableSurvivors.findIndex(s => s.id === state.selectedExpeditionSurvivorId);
+    let newIdx = currentIdx - 1;
+    if (newIdx < 0) newIdx = availableSurvivors.length - 1; // Wrap to end
     
-    // Close all other dropdowns first
-    document.querySelectorAll('.task-dropdown.open').forEach(el => {
-      el.classList.remove('open');
-      el.closest('.survivor-card')?.classList.remove('dropdown-open');
-    });
-
-    if (!currentlyOpen) {
-      dropdown.classList.add('open');
-      activeDropdown = { type: 'expedition' };
-    } else {
-      activeDropdown = null;
-    }
-  };
-
-  if (activeDropdown && activeDropdown.type === 'expedition') {
-    dropdown.classList.add('open');
-  }
-
-  dropdown.appendChild(button);
-  dropdown.appendChild(content);
-  cont.appendChild(dropdown);
+    state.selectedExpeditionSurvivorId = availableSurvivors[newIdx].id;
+    display.textContent = availableSurvivors[newIdx].name;
+    appendLog(`${availableSurvivors[newIdx].name} selected for expedition.`);
+  });
+  
+  // Down arrow click handler (next survivor)
+  downArrow.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const currentIdx = availableSurvivors.findIndex(s => s.id === state.selectedExpeditionSurvivorId);
+    let newIdx = currentIdx + 1;
+    if (newIdx >= availableSurvivors.length) newIdx = 0; // Wrap to start
+    
+    state.selectedExpeditionSurvivorId = availableSurvivors[newIdx].id;
+    display.textContent = availableSurvivors[newIdx].name;
+    appendLog(`${availableSurvivors[newIdx].name} selected for expedition.`);
+  });
+  
+  selector.appendChild(upArrow);
+  selector.appendChild(display);
+  selector.appendChild(downArrow);
+  cont.appendChild(selector);
 }
 
 // 0.8.1 - Render workbench with dynamic crafting costs
 function renderWorkbench() {
-  // 0.8.11 - Calculate cost multiplier from Technician class bonuses + abilities (additive stacking)
+  // 0.9.0 - Reorganized workbench with categories and expanded recipes
   let costReduction = 0;
   const technicians = state.survivors.filter(s => !s.onMission);
   
   // Apply all Technician class bonuses additively
   const techsWithBonus = technicians.filter(t => t.class === 'technician' && t.classBonuses && t.classBonuses.crafting);
   for (const tech of techsWithBonus) {
-    costReduction += (1 - tech.classBonuses.crafting); // e.g., 0.85 -> 0.15 reduction
+    costReduction += (1 - tech.classBonuses.crafting);
   }
   
   // Apply Technician abilities (additive stacking)
   for (const t of technicians) {
-    if (hasAbility(t, 'resourceful')) costReduction += 0.10; // -10% cost
-    if (hasAbility(t, 'prodigy')) costReduction += 0.25; // -25% cost
+    if (hasAbility(t, 'resourceful')) costReduction += 0.10;
+    if (hasAbility(t, 'prodigy')) costReduction += 0.25;
   }
   
-  const costMult = Math.max(0.1, 1 - costReduction); // Cap at 90% reduction
+  const costMult = Math.max(0.1, 1 - costReduction);
 
-  const key = `v1:${costMult.toFixed(3)}`;
-  // Skip rerendering if costs haven't changed
+  // Count components in inventory
+  const componentCounts = {};
+  const componentTypes = ['weaponPart', 'electronics', 'armor_plating', 'power_core', 'nano_material', 'advanced_component', 'quantum_core', 'alien_artifact'];
+  for (const compType of componentTypes) {
+    componentCounts[compType] = state.inventory.filter(i => i.type === 'component' && i.subtype === compType).length;
+  }
+
+  const key = `v2:${costMult.toFixed(3)}:${JSON.stringify(componentCounts)}`;
   if (lastRenderedWorkbenchKey === key) return;
   lastRenderedWorkbenchKey = key;
 
   const workbench = el('workbench');
   if (!workbench) return;
 
-  // Define recipes with their display info
-  const recipes = [
-    { item: 'medkit', label: 'Assemble Medkit', scrap: 15 },
-    { item: 'ammo', label: 'Manufacture Ammo', scrap: 10 },
-    // 0.8.10 - Turret removed from workbench (build via Systems panel)
-    { item: 'armor', label: 'Craft Light Armor', scrap: 40, tech: 3 },
-    { item: 'rifle', label: 'Build Pulse Rifle', scrap: 55, tech: 5, weaponPart: 1 },
-    { item: 'heavyArmor', label: 'Craft Heavy Armor', scrap: 70, tech: 5 },
-    { item: 'shotgun', label: 'Build Shotgun', scrap: 65, tech: 4, weaponPart: 1 },
-    { item: 'hazmatSuit', label: 'Craft Hazmat Suit', scrap: 85, tech: 6 }
+  // 0.9.0 - Categorized recipes with rarity indicators
+  const categories = [
+    { 
+      name: '⚗️ Consumables', 
+      recipes: [
+        { item: 'medkit', name: 'Medkit', rarity: 'uncommon' },
+        { item: 'ammo', name: 'Ammo', rarity: 'common' }
+      ]
+    },
+    { 
+      name: '🔪 Melee Weapons', 
+      recipes: [
+        { item: 'makeshift_pipe', name: 'Makeshift Pipe', rarity: 'common' },
+        { item: 'sharpened_tool', name: 'Sharpened Tool', rarity: 'common' },
+        { item: 'crowbar', name: 'Crowbar', rarity: 'common' },
+        { item: 'combat_knife', name: 'Combat Knife', rarity: 'uncommon' },
+        { item: 'stun_baton', name: 'Stun Baton', rarity: 'uncommon' },
+        { item: 'reinforced_bat', name: 'Reinforced Bat', rarity: 'uncommon' },
+        { item: 'plasma_blade', name: 'Plasma Blade', rarity: 'rare' },
+        { item: 'shock_maul', name: 'Shock Maul', rarity: 'rare' },
+        { item: 'nano_edge_katana', name: 'Nano-Edge Katana', rarity: 'veryrare' }
+      ]
+    },
+    { 
+      name: '🔫 Pistols', 
+      recipes: [
+        { item: 'scrap_pistol', name: 'Scrap Pistol', rarity: 'common' },
+        { item: 'old_revolver', name: 'Old Revolver', rarity: 'common' },
+        { item: 'laser_pistol', name: 'Laser Pistol', rarity: 'uncommon' },
+        { item: 'heavy_pistol', name: 'Heavy Pistol', rarity: 'uncommon' },
+        { item: 'plasma_pistol', name: 'Plasma Pistol', rarity: 'rare' },
+        { item: 'smart_pistol', name: 'Smart Pistol', rarity: 'rare' },
+        { item: 'void_pistol', name: 'Void Pistol', rarity: 'veryrare' }
+      ]
+    },
+    { 
+      name: '🎯 Rifles', 
+      recipes: [
+        { item: 'assault_rifle', name: 'Assault Rifle', rarity: 'uncommon' },
+        { item: 'scoped_rifle', name: 'Scoped Rifle', rarity: 'uncommon' },
+        { item: 'pulse_rifle', name: 'Pulse Rifle', rarity: 'rare' },
+        { item: 'plasma_rifle', name: 'Plasma Rifle', rarity: 'rare' },
+        { item: 'gauss_rifle', name: 'Gauss Rifle', rarity: 'veryrare' },
+        { item: 'quantum_rifle', name: 'Quantum Rifle', rarity: 'veryrare' }
+      ]
+    },
+    { 
+      name: '💥 Shotguns', 
+      recipes: [
+        { item: 'pump_shotgun', name: 'Pump Shotgun', rarity: 'uncommon' },
+        { item: 'combat_shotgun', name: 'Combat Shotgun', rarity: 'rare' },
+        { item: 'plasma_shotgun', name: 'Plasma Shotgun', rarity: 'rare' },
+        { item: 'disintegrator_cannon', name: 'Disintegrator Cannon', rarity: 'veryrare' }
+      ]
+    },
+    { 
+      name: '🔥 Heavy Weapons', 
+      recipes: [
+        { item: 'light_machine_gun', name: 'Light Machine Gun', rarity: 'rare' },
+        { item: 'grenade_launcher', name: 'Grenade Launcher', rarity: 'rare' },
+        { item: 'minigun', name: 'Minigun', rarity: 'veryrare' },
+        { item: 'railgun', name: 'Railgun', rarity: 'veryrare' }
+      ]
+    },
+    { 
+      name: '🛡️ Light Armor', 
+      recipes: [
+        { item: 'scrap_vest', name: 'Scrap Vest', rarity: 'common' },
+        { item: 'padded_suit', name: 'Padded Suit', rarity: 'common' },
+        { item: 'light_armor', name: 'Light Armor', rarity: 'uncommon' },
+        { item: 'tactical_vest', name: 'Tactical Vest', rarity: 'uncommon' },
+        { item: 'reinforced_plating', name: 'Reinforced Plating', rarity: 'uncommon' },
+        { item: 'composite_armor', name: 'Composite Armor', rarity: 'rare' },
+        { item: 'stealth_suit', name: 'Stealth Suit', rarity: 'rare' },
+        { item: 'nano_weave_armor', name: 'Nano-Weave Armor', rarity: 'veryrare' }
+      ]
+    },
+    { 
+      name: '🛡️ Heavy Armor', 
+      recipes: [
+        { item: 'heavy_armor', name: 'Heavy Armor', rarity: 'rare' },
+        { item: 'power_armor_frame', name: 'Power Armor Frame', rarity: 'rare' },
+        { item: 'hazmat_suit', name: 'Hazmat Suit', rarity: 'rare' },
+        { item: 'thermal_suit', name: 'Thermal Suit', rarity: 'rare' },
+        { item: 'titan_armor', name: 'Titan Armor', rarity: 'veryrare' },
+        { item: 'shield_suit', name: 'Shield Suit', rarity: 'veryrare' },
+        { item: 'void_suit', name: 'Void Suit', rarity: 'veryrare' },
+        { item: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare' }
+      ]
+    }
   ];
 
-  // Rebuild workbench buttons when cost structure changes
   workbench.innerHTML = '';
-  recipes.forEach(r => {
-    const button = document.createElement('button');
-    button.dataset.item = r.item;
+  
+  categories.forEach(category => {
+    // Category header
+    const header = document.createElement('div');
+    header.style.cssText = 'margin-top:12px;margin-bottom:4px;font-weight:bold;font-size:12px;color:var(--accent)';
+    header.textContent = category.name;
+    workbench.appendChild(header);
+    
+    // Recipe buttons
+    category.recipes.forEach(r => {
+      const recipe = RECIPES[r.item];
+      if (!recipe) return; // Skip if recipe doesn't exist
+      
+      const button = document.createElement('button');
+      button.dataset.recipe = r.item;
+      button.style.cssText = 'font-size:12px;padding:6px 10px';
 
-    // Calculate actual costs with multiplier
-    const scrapCost = Math.ceil((r.scrap || 0) * costMult);
-    const energyCost = Math.ceil((r.energy || 0) * costMult);
-    const techCost = Math.ceil((r.tech || 0) * costMult);
-    const weaponPartCost = r.weaponPart || 0;
+      // Calculate actual costs with multiplier (resources only, not components)
+      const scrapCost = Math.ceil((recipe.scrap || 0) * costMult);
+      const energyCost = Math.ceil((recipe.energy || 0) * costMult);
+      const techCost = Math.ceil((recipe.tech || 0) * costMult);
 
-    // Build cost string with discounts
-    let costParts = [];
-    if (r.scrap > 0) {
-      const hasDiscount = scrapCost < r.scrap;
-      if (hasDiscount) {
-        costParts.push(`Scrap <span style="text-decoration:line-through;color:var(--muted)">${r.scrap}</span> ${scrapCost}`);
-      } else {
-        costParts.push(`Scrap ${scrapCost}`);
+      // Build cost string with component counts
+      let costParts = [];
+      if (recipe.scrap > 0) {
+        const hasDiscount = scrapCost < recipe.scrap;
+        if (hasDiscount) {
+          costParts.push(`Scrap <span style="text-decoration:line-through;color:var(--muted)">${recipe.scrap}</span> ${scrapCost}`);
+        } else {
+          costParts.push(`Scrap ${scrapCost}`);
+        }
       }
-    }
-    if (r.energy > 0) {
-      const hasDiscount = energyCost < r.energy;
-      if (hasDiscount) {
-        costParts.push(`Energy <span style="text-decoration:line-through;color:var(--muted)">${r.energy}</span> ${energyCost}`);
-      } else {
-        costParts.push(`Energy ${energyCost}`);
+      if (recipe.tech > 0) {
+        const hasDiscount = techCost < recipe.tech;
+        if (hasDiscount) {
+          costParts.push(`Tech <span style="text-decoration:line-through;color:var(--muted)">${recipe.tech}</span> ${techCost}`);
+        } else {
+          costParts.push(`Tech ${techCost}`);
+        }
       }
-    }
-    if (r.tech > 0) {
-      const hasDiscount = techCost < r.tech;
-      if (hasDiscount) {
-        costParts.push(`Tech <span style="text-decoration:line-through;color:var(--muted)">${r.tech}</span> ${techCost}`);
-      } else {
-        costParts.push(`Tech ${techCost}`);
+      
+      // Add component requirements
+      for (const compType of componentTypes) {
+        if (recipe[compType] > 0) {
+          const available = componentCounts[compType] || 0;
+          const needed = recipe[compType];
+          const displayName = compType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          costParts.push(`${displayName} ${available}/${needed}`);
+        }
       }
-    }
-    if (weaponPartCost > 0) costParts.push(`Parts ${weaponPartCost}`);
 
-    const costStr = costParts.length > 0 ? ` (${costParts.join(', ')})` : '';
-    button.innerHTML = `${r.label}${costStr}`;
+      const costStr = costParts.length > 0 ? ` (${costParts.join(', ')})` : '';
+      
+      // Apply rarity color to item name
+      const rarityColor = RARITY_COLORS[r.rarity] || '#ffffff';
+      button.innerHTML = `<span style="color:${rarityColor}">${r.name}</span>${costStr}`;
 
-    button.onclick = () => {
-      craft(r.item);
-      saveGame('action');
-      updateUI();
-    };
+      // 0.9.0 - Add tooltip showing item stats (no help cursor icon)
+      button.title = getItemTooltip(r.item);
 
-    workbench.appendChild(button);
+      button.onclick = () => {
+        craft(r.item);
+        saveGame('action');
+        updateUI();
+      };
+
+      workbench.appendChild(button);
+    });
   });
 }

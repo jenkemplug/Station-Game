@@ -68,6 +68,10 @@ function tickMissions() {
           state.resources.scrap += scrapFound;
           state.resources.tech += techFound;
           report += `Found ${scrapFound} scrap and ${techFound} tech. `;
+          
+          // 0.9.0 - Morale gain for expedition success
+          survivor.morale = Math.min(100, survivor.morale + BALANCE.MORALE_GAIN_EXPEDITION_SUCCESS);
+          
           if (survivor.equipment.weapon) {
             survivor.equipment.weapon.durability -= rand(BALANCE.EXPEDITION_WEAPON_WEAR[0], BALANCE.EXPEDITION_WEAPON_WEAR[1]);
             if (survivor.equipment.weapon.durability <= 0) {
