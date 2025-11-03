@@ -1,4 +1,4 @@
-const VERSION = '0.9.16';
+const VERSION = '0.9.17';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -8,6 +8,7 @@ const BALANCE = {
   COMBAT_ACTIONS: {
     Aim: { accuracyBonus: 0.25 },
     Burst: { dmgBonus: 0, accuracyPenalty: 0.05, ammoMult: 2, cooldown: 3 },
+    PowerAttack: { dmgBonus: 5, cooldown: 2 },
     Guard: { defenseBonus: 3 },
     MedkitHeal: [10, 18]
   },

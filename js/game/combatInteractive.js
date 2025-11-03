@@ -1657,7 +1657,7 @@ function renderAdaptiveActions(survivor) {
       disabled: cooldown > 0,
       tooltip: cooldown > 0 
         ? `Powerful melee strike. Available in ${cooldown} turn${cooldown !== 1 ? 's' : ''}.`
-        : `Powerful melee strike with +${BALANCE.COMBAT_ACTIONS.Burst.dmgBonus} bonus damage. (${BALANCE.COMBAT_ACTIONS.Burst.cooldown} turn cooldown)`,
+        : `Powerful melee strike with +${BALANCE.COMBAT_ACTIONS.PowerAttack.dmgBonus} bonus damage. (${BALANCE.COMBAT_ACTIONS.PowerAttack.cooldown} turn cooldown)`,
       onclick: 'playerBurst()'
     });
   } else if (weaponType === 'unarmed') {
@@ -2131,7 +2131,7 @@ function playerShoot(action = 'shoot', burstShots = null) {
       
       let dmg = computeSurvivorDamage(s);
       if (action === 'burst' && weaponType === 'melee') {
-        dmg += BALANCE.COMBAT_ACTIONS.Burst.dmgBonus;
+        dmg += BALANCE.COMBAT_ACTIONS.PowerAttack.dmgBonus;
       }
       // 0.8.0 - Medic Adrenaline Shot bonus damage
       if (s._adrenalineBonus) {

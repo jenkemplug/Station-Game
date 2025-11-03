@@ -1,9 +1,13 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.17] - 2025-11-02
+### Fixed
+- **Power Attack**: Fixed a critical bug where the melee "Power Attack" was not receiving its intended +5 damage bonus. It now correctly functions as a high-damage melee ability.
+
 ## [0.9.16] - 2025-11-02
 ### Changed
-- **Raid Defeat Rework**: Losing a raid or having no guards on duty no longer results in an instant game over. Instead, it now causes a significant loss of Base Integrity (15-25 for a lost fight, 30-45 for no guards) and a morale penalty to all survivors. The game now only ends if Base Integrity reaches 0.
+- **Raid Defeat Rework**: Losing a raid or having no guards on duty no longer results in an instant game over. Instead, it now causes a significant loss of Base Integrity (15-25 for a lost fight, 30-45 for no guards) and a morale penalty to all survivors. The game now only ends if Base Integrity reaches 0 or if you have no survivors.
 - **Increased Base Repair Cost**: The scrap and energy costs to repair the base have been increased to make late-game damage more impactful.
 - **New Game Start**:
   - The starting threat level for a new game has been reduced from 8% to 0%.
