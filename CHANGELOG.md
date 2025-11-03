@@ -1,6 +1,23 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.16] - 2025-11-02
+### Changed
+- **Raid Defeat Rework**: Losing a raid or having no guards on duty no longer results in an instant game over. Instead, it now causes a significant loss of Base Integrity (15-25 for a lost fight, 30-45 for no guards) and a morale penalty to all survivors. The game now only ends if Base Integrity reaches 0.
+- **Increased Base Repair Cost**: The scrap and energy costs to repair the base have been increased to make late-game damage more impactful.
+- **New Game Start**:
+  - The starting threat level for a new game has been reduced from 8% to 0%.
+  - The first two survivors are now automatically assigned to the Oxygen and Food tasks to streamline the early game.
+
+### Added
+- **New Consumable - Sonic Repulsor**: A craftable, rare item that can be used outside of combat to reduce the current threat level by 4%. This provides a new strategic tool for managing station threat.
+- **New Consumable - Advanced Medkit**: A craftable, uncommon medkit is now available.
+
+### Changed
+- **Survivor Card UI**: Replaced the "Use Medkit" button on survivor cards with a more versatile "Use Item" button.
+- **Out-of-Combat Consumable UI**: The "Use Item" button now opens a modal window, allowing players to select any usable, non-combat consumable from their inventory (e.g., Medkits, Nanite Injectors, Sonic Repulsors).
+- **UI Consistency**: The in-combat consumable selection screen has been updated to match the new, improved modal style for a more consistent user experience.
+
 ## [0.9.15] - 2025-11-02
 ### Added
 - **Scavenger UI**: The interactive combat UI now displays a Scavenger's loot-finding bonuses in their passive effects list, providing clear feedback on their contribution to the fight.

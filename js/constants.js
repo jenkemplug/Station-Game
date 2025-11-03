@@ -22,7 +22,8 @@ const BALANCE = {
     nanite_injector: { permanentHP: 1, desc: '+1 permanent max HP' },
     revival_kit: { reviveHP: [0.40, 0.60], desc: 'Revive ally at 40-60% HP' },
     system_override: { instakill: true, hpThreshold: 12, desc: 'Instantly kill 1 enemy with ≤12 HP' },
-    stealth_field: { dodgeNext: true, duration: 1, desc: 'Dodge next attack automatically' }
+    stealth_field: { dodgeNext: true, duration: 1, desc: 'Dodge next attack automatically' },
+    sonic_repulsor: { threatReduction: 4, desc: 'Reduce station threat by 4%' }
   },
   BASE_HIT_CHANCE: 0.72, // Reduced from 0.75 - combat is harder
   CRIT_CHANCE: 0.12,
@@ -84,8 +85,8 @@ const BALANCE = {
   INTEGRITY_DAMAGE_HIGH_THREAT: 0.02, // Damage per tick when threat > 75%
   INTEGRITY_DAMAGE_ON_RAID_LOSS: [3, 10], // Damage when raid defense fails (scaled by alien count)
   INTEGRITY_DAMAGE_ON_BREACH: [1, 3], // 10% chance per alien on raid victory
-  BASE_REPAIR_SCRAP_COST: 300, // Base cost to repair from 0% to 100%
-  BASE_REPAIR_ENERGY_COST: 100,
+  BASE_REPAIR_SCRAP_COST: 400, // Increased from 300
+  BASE_REPAIR_ENERGY_COST: 150, // Increased from 100
   ENGINEER_PASSIVE_REPAIR: 0.1, // Engineers on Idle repair +0.1 integrity/tick
   
   // Morale Tiers: 80-100 (high), 60-79 (stable), 40-59 (low), 20-39 (despondent), 0-19 (breaking)
@@ -111,6 +112,7 @@ const BALANCE = {
   MORALE_LOSS_BASE_TIERED: [0, 0.02, 0.05, 0.10, 0.15], // Per tick, based on integrity tier
   MORALE_LOSS_BASE_CRITICAL: 0.15, // Per tick when base < 40%
   MORALE_LOSS_RAID_LOST: 15,
+  MORALE_LOSS_NO_GUARDS: 20, // Morale penalty for failing to post guards
   MORALE_LOSS_RETREAT: 6,
   MORALE_LOSS_HIGH_THREAT: 0.10, // Per tick when threat > 75%
   MORALE_LOSS_SYSTEM_FAILURE: 0.05, // Per tick per failed system
@@ -159,6 +161,8 @@ const BALANCE = {
   RAID_ATTACK_RANGE: [6, 28],
   THREAT_REDUCE_ON_REPEL: 4,
   INTEGRITY_DAMAGE_ON_BREACH: [3, 10],
+  INTEGRITY_DAMAGE_RAID_DEFEAT: [15, 25], // Penalty for losing a defended raid
+  INTEGRITY_DAMAGE_NO_GUARDS: [30, 45], // Harsher penalty for having no guards
   NEST_CHANCE_AFTER_BREACH: 0.20,
   CASUALTY_CHANCE: 0.10,
   NEST_CHANCE_NO_DEFEND: 0.30,
@@ -857,6 +861,27 @@ const RECIPES = {
     rarity: 'rare',
     result: () => {
       const item = { id: state.nextItemId++, type: 'consumable', subtype: 'stun_grenade', name: 'Stun Grenade', rarity: 'rare' };
+      tryAddAndLog(item);
+    }
+  },
+  advanced_medkit: {
+    name: 'Advanced Medkit',
+    scrap: 30,
+    tech: 2,
+    rarity: 'uncommon',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'consumable', subtype: 'advanced_medkit', name: 'Advanced Medkit', rarity: 'uncommon' };
+      tryAddAndLog(item);
+    }
+  },
+  sonic_repulsor: {
+    name: 'Sonic Repulsor',
+    scrap: 40,
+    tech: 5,
+    electronics: 2,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'consumable', subtype: 'sonic_repulsor', name: 'Sonic Repulsor', rarity: 'rare' };
       tryAddAndLog(item);
     }
   },

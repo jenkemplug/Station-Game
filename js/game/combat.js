@@ -969,10 +969,14 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
     return true;
   });
   
-  // Check if raid failed (0.7.1 - game over on raid defeat)
+  // Check if raid failed
   if (context === 'base' && aliens.some(a => a.hp > 0)) {
-    // Guards lost = game over
-    triggerGameOver('The guards fell and the base was overrun. Game Over.');
+    // Guards lost - apply penalties instead of game over
+    const integrityDamage = rand(BALANCE.INTEGRITY_DAMAGE_RAID_DEFEAT[0], BALANCE.INTEGRITY_DAMAGE_RAID_DEFEAT[1]);
+    state.baseIntegrity -= integrityDamage;
+    state.survivors.forEach(s => s.morale -= BALANCE.MORALE_LOSS_RAID_LOST);
+    
+    appendLog(`The guards have been defeated! The base has been breached. Integrity -${integrityDamage}%.`);
     return;
   }
   

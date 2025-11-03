@@ -2423,48 +2423,47 @@ function showConsumableSelector() {
   `;
   
   const panel = document.createElement('div');
-  panel.style.cssText = `
-    background: var(--bg);
-    border: 2px solid var(--accent);
-    border-radius: 8px;
-    padding: 24px;
-    max-width: 500px;
-    max-height: 600px;
-    overflow-y: auto;
-  `;
+  panel.className = 'modal-card';
+  panel.style.maxWidth = '600px';
   
-  let html = '<h3 style="margin-top:0;color:var(--accent)">Select Consumable</h3>';
-  html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+  let html = '<div class="modal-header"><strong>Use Consumable</strong><button id="closeConsumableSelectorBtn" class="danger">✕</button></div>';
+  html += '<div id="consumableModalContent">';
   
+  html += '<div style="display:flex;flex-direction:column;gap:12px;">';
+  html += `<div class="small">Select a consumable for ${s.name} to use.</div>`;
+  html += '<div class="scrollable-panel" style="max-height:300px;overflow-y:auto;">';
+
   consumables.forEach(({ item, count }) => {
     const key = item.subtype || item.type;
     const effect = BALANCE.CONSUMABLE_EFFECTS[key];
     const desc = effect ? effect.desc : 'Unknown effect';
-    const rarityColor = getRarityColor(item.rarity || 'common');
+    const color = item.rarity ? (RARITY_COLORS[item.rarity] || '#ffffff') : '#ffffff';
+    const tooltip = getItemTooltip(item);
     
     html += `
-      <button onclick="useConsumableFromSelector('${key}')" style="
-        text-align: left;
-        padding: 12px;
-        background: var(--card-bg);
-        border: 1px solid ${rarityColor};
-        border-radius: 4px;
-        color: var(--text);
-        cursor: pointer;
-        transition: all 0.2s;
-      " onmouseover="this.style.background='var(--card-hover)'" onmouseout="this.style.background='var(--card-bg)'">
-        <div style="font-weight:bold;color:${rarityColor}">${item.name} x${count}</div>
-        <div style="font-size:0.9em;color:var(--muted);margin-top:4px;">${desc}</div>
-      </button>
+        <div class="inv-row">
+            <div>
+                <span style="color:${color}" title="${tooltip}">${item.name} x${count}</span>
+                <div class="small">${desc}</div>
+            </div>
+            <button data-key="${key}" class="use-consumable-combat">Use</button>
+        </div>
     `;
   });
-  
-  html += '</div>';
-  html += '<button onclick="closeConsumableSelector()" style="margin-top:16px;width:100%;padding:8px;background:var(--danger);border:none;border-radius:4px;color:white;cursor:pointer;">Cancel</button>';
+
+  html += '</div></div></div>';
   
   panel.innerHTML = html;
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
+
+  // Bind events
+  panel.querySelector('#closeConsumableSelectorBtn').onclick = closeConsumableSelector;
+  panel.querySelectorAll('button.use-consumable-combat').forEach(b => {
+      b.onclick = () => {
+          useConsumableFromSelector(b.dataset.key);
+      };
+  });
 }
 
 function closeConsumableSelector() {
@@ -3462,9 +3461,13 @@ function endCombat(win) {
       return true;
     });
     
-    // Raid failure = GAME OVER (0.7.1 - hardcore mode)
+    // Raid failure - apply penalties instead of game over
     if (isRaid) {
-      triggerGameOver('The base defenses have fallen. The aliens have taken control. Game Over.');
+      const integrityDamage = rand(BALANCE.INTEGRITY_DAMAGE_RAID_DEFEAT[0], BALANCE.INTEGRITY_DAMAGE_RAID_DEFEAT[1]);
+      state.baseIntegrity -= integrityDamage;
+      state.survivors.forEach(s => s.morale -= BALANCE.MORALE_LOSS_RAID_LOST);
+      
+      appendLog(`The base defenses have fallen! Integrity -${integrityDamage}%.`);
       closeCombatOverlay();
       return;
     }

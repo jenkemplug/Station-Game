@@ -222,6 +222,7 @@
         <button onclick="debugAddItem('revival_kit')">Revival Kit</button>
         <button onclick="debugAddItem('system_override')">System Override</button>
         <button onclick="debugAddItem('stealth_field')">Stealth Field</button>
+        <button onclick="debugAddItem('sonic_repulsor')">Sonic Repulsor</button>
       </div>
       
       <h4>🔧 Components</h4>
@@ -372,6 +373,7 @@
   <script src="js/game/combat.js?v=0.9.15" defer></script>
   <script src="js/game/exploration.js?v=0.9.15" defer></script>
   <script src="js/game/crafting.js?v=0.9.15" defer></script>
+  <script src="js/game/items.js?v=0.9.15" defer></script>
   <script src="js/game/expedition.js?v=0.9.15" defer></script>
   <script src="js/game/threat.js?v=0.9.15" defer></script>
   <script src="js/game/tick.js?v=0.9.15" defer></script>
@@ -425,5 +427,16 @@
 
 <!-- Interactive combat logic -->
 <script src="js/game/combatInteractive.js?v=0.9.15" defer></script>
+
+<!-- Consumable Modal -->
+<div id="consumableModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card" style="max-width:600px;">
+    <div class="modal-header">
+      <strong>Use Consumable</strong>
+      <button id="btnCloseConsumableModal" class="danger">✕</button>
+    </div>
+    <div id="consumableModalContent"></div>
+  </div>
+</div>
 </body>
 </html>

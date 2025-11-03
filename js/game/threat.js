@@ -287,9 +287,18 @@ function resolveRaid() {
   const turretCount = state.systems.turret || 0;
   
   if (guards.length === 0) {
-    // No guards = instant game over
-    appendLog('No guards on duty. The base is overrun.');
-    triggerGameOver('The aliens breached the base with no resistance. All is lost.');
+    // No guards - apply harsh penalties instead of game over
+    const integrityDamage = rand(BALANCE.INTEGRITY_DAMAGE_NO_GUARDS[0], BALANCE.INTEGRITY_DAMAGE_NO_GUARDS[1]);
+    state.baseIntegrity -= integrityDamage;
+    state.survivors.forEach(s => s.morale -= BALANCE.MORALE_LOSS_NO_GUARDS);
+    
+    appendLog(`The base was undefended and has been overrun! Base integrity -${integrityDamage}%. All survivors suffer a major morale loss.`);
+    
+    // Chance to establish a nest
+    if (Math.random() < BALANCE.NEST_CHANCE_NO_DEFEND) {
+      appendLog('The aliens have established a nest inside the base, increasing threat.');
+      state.threat = Math.min(100, state.threat + 10);
+    }
     return;
   }
   

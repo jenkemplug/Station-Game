@@ -1046,7 +1046,7 @@ function renderSurvivors() {
       <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
         <div id="task-select-${s.id}" style="flex:1"></div>
         <button data-id="${s.id}" class="equip" style="flex:0 0 auto">Equip</button>
-        <button data-id="${s.id}" class="heal" style="flex:0 0 auto">Use Medkit</button>
+        <button data-id="${s.id}" class="use-item" style="flex:0 0 auto">Use Item</button>
         <button data-id="${s.id}" class="dismiss" style="flex:0 0 auto" ${state.survivors.length <= 1 ? 'disabled title="Cannot release your last survivor"' : ''}>Release</button>
       </div>
     `;
@@ -1071,8 +1071,80 @@ function renderSurvivors() {
     select.onchange = (e) => assignTask(Number(e.target.dataset.id), e.target.value);
   });
   cont.querySelectorAll('button.dismiss').forEach(b => b.onclick = () => releaseSurvivor(Number(b.dataset.id)));
-  cont.querySelectorAll('button.heal').forEach(b => b.onclick = () => useMedkit(Number(b.dataset.id)));
+  cont.querySelectorAll('button.use-item').forEach(b => b.onclick = () => openConsumableModal(Number(b.dataset.id)));
   cont.querySelectorAll('button.equip').forEach(b => b.onclick = () => openLoadoutForSurvivor(Number(b.dataset.id)));
+}
+
+// Consumable Modal Logic
+let activeConsumableSurvivorId = null;
+
+function openConsumableModal(survivorId) {
+    activeConsumableSurvivorId = survivorId;
+    const modal = el('consumableModal');
+    modal.style.display = 'flex';
+    renderConsumableModalContent();
+    const btnClose = el('btnCloseConsumableModal');
+    if (btnClose) btnClose.onclick = closeConsumableModal;
+}
+
+function closeConsumableModal() {
+    const modal = el('consumableModal');
+    modal.style.display = 'none';
+    activeConsumableSurvivorId = null;
+}
+
+function renderConsumableModalContent() {
+    const cont = el('consumableModalContent');
+    const survivor = state.survivors.find(s => s.id === activeConsumableSurvivorId);
+    if (!survivor) {
+        cont.innerHTML = '<div class="small">No survivor selected.</div>';
+        return;
+    }
+
+    const outOfCombatConsumables = state.inventory.filter(item => {
+        const key = item.subtype || item.type;
+        const effect = BALANCE.CONSUMABLE_EFFECTS[key];
+        return effect && (effect.heal || effect.permanentHP || effect.threatReduction);
+    });
+
+    if (outOfCombatConsumables.length === 0) {
+        cont.innerHTML = '<div class="small">No usable consumables in inventory.</div>';
+        return;
+    }
+
+    const itemsHtml = outOfCombatConsumables.map(item => {
+        const key = item.subtype || item.type;
+        const effect = BALANCE.CONSUMABLE_EFFECTS[key];
+        const color = item.rarity ? (RARITY_COLORS[item.rarity] || '#ffffff') : '#ffffff';
+        const tooltip = getItemTooltip(item);
+        
+        return `
+            <div class="inv-row">
+                <div>
+                    <span style="color:${color}" title="${tooltip}">${item.name}</span>
+                    <div class="small">${effect.desc}</div>
+                </div>
+                <button data-id="${item.id}" class="use-consumable">Use</button>
+            </div>
+        `;
+    }).join('');
+
+    cont.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="small">Select a consumable to use on ${survivor.name}.</div>
+            <div class="scrollable-panel" style="max-height:300px;overflow-y:auto;">
+                ${itemsHtml}
+            </div>
+        </div>
+    `;
+
+    // Bind events
+    cont.querySelectorAll('button.use-consumable').forEach(b => {
+        b.onclick = () => {
+            useOutOfCombatConsumable(activeConsumableSurvivorId, Number(b.dataset.id));
+            closeConsumableModal();
+        };
+    });
 }
 
 // Repair Modal Logic
@@ -1594,7 +1666,9 @@ function renderWorkbench() {
       recipes: [
         { item: 'ammo', name: 'Ammo', rarity: 'common' },
         { item: 'medkit', name: 'Medkit', rarity: 'uncommon' },
-        { item: 'stun_grenade', name: 'Stun Grenade', rarity: 'rare' }
+        { item: 'advanced_medkit', name: 'Advanced Medkit', rarity: 'uncommon' },
+        { item: 'stun_grenade', name: 'Stun Grenade', rarity: 'rare' },
+        { item: 'sonic_repulsor', name: 'Sonic Repulsor', rarity: 'rare' }
       ]
     },
     { 

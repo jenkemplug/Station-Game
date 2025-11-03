@@ -135,7 +135,7 @@ function resetGame() {
     turret: 0
   };
   state.systemFailures = [];
-  state.threat = 8;
+  state.threat = 0;
   state.baseIntegrity = 100;
   state.raidChance = 0;
   state.lastRaidAt = 0;
@@ -331,6 +331,13 @@ if (state.gameOver) {
     const starterName2 = getRandomName();
     recruitSurvivor(starterName1);
     recruitSurvivor(starterName2);
+    
+    // Assign starter tasks
+    if (state.survivors.length >= 2) {
+        assignTask(state.survivors[0].id, 'Oxygen');
+        assignTask(state.survivors[1].id, 'Food');
+    }
+
     // Add initial junk items (0.9.0 - marked as common rarity for UI coloring)
     for (let i = 0; i < 3; i++) {
       state.inventory.push({ id: state.nextItemId++, type: 'junk', name: 'Junk', rarity: 'common' });
