@@ -602,6 +602,12 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         appendLog(`${target.name}'s carapace absorbs damage.`);
       }
       
+      const blocked = Math.min(dmg, target.armor || 0);
+      if (blocked > 0) {
+          appendLog(`${target.name} blocked ${blocked} damage.`);
+      }
+      dmg = Math.max(0, dmg - (target.armor || 0));
+      
       target.hp -= dmg;
       appendLog(`${s.name} hits ${target.name} for ${dmg} dmg.`);
       
@@ -853,6 +859,9 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         }
         
         const dealt = Math.max(0, aDmg - defense);
+        if (aDmg > dealt) {
+            appendLog(`${actualTarget.name} blocked ${aDmg - dealt} damage.`);
+        }
         actualTarget.hp -= dealt;
         appendLog(`${a.name} strikes ${actualTarget.name} for ${dealt} dmg.`);
         

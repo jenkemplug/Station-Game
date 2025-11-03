@@ -110,6 +110,12 @@ function getStatusEffectsDisplay(entity, isAlien = false, rarityColor = null, pa
     const turnsText = minTurns > 0 ? ` (${totalDmg} dmg/turn, ${minTurns}-${maxTurns > minTurns ? maxTurns : minTurns} turns left)` : '';
     effects.push({ text: `☠️ Poisoned x${entity._poisonStacks}${turnsText}`, color: 'var(--danger)', tooltip: `${entity._poisonStacks} stack${entity._poisonStacks > 1 ? 's' : ''}, dealing ${totalDmg} damage per turn. Each stack lasts 3 turns.` });
   }
+  if (entity._toxicDebuff) {
+    effects.push({ text: '🤢 Toxic', color: 'var(--danger)', tooltip: 'Defense is reduced' });
+  }
+  if (entity._toxicDebuff) {
+    effects.push({ text: '🤢 Toxic', color: 'var(--danger)', tooltip: 'Defense is reduced' });
+  }
   
   // Positive effects (blue)
   // Check entity properties directly (set during combat)
@@ -2176,6 +2182,9 @@ function playerShoot(action = 'shoot', burstShots = null) {
       }
       
       const overkill = Math.max(0, dealt - target.hp);
+      if (dealt < dmg) {
+          logCombat(`${target.name} blocked ${dmg - dealt} damage.`);
+      }
       target.hp -= dealt;
       logCombat(`${s.name} hits ${target.name} for ${dealt} damage.` + (overkill > 0 ? ` (${overkill} overkill)` : ``), true);
       
@@ -2850,6 +2859,7 @@ function enemyTurn() {
 
   // 0.9.0 - Clear temporary status effects and update consumable durations at start of enemy turn
   aliveParty.forEach(p => {
+    p._toxicDebuff = false;
     if (p._retreating) {
       p._retreating = false;
     }
@@ -3233,9 +3243,14 @@ function enemyTurn() {
       // 0.9.0 - Toxic: Reduce target defense by 2 for this hit (Spitter)
       if (hasModifier(a, 'toxic')) {
         defense = Math.max(0, defense - 2);
+        logCombat(`${a.name}'s toxin weakens ${actualTarget.name}'s armor!`, true);
+        actualTarget._toxicDebuff = true;
       }
       
       const taken = Math.max(0, aDmg - defense);
+      if (aDmg > taken) {
+          logCombat(`${actualTarget.name} blocked ${aDmg - taken} damage.`);
+      }
       actualTarget.hp -= taken;
       logCombat(`${a.name} strikes ${actualTarget.name} for ${taken} damage.`);
       renderCombatUI(); // Update UI after damage

@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.18] - 2025-11-02
+### Fixed
+- Corrected an issue where alien armor was not properly mitigating damage in auto-resolve combat.
+- Added missing combat log messages for blocked damage in both auto-resolve and interactive combat.
+- Verified that "Toxic" and "Juggernaut" alien abilities are functioning as intended in interactive combat.
+
 ## [0.9.17] - 2025-11-02
 ### Fixed
 - **Power Attack**: Fixed a critical bug where the melee "Power Attack" was not receiving its intended +5 damage bonus. It now correctly functions as a high-damage melee ability.
