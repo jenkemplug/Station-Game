@@ -133,8 +133,8 @@ const BALANCE = {
   THREAT_GROWTH_MINIMUM: 0.015,       // Threat always grows at least +1.5%/min even with max defenses
   GUARD_THREAT_REDUCTION: 0.08,       // Guards slow threat, can't stop it
   THREAT_GAIN_PER_ALIEN: [1, 2],      // Increased from [1, 2] - combat drives threat progression
-  THREAT_GAIN_PER_ALIEN_KILL: 0.25, // Threat gain for each alien kill
-  THREAT_GAIN_PER_TILE: 0.1,        // Threat gain for each tile explored
+  THREAT_GAIN_PER_ALIEN_KILL: 1, // Threat gain for each alien kill
+  THREAT_GAIN_PER_TILE: 0.15,        // Threat gain for each tile explored
   THREAT_GAIN_ON_RETREAT: [1, 2],     // NEW: Retreating from combat adds threat
   EXPEDITION_FAILURE_THREAT_GAIN: [4, 8], // Increased from [3, 6] - failed expeditions matter more
   
@@ -1301,7 +1301,6 @@ const RECIPES = {
   },
   venom_blade: {
     name: 'Venom Blade',
-    subtype: 'venom_blade',
     scrap: 120,
     tech: 15,
     weaponPart: 2,
