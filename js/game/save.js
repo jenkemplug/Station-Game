@@ -99,7 +99,7 @@ function generateNewMap() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-    _version: '0.9.19',
+    _version: '0.9.20',
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,

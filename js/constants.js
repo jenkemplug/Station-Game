@@ -1,4 +1,4 @@
-const VERSION = '0.9.19a';
+const VERSION = '0.9.20';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -19,7 +19,7 @@ const BALANCE = {
     stimpack: { evasionBonus: 0.20, retreatBonus: 0.25, duration: 4, desc: '+20% dodge, +25% retreat for 4 turns.' },
     repair_kit: { durabilityRestore: 40, desc: 'Restore 40 durability to equipped weapon or armor' },
     combat_drug: { damageBonus: 0.20, maxHpCost: 0.20, duration: 3, desc: '+20% damage for 3 turns, -20% max HP.' },
-    stun_grenade: { stunChance: 0.75, desc: '75% chance to stun target enemy' },
+    stun_grenade: { stunChance: 0.75, duration: 2, desc: '75% chance to stun target enemy for 2 turns' },
     nanite_injector: { permanentHP: 1, desc: '+1 permanent max HP' },
     revival_kit: { reviveHP: [0.40, 0.60], desc: 'Revive ally at 40-60% HP' },
     system_override: { instakill: true, hpThreshold: 12, desc: 'Instantly kill 1 enemy with ≤12 HP' },
@@ -264,7 +264,7 @@ const WEAPON_EFFECTS = {
 const ARMOR_EFFECTS = {
   dodge: { desc: 'Increases evasion chance' },
   reflect: { desc: 'Returns % damage to attacker' },
-  regen: { hpPerTurn: 1, desc: 'Restores HP each turn' },
+  regen: { hpPerTurn: 5, desc: 'Restores HP each turn' },
   immunity: { desc: 'Immune to specific damage types' },
   hpBonus: { desc: 'Increases max HP' }
 };
@@ -552,7 +552,7 @@ const LOOT_TABLE = [
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'regenerative_armor', weight: 0.13, rarity: 'veryrare', desc: 'Self-repairing nanites', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'armor', subtype: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 5, effects: ['regen:1'] }; 
+    const item = { id: s.nextItemId++, type: 'armor', subtype: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 5, effects: ['regen:5'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   
@@ -1295,7 +1295,20 @@ const RECIPES = {
     nano_material: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'nano_edge_katana', weaponType: 'melee', name: 'Nano-Edge Katana', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [15, 22], effects: ['crit:25', 'armorPierce:20'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'nano_edge_katana', weaponType: 'melee', name: 'Nano-Edge Katana', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [18, 25], effects: ['crit:25', 'armorPierce:20'] };
+      tryAddAndLog(item);
+    }
+  },
+  venom_blade: {
+    name: 'Venom Blade',
+    scrap: 120,
+    tech: 15,
+    weaponPart: 2,
+    advanced_component: 2,
+    alien_artifact: 1,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'venom_blade', weaponType: 'melee', name: 'Venom Blade', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [16, 23], effects: ['poison:30'] };
       tryAddAndLog(item);
     }
   },
@@ -1310,7 +1323,7 @@ const RECIPES = {
     quantum_core: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'void_pistol', weaponType: 'pistol', name: 'Void Pistol', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [16, 22], effects: ['phase:20'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'void_pistol', weaponType: 'pistol', name: 'Void Pistol', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [18, 24], effects: ['phase:20'] };
       tryAddAndLog(item);
     }
   },
@@ -1325,7 +1338,7 @@ const RECIPES = {
     power_core: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'gauss_rifle', weaponType: 'rifle', name: 'Gauss Rifle', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [18, 25], effects: ['armorPierce:30'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'gauss_rifle', weaponType: 'rifle', name: 'Gauss Rifle', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [20, 28], effects: ['armorPierce:30'] };
       tryAddAndLog(item);
     }
   },
@@ -1338,7 +1351,7 @@ const RECIPES = {
     quantum_core: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'quantum_rifle', weaponType: 'rifle', name: 'Quantum Rifle', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [16, 23], effects: ['phase:25', 'accuracy:10'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'quantum_rifle', weaponType: 'rifle', name: 'Quantum Rifle', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [18, 26], effects: ['phase:25', 'accuracy:10'] };
       tryAddAndLog(item);
     }
   },
@@ -1353,7 +1366,7 @@ const RECIPES = {
     alien_artifact: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'disintegrator_cannon', weaponType: 'shotgun', name: 'Disintegrator Cannon', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [16, 28], effects: ['armorPierce:40'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'disintegrator_cannon', weaponType: 'shotgun', name: 'Disintegrator Cannon', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [18, 30], effects: ['armorPierce:40'] };
       tryAddAndLog(item);
     }
   },
@@ -1380,7 +1393,7 @@ const RECIPES = {
     power_core: 2,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'railgun', weaponType: 'heavy', name: 'Railgun', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [22, 30], effects: ['armorPierce:50'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'railgun', weaponType: 'heavy', name: 'Railgun', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [25, 35], effects: ['armorPierce:50'] };
       tryAddAndLog(item);
     }
   },
@@ -1395,7 +1408,7 @@ const RECIPES = {
     nano_material: 2,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'armor', subtype: 'nano_weave_armor', name: 'Nano-Weave Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 6, effects: ['dodge:15', 'crit:5'] };
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'nano_weave_armor', name: 'Nano-Weave Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 7, effects: ['dodge:15', 'crit:5'] };
       tryAddAndLog(item);
     }
   },
@@ -1421,7 +1434,7 @@ const RECIPES = {
     power_core: 2,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'armor', subtype: 'shield_suit', name: 'Shield Suit', rarity: 'veryrare', durability: 250, maxDurability: 250, defense: 8, effects: ['reflect:20'] };
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'shield_suit', name: 'Shield Suit', rarity: 'veryrare', durability: 250, maxDurability: 250, defense: 9, effects: ['reflect:20'] };
       tryAddAndLog(item);
     }
   },
@@ -1434,7 +1447,7 @@ const RECIPES = {
     quantum_core: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'armor', subtype: 'void_suit', name: 'Void Suit', rarity: 'veryrare', durability: 220, maxDurability: 220, defense: 5, effects: ['immunity:phase', 'exploration:20'] };
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'void_suit', name: 'Void Suit', rarity: 'veryrare', durability: 220, maxDurability: 220, defense: 6, effects: ['immunity:phase', 'exploration:20'] };
       tryAddAndLog(item);
     }
   },
@@ -1447,7 +1460,7 @@ const RECIPES = {
     nano_material: 2,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'armor', subtype: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 6, effects: ['regen:1'] };
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 7, effects: ['regen:5'] };
       tryAddAndLog(item);
     }
   }

@@ -6,7 +6,9 @@ function createWindow() {
     width: 1400, // default size
     height: 900,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
     }
   });
 

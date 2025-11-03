@@ -21,7 +21,8 @@ function getRarityColor(rarity) {
     common: '#a0a0a0',
     uncommon: '#a78bfa',
     rare: '#fb923c',
-    veryrare: '#ef4444'
+    veryrare: '#ef4444',
+    legendary: '#ef4444'
   };
   return colors[rarity] || colors.common;
 }
@@ -98,7 +99,8 @@ function getStatusEffectsDisplay(entity, isAlien = false, rarityColor = null, pa
     effects.push({ text: `🔥 Burning x${entity._burnStacks}${turnsText}`, color: 'var(--danger)', tooltip: `${entity._burnStacks} stack${entity._burnStacks > 1 ? 's' : ''}, dealing ${totalDmg} damage per turn. Each stack lasts 3 turns.` });
   }
   if (entity._stunned) {
-    effects.push({ text: '⚡ Stunned', color: 'var(--danger)', tooltip: 'Cannot attack' });
+    const durationText = typeof entity._stunned === 'number' && entity._stunned > 1 ? ` [${entity._stunned}]` : '';
+    effects.push({ text: `⚡ Stunned${durationText}`, color: 'var(--danger)', tooltip: 'Cannot attack or retreat' });
   }
   if (entity._phaseActive) {
     effects.push({ text: '🌀 Destabilized', color: 'var(--danger)', tooltip: 'May phase out next attack' });
@@ -125,7 +127,7 @@ function getStatusEffectsDisplay(entity, isAlien = false, rarityColor = null, pa
     effects.push({ text: `💉 Stimpack (+${Math.round(entity._stimpackEvasion*100)}% dodge) [${entity._stimpackTurns || 0}]`, color: 'var(--success)', tooltip: `Enhanced evasion for ${entity._stimpackTurns || 0} more turns` });
   }
   if (entity._combatDrugBonus && entity._combatDrugBonus > 0) {
-    effects.push({ text: `💊 Combat Drug +${entity._combatDrugBonus} damage [${entity._combatDrugTurns || 0}]`, color: '#ff8c00', tooltip: `+${entity._combatDrugBonus} damage for ${entity._combatDrugTurns || 0} more turns` });
+    effects.push({ text: `💊 Combat Drug +${Math.round(entity._combatDrugBonus * 100)}% damage [${entity._combatDrugTurns || 0}]`, color: '#ff8c00', tooltip: `+${Math.round(entity._combatDrugBonus*100)}% damage for ${entity._combatDrugTurns || 0} more turns` });
   }
   if (entity._stealthField) {
     effects.push({ text: '🌫️ Stealth Field', color: '#9c27b0', tooltip: 'Will dodge next attack' });
@@ -398,7 +400,7 @@ function applyWeaponEffectsInteractive(weapon, target, attacker, baseDmg) {
         case 'stun':
           // Stun: Skip next turn
           if (!target._stunned) {
-            target._stunned = true;
+            target._stunned = 1;
             logCombat(`⚡ ${target.name} is stunned!`, true);
             renderCombatUI(); // Update UI to show stun status
           }
@@ -1654,6 +1656,19 @@ function renderCombatUI() {
 function renderAdaptiveActions(survivor) {
   const actionsDiv = document.querySelector('.combat-actions');
   if (!actionsDiv || !survivor) return;
+
+  // Stunned survivors can only Aim or Guard
+  if (survivor._stunned && survivor._stunned > 0) {
+    actionsDiv.innerHTML = `
+      <div style="color: var(--danger); text-align: center; margin-bottom: 8px;">Stunned! Only Aim and Guard are available.</div>
+      <div>
+        <button id="btnActionAim" class="" title="Take careful aim (+${Math.round(BALANCE.COMBAT_ACTIONS.Aim.accuracyBonus * 100)}% hit chance next shot)." onclick="playerAim()">Aim</button>
+        <button id="btnActionGuard" class="" title="Brace for impact (+${BALANCE.COMBAT_ACTIONS.Guard.defenseBonus} defense this turn)." onclick="playerGuard()">Guard</button>
+        <button id="btnActionAuto" class="" style="margin-left:auto;" title="Let the AI handle combat automatically." onclick="autoResolveCombat()">Auto-Resolve</button>
+      </div>
+    `;
+    return;
+  }
   
   const weapon = survivor.equipment?.weapon;
   const weaponType = weapon?.weaponType || 'unarmed';
@@ -1881,13 +1896,15 @@ function computeSurvivorDamage(s) {
   if (hasAbility(s, 'veteran')) {
     damageMultiplier += 0.20;
   }
+
+  // Add combat drug bonus to multiplier
+  if (s._combatDrugBonus && s._combatDrugBonus > 0) {
+    damageMultiplier += s._combatDrugBonus;
+  }
   
   damage *= damageMultiplier;
   
-  // Add consumable damage bonuses after multiplication
-  if (s._combatDrugBonus && s._combatDrugBonus > 0) {
-    damage += s._combatDrugBonus;
-  }
+  // Add flat consumable damage bonuses after multiplication
   if (s._adrenalineBonus && s._adrenalineBonus > 0) {
     damage += s._adrenalineBonus;
   }
@@ -1902,6 +1919,16 @@ function getActiveSurvivor() {
 
 function advanceToNextSurvivor() {
   const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
+  const prevSurvivor = party[currentCombat.activePartyIdx];
+
+  // Decrement stun after survivor's turn
+  if (prevSurvivor && prevSurvivor._stunned && prevSurvivor._stunned > 0) {
+    prevSurvivor._stunned--;
+    if (prevSurvivor._stunned <= 0) {
+      delete prevSurvivor._stunned;
+      logCombat(`${prevSurvivor.name} is no longer stunned.`);
+    }
+  }
   
   // 0.9.0 - Find next survivor who hasn't retreated and is alive
   let attempts = 0;
@@ -2050,6 +2077,11 @@ function playerShoot(action = 'shoot', burstShots = null) {
   if (!currentCombat) return;
   const s = getActiveSurvivor();
   if (!s || s.hp <= 0) return;
+
+  if (s._stunned && s._stunned > 0) {
+    logCombat(`${s.name} is stunned and cannot attack!`, true);
+    return;
+  }
   
   // 0.9.0 - Check cooldowns for burst/power attack
   if (action === 'burst') {
@@ -2512,6 +2544,11 @@ function useConsumableFromSelector(consumableKey) {
 function playerUseConsumable(consumableKey) {
   const s = getActiveSurvivor();
   if (!s) return;
+
+  if (s._stunned && s._stunned > 0) {
+    logCombat(`${s.name} is stunned and cannot use items!`, true);
+    return;
+  }
   
   // Find consumable in inventory
   const idx = state.inventory.findIndex(i => {
@@ -2599,7 +2636,7 @@ function playerUseConsumable(consumableKey) {
     const maxHpLoss = Math.floor(s.maxHp * effect.maxHpCost);
     s.maxHp = Math.max(1, s.maxHp - maxHpLoss); // Reduce max HP
     s.hp = Math.min(s.hp, s.maxHp); // Clamp current HP to new max
-    logCombat(`${s.name} uses ${item.name}! +${effect.damageBonus} damage for ${effect.duration} turns (-${maxHpLoss} max HP).`, true);
+    logCombat(`${s.name} uses ${item.name}! +${Math.round(effect.damageBonus * 100)}% damage for ${effect.duration} turns (-${maxHpLoss} max HP).`, true);
     effectApplied = true;
   }
   
@@ -2613,8 +2650,8 @@ function playerUseConsumable(consumableKey) {
     
     const target = aliens[Math.floor(Math.random() * aliens.length)];
     if (Math.random() < effect.stunChance) {
-      target._stunned = true;
-      logCombat(`${s.name} throws ${item.name} at ${target.name}! Stunned!`, true);
+      target._stunned = effect.duration || 2;
+      logCombat(`${s.name} throws ${item.name} at ${target.name}! Stunned for ${target._stunned} turns!`, true);
     } else {
       logCombat(`${s.name} throws ${item.name}, but ${target.name} resists!`, true);
     }
@@ -2700,6 +2737,11 @@ function playerRevive() {
   if (!currentCombat) return;
   const s = getActiveSurvivor();
   if (!s) return;
+
+  if (s._stunned && s._stunned > 0) {
+    logCombat(`${s.name} is stunned and cannot perform actions!`, true);
+    return;
+  }
   
   // Check for Field Medic ability
   if (!hasAbility(s, 'fieldmedic')) {
@@ -2813,6 +2855,11 @@ function playerRetreat() {
   const s = getActiveSurvivor();
   if (!s) return;
   
+  if (s._stunned && s._stunned > 0) {
+    logCombat(`${s.name} is stunned and cannot retreat!`, true);
+    return;
+  }
+
   // 0.9.0 - Use centralized retreat calculation
   const { total: retreatChance } = calculateRetreatChance(s);
   
@@ -3015,16 +3062,14 @@ function enemyTurn() {
   }
   
   for (const a of aliveAliens) {
-    // 0.9.0 - Clear stun at start of next turn (so badge shows during skip)
-    if (a._stunnedLastTurn) {
-      a._stunnedLastTurn = false;
-      delete a._stunned; // Clear the display flag
-    }
-    
-    // 0.9.0 - Skip stunned aliens
-    if (a._stunned) {
-      logCombat(`${a.name} is stunned and cannot attack!`, true);
-      a._stunnedLastTurn = true; // Mark for clearing next turn
+    // 0.9.0 - Skip stunned aliens (numeric duration)
+    if (a._stunned && a._stunned > 0) {
+      logCombat(`${a.name} is stunned and cannot attack!`);
+      a._stunned--;
+      if (a._stunned <= 0) {
+        delete a._stunned;
+        logCombat(`${a.name} is no longer stunned.`);
+      }
       renderCombatUI();
       continue;
     }
@@ -3290,7 +3335,7 @@ function enemyTurn() {
       // 0.9.0 - Juggernaut: 20% chance to stun on hit (Ravager)
       if (hasModifier(a, 'juggernaut') && taken > 0 && Math.random() < 0.20 && targ.hp > 0) {
         if (!targ._stunned) {
-          targ._stunned = true;
+          targ._stunned = 1;
           logCombat(`⚡ ${targ.name} is stunned by the devastating blow!`, true);
           renderCombatUI(); // Update UI to show stun status
         }

@@ -285,7 +285,7 @@ function debugRaiseEscalation() {
   state.escalationLevel += 1;
   const hpBonus = (state.escalationLevel * BALANCE.ESCALATION_HP_MULT * 100).toFixed(0);
   const atkBonus = (state.escalationLevel * BALANCE.ESCALATION_ATTACK_MULT * 100).toFixed(0);
-  const armorBonus = Math.floor(state.escalationLevel / BALANCE.ESCALATION_ARMOR_LEVELS);
+  const armorBonus = Math.floor(state.escalationLevel / BALANCE.ESCALATION_ARMOR_PER_2_LEVELS);
   appendLog(`[DEBUG] Escalation raised to Level ${state.escalationLevel} (+${hpBonus}% HP, +${atkBonus}% Atk, +${armorBonus} Armor)`);
   updateUI();
 }

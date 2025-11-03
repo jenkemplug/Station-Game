@@ -1,6 +1,23 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.20] - 2025-11-02
+### Fixed
+- **Combat Drug**: Fixed a bug where the Combat Drug was only adding a flat +0.2 damage instead of the intended +20% damage multiplier.
+- **Stun Mechanics**:
+  - Fixed an issue where being stunned by a Ravager did not correctly restrict survivor actions. Stunned survivors are now properly limited to the "Aim" and "Guard" actions.
+  - The Stun Grenade's effect now lasts for 2 turns, up from 1, making it a more effective tactical option.
+
+### Added
+- **New Legendary Weapon**: Added the "Venom Blade," a poisonous melee weapon, to the crafting and loot tables.
+
+### Changed
+- **Legendary Gear Rebalance**: Buffed all legendary weapons and armor to improve their endgame viability.
+
+### Fixed
+- **Tooltip Bug**: Fixed a bug that caused the enemy scaling tooltip to display "NaN armor."
+- **UI Color Bug**: Resolved an issue where the Hive Queen and Spectre were not consistently displaying their correct legendary colors in the combat UI.
+
 ## [0.9.19a] - 2025-11-02
 ### Fixed
 - **Crafting Logic**: Fixed a bug where crafting an item with insufficient resources would still consume and then refund the materials if the player had the "Recycler" ability, causing confusing log messages. The resource deduction now correctly happens *after* the ability check.

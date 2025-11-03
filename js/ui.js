@@ -402,7 +402,7 @@ Threat locks at 100% (escalation takes over).`;
     if (escRow && escLevel && state.threatLocked && state.threat >= 100) {
       const hpBonus = (state.escalationLevel * BALANCE.ESCALATION_HP_MULT * 100).toFixed(0);
       const atkBonus = (state.escalationLevel * BALANCE.ESCALATION_ATTACK_MULT * 100).toFixed(0);
-      const armorBonus = Math.floor(state.escalationLevel / BALANCE.ESCALATION_ARMOR_LEVELS);
+      const armorBonus = Math.floor(state.escalationLevel / BALANCE.ESCALATION_ARMOR_PER_2_LEVELS);
       const modBonus = (state.escalationLevel * BALANCE.ESCALATION_MODIFIER_MULT * 100).toFixed(0);
       
       escLevel.textContent = state.escalationLevel;
