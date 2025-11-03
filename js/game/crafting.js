@@ -56,28 +56,26 @@ function craft(item) {
     }
   }
   
-  // Consume components
-  for (const compType of componentTypes) {
-    for (let i = 0; i < componentCosts[compType]; i++) {
-      const partIndex = state.inventory.findIndex(invItem => invItem.type === 'component' && invItem.subtype === compType);
-      if (partIndex !== -1) {
-        state.inventory.splice(partIndex, 1);
-      }
-    }
-  }
-  
-  state.resources.scrap -= scrapCost;
-  state.resources.energy -= energyCost;
-  state.resources.tech -= techCost;
-  
   // 0.8.11 - Technician Recycler ability: 25% chance per Recycler to refund materials
   const recyclerCount = technicians.filter(t => hasAbility(t, 'recycler')).length;
   const refundChance = recyclerCount * 0.25; // 25% per Recycler, stacks
   if (recyclerCount > 0 && Math.random() < refundChance) {
-    state.resources.scrap += scrapCost;
-    state.resources.energy += energyCost;
-    state.resources.tech += techCost;
     appendLog(`♻️ Recycler: Materials refunded! (${Math.floor(refundChance * 100)}% chance)`);
+    // Skip resource consumption if refunded
+  } else {
+    // Consume components
+    for (const compType of componentTypes) {
+      for (let i = 0; i < componentCosts[compType]; i++) {
+        const partIndex = state.inventory.findIndex(invItem => invItem.type === 'component' && invItem.subtype === compType);
+        if (partIndex !== -1) {
+          state.inventory.splice(partIndex, 1);
+        }
+      }
+    }
+    
+    state.resources.scrap -= scrapCost;
+    state.resources.energy -= energyCost;
+    state.resources.tech -= techCost;
   }
   
   r.result();

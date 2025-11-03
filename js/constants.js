@@ -1,4 +1,4 @@
-const VERSION = '0.9.19';
+const VERSION = '0.9.19a';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;

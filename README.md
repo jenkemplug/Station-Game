@@ -2,7 +2,7 @@
 
 A browser-based survival/management game where you manage a space station, survivors, and resources while facing alien threats.
 
-**Current Version:** 0.9.0 (Major systems & balance)
+**Current Version:** 0.9.19a (Major systems & balance)
 
 ### 🆕 Latest Release (v0.9.0)
 - Major systems & balance pass focused on late-game escalation, integrity, morale, and combat polish.

@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.19a] - 2025-11-02
+### Fixed
+- **Crafting Logic**: Fixed a bug where crafting an item with insufficient resources would still consume and then refund the materials if the player had the "Recycler" ability, causing confusing log messages. The resource deduction now correctly happens *after* the ability check.
+
 ## [0.9.19] - 2025-11-02
 ### Added
 - **Pause Feature**: Added a pause button to the main UI, allowing players to stop and resume the game at any time. The "Time Played" counter also pauses accordingly.
