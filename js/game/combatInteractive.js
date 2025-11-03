@@ -113,9 +113,6 @@ function getStatusEffectsDisplay(entity, isAlien = false, rarityColor = null, pa
   if (entity._toxicDebuff) {
     effects.push({ text: '🤢 Toxic', color: 'var(--danger)', tooltip: 'Defense is reduced' });
   }
-  if (entity._toxicDebuff) {
-    effects.push({ text: '🤢 Toxic', color: 'var(--danger)', tooltip: 'Defense is reduced' });
-  }
   
   // Positive effects (blue)
   // Check entity properties directly (set during combat)
@@ -567,6 +564,32 @@ function closeCombatOverlay() {
       delete a._shieldUsed;
       delete a._lifesaverUsed;
       delete a._hivemindUsed;
+    });
+  }
+
+  // Clear all temporary combat flags from survivors as well
+  if (currentCombat && currentCombat.partyIds) {
+    const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
+    party.forEach(s => {
+        delete s._stunned;
+        delete s._stunnedLastTurn;
+        delete s._burnStacks;
+        delete s._burnQueue;
+        delete s._poisonStacks;
+        delete s._poisonQueue;
+        delete s._phaseActive;
+        delete s._justPhased;
+        delete s._currentArmorPierce;
+        delete s._shieldUsed;
+        delete s._lifesaverUsed;
+        delete s._adrenalineBonus;
+        delete s._stimpackEvasion;
+        delete s._stimpackTurns;
+        delete s._combatDrugBonus;
+        delete s._combatDrugTurns;
+        delete s._stealthField;
+        delete s._retreated;
+        delete s._retreating;
     });
   }
   
@@ -2189,7 +2212,7 @@ function playerShoot(action = 'shoot', burstShots = null) {
       logCombat(`${s.name} hits ${target.name} for ${dealt} damage.` + (overkill > 0 ? ` (${overkill} overkill)` : ``), true);
       
       // Apply weapon effects (Moved before death check for splash on kill)
-      if (weapon && weapon.effects && weapon.effects.length > 0) {
+      if (weapon && weapon.effects && weapon.effects.length > 0 && target.hp > 0) {
         applyWeaponEffectsInteractive(weapon, target, s, dealt);
       }
       
@@ -3265,7 +3288,7 @@ function enemyTurn() {
       targ = actualTarget;
       
       // 0.9.0 - Juggernaut: 20% chance to stun on hit (Ravager)
-      if (hasModifier(a, 'juggernaut') && taken > 0 && Math.random() < 0.20) {
+      if (hasModifier(a, 'juggernaut') && taken > 0 && Math.random() < 0.20 && targ.hp > 0) {
         if (!targ._stunned) {
           targ._stunned = true;
           logCombat(`⚡ ${targ.name} is stunned by the devastating blow!`, true);
@@ -3274,7 +3297,7 @@ function enemyTurn() {
       }
       
       // 0.8.0 - Venomous: apply poison
-      if (hasModifier(a, 'venomous') && taken > 0) {
+      if (hasModifier(a, 'venomous') && taken > 0 && targ.hp > 0) {
         // Poison: Each stack lasts 3 turns independently
         // Deal 2 damage per stack per turn
         if (!targ._poisonQueue) targ._poisonQueue = [];
@@ -3285,7 +3308,7 @@ function enemyTurn() {
       }
       
       // 0.9.0 - Plague Bringer: AOE + poison all targets (Spitter)
-      if (hasModifier(a, 'plague') && taken > 0) {
+      if (hasModifier(a, 'plague') && taken > 0 && targ.hp > 0) {
         // Apply poison to primary target
         if (!targ._poisonQueue) targ._poisonQueue = [];
         targ._poisonQueue.push(3);

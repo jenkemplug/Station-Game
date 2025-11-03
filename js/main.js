@@ -1,3 +1,5 @@
+let isPaused = false;
+
 function bindUI() {
   el('btnAssign').onclick = () => {
     recruitSurvivor();
@@ -51,6 +53,10 @@ function bindUI() {
 
   el('btnSave').onclick = () => {
     saveGame('manual');
+  };
+  el('btnPause').onclick = () => {
+    isPaused = !isPaused;
+    el('btnPause').textContent = isPaused ? 'Resume' : 'Pause';
   };
   el('btnReset').onclick = resetGame;
 
@@ -197,6 +203,11 @@ function handleImportFile(file) {
 }
 
 function mainLoop() {
+  if (isPaused) {
+    // If paused, just update the lastTick to prevent a large time jump on resume
+    state.lastTick = Date.now();
+    return;
+  }
   const now = Date.now();
   if (now - state.lastTick >= TICK_MS - 20) {
     applyTick(false);

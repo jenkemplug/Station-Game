@@ -99,7 +99,7 @@ function generateNewMap() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-  _version: '0.9.17', // 0.9.3 - Threat rebalance & performance tweaks
+    _version: '0.9.19',
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
@@ -119,7 +119,7 @@ function makeSaveSnapshot() {
     systemFailures: state.systemFailures,
     threat: state.threat,
     baseIntegrity: state.baseIntegrity,
-  raidChance: state.raidChance,
+    raidChance: state.raidChance,
   lastRaidAt: state.lastRaidAt,
   raidCooldownMs: state.raidCooldownMs,
   alienKills: state.alienKills,

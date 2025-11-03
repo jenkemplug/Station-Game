@@ -190,11 +190,6 @@ function applyTick(isOffline = false) {
     state.baseIntegrity -= failedSystemCount * BALANCE.INTEGRITY_DAMAGE_PER_FAILED_SYSTEM;
   }
   
-  // Damage at high threat
-  if (state.threat > 75) {
-    state.baseIntegrity -= BALANCE.INTEGRITY_DAMAGE_HIGH_THREAT;
-  }
-  
   // Engineer passive repair (Idle Engineers slowly repair base)
   const idleEngineers = state.survivors.filter(s => 
     !s.onMission && 

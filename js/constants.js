@@ -1,4 +1,4 @@
-const VERSION = '0.9.18';
+const VERSION = '0.9.19';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -526,7 +526,7 @@ const LOOT_TABLE = [
   
   // Legendary heavy weapons
   { type: 'minigun', weight: 0.15, rarity: 'veryrare', desc: 'Continuous fire', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'minigun', weaponType: 'heavy', name: 'Minigun', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [12, 16], effects: ['burst:6'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'minigun', weaponType: 'heavy', name: 'Minigun', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [10, 14], effects: ['burst:5'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'railgun', weight: 0.13, rarity: 'veryrare', desc: 'Devastating single-shot weapon', onPickup: (s) => { 
@@ -1367,7 +1367,7 @@ const RECIPES = {
     advanced_component: 2,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'minigun', weaponType: 'heavy', name: 'Minigun', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [14, 19], effects: ['burst:6'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'minigun', weaponType: 'heavy', name: 'Minigun', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [10, 14], effects: ['burst:5'] };
       tryAddAndLog(item);
     }
   },

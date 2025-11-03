@@ -1,6 +1,20 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.19] - 2025-11-02
+### Added
+- **Pause Feature**: Added a pause button to the main UI, allowing players to stop and resume the game at any time. The "Time Played" counter also pauses accordingly.
+
+### Changed
+- **Minigun Balance**:
+  - Reduced the number of shots in a burst from 8 to 7 to match the item's description.
+  - Lowered the base damage to bring its power level in line with other legendary weapons.
+- **Threat Mechanic**: Removed the feature where a high threat level would cause passive damage to the base's integrity.
+
+### Fixed
+- **Combat**: Fixed a bug where status effects like "stunned" and "poisoned" could be applied to already defeated enemies.
+- **Combat**: Corrected an issue where the "poisoned" status effect was not properly cleared from survivors at the end of combat.
+
 ## [0.9.18] - 2025-11-02
 ### Fixed
 - Corrected an issue where alien armor was not properly mitigating damage in auto-resolve combat.

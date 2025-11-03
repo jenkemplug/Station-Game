@@ -424,7 +424,7 @@ Threat locks at 100% (escalation takes over).`;
     
     // Build integrity tooltip
     const integrityPenalty = [0, 5, 10, 20, 30][integrityTier];
-    const integrityTooltip = `${integrityName}\n\nProduction Penalty: -${integrityPenalty}%\n\nDamage Sources:\n• Failed systems: -0.05/tick each\n• High threat (>75%): -0.02/tick\n\nRepair:\n• Manual repair button below\n• Idle Engineers: +0.1/tick each`;
+    const integrityTooltip = `${integrityName}\n\nProduction Penalty: -${integrityPenalty}%\n\nDamage Sources:\n• Failed systems: -0.05/tick each\n• Lost raid battle: -15-25%\n• Undefended raid: -30-45%\n\nRepair:\n• Manual repair button below\n• Idle Engineers: +0.1/tick each\n\nReaching 0% integrity results in game over.`;
     
     el('baseIntegrity').textContent = `${integrityName} (${integrity}%)`;
     el('baseIntegrity').style.color = integrityColor;
