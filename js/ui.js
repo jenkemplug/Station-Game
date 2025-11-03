@@ -89,6 +89,9 @@ function getItemTooltip(item, isRecipe = false) {
       case 'phase':
         return `Phase: ${val}% chance to destabilize enemy (50% chance to fail next attack)`;
       
+      case 'poison':
+        return `Poison: ${val}% chance (2 dmg/turn for 3 turns per stack)`;
+      
       case 'burst':
         return `Burst: Fires ${val + 1} total shot${val > 0 ? 's' : ''} per attack`;
       
@@ -1682,7 +1685,8 @@ function renderWorkbench() {
         { item: 'reinforced_bat', name: 'Reinforced Bat', rarity: 'uncommon' },
         { item: 'plasma_blade', name: 'Plasma Blade', rarity: 'rare' },
         { item: 'shock_maul', name: 'Shock Maul', rarity: 'rare' },
-        { item: 'nano_edge_katana', name: 'Nano-Edge Katana', rarity: 'veryrare' }
+        { item: 'nano_edge_katana', name: 'Nano-Edge Katana', rarity: 'veryrare' },
+        { item: 'venom_blade', name: 'Venom Blade', rarity: 'veryrare' }
       ]
     },
     { 

@@ -1,6 +1,23 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.9.20a] - 2025-11-02
+### Added
+- **Poison Effect UI**: The combat UI now displays a passive "Poison" effect for survivors wielding poisonous weapons.
+
+### Fixed
+- **Venom Blade Crafting**: Fixed a bug that prevented the "Venom Blade" from appearing in the workbench crafting menu.
+- **Poison Effect**: Fixed a critical bug where the poison weapon effect was not being applied to enemies in combat.
+- **Alien Rarity Color**: Fixed a bug in the combat UI where legendary aliens were incorrectly displayed with the orange color for rare aliens instead of red.
+- **Out-of-Combat Healing**: Fixed a bug that prevented survivors from healing to their full health when wearing armor that grants bonus max HP.
+
+### Changed
+- **Poison Tooltip**: Improved the tooltip for the poison effect to clarify that it represents a percentage chance to apply the effect.
+- **Electron Security**: Hardened the application's security by explicitly setting `contextIsolation` to `true` and `nodeIntegration` to `false` in the main Electron process.
+
+### Housekeeping
+- Updated all version numbers in `index.html` to `0.9.20`.
+
 ## [0.9.20] - 2025-11-02
 ### Fixed
 - **Combat Drug**: Fixed a bug where the Combat Drug was only adding a flat +0.2 damage instead of the intended +20% damage multiplier.

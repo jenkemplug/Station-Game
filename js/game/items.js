@@ -31,7 +31,8 @@ function useOutOfCombatConsumable(survivorId, itemId) {
         if (hasAbility(survivor, 'triage')) {
             healAmount = Math.floor(healAmount * 1.25);
         }
-        survivor.hp = Math.min(survivor.maxHp, survivor.hp + healAmount);
+        const effectiveMaxHp = getEffectiveMaxHp(survivor);
+        survivor.hp = Math.min(effectiveMaxHp, survivor.hp + healAmount);
         appendLog(`${survivor.name} used a ${item.name} and healed ${healAmount} HP.`);
         effectApplied = true;
     }

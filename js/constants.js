@@ -1301,6 +1301,7 @@ const RECIPES = {
   },
   venom_blade: {
     name: 'Venom Blade',
+    subtype: 'venom_blade',
     scrap: 120,
     tech: 15,
     weaponPart: 2,

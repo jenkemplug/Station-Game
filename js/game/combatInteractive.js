@@ -276,6 +276,9 @@ function getStatusEffectsDisplay(entity, isAlien = false, rarityColor = null, pa
           case 'burst':
             effects.push({ text: `Burst +${value}`, color: weapColor, tooltip: `+${value} bonus shots from ${weapon.name}` });
             break;
+          case 'poison':
+            effects.push({ text: `Poison ${value}%`, color: weapColor, tooltip: `${value}% chance to poison enemies (2 dmg/turn for 3 turns) from ${weapon.name}` });
+            break;
         }
       }
     }
@@ -382,7 +385,7 @@ function applyWeaponEffectsInteractive(weapon, target, attacker, baseDmg) {
     const value = parseInt(valueStr) || 0;
     
     // Check if this is a chance-based effect or passive effect
-    const isChanceBased = ['burn', 'stun', 'phase', 'splash'].includes(effectType);
+    const isChanceBased = ['burn', 'stun', 'phase', 'splash', 'poison'].includes(effectType);
     const chance = isChanceBased ? value : 100; // armorPierce is passive (always active for this weapon)
     
     if (Math.random() * 100 < chance) {
@@ -395,6 +398,16 @@ function applyWeaponEffectsInteractive(weapon, target, attacker, baseDmg) {
           target._burnStacks = target._burnQueue.length;
           logCombat(`🔥 ${target.name} is set ablaze! (${target._burnStacks} stack${target._burnStacks > 1 ? 's' : ''})`, true);
           renderCombatUI(); // Update UI to show burn status
+          break;
+        
+        case 'poison':
+          // Poison: Each stack lasts 3 turns independently
+          // Deal 2 damage per stack per turn
+          if (!target._poisonQueue) target._poisonQueue = [];
+          target._poisonQueue.push(3); // Add new stack with 3 turns
+          target._poisonStacks = target._poisonQueue.length;
+          logCombat(`☠️ ${target.name} is poisoned! (${target._poisonStacks} stack${target._poisonStacks > 1 ? 's' : ''})`, true);
+          renderCombatUI(); // Update UI to show poison status
           break;
           
         case 'stun':
@@ -1472,7 +1485,7 @@ function renderCombatUI() {
       common: 'var(--rarity-common)',
       uncommon: 'var(--rarity-uncommon)',
       rare: 'var(--rarity-rare)',
-      legendary: 'var(--rarity-veryrare)'
+      veryrare: 'var(--rarity-veryrare)'
     };
     const alienColor = rarityColors[a.rarity] || '#ff8a65';
     

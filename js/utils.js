@@ -134,6 +134,19 @@ function getMoraleTierColor(tier) {
   return colors[tier] || '#808080';
 }
 
+function getEffectiveMaxHp(survivor) {
+  let effectiveMax = survivor.maxHp || 20;
+  if (survivor.equipment && survivor.equipment.armor && survivor.equipment.armor.effects) {
+    for (const effect of survivor.equipment.armor.effects) {
+      if (effect.startsWith('hpBonus:')) {
+        const bonus = parseInt(effect.split(':')[1]) || 0;
+        effectiveMax += bonus;
+      }
+    }
+  }
+  return effectiveMax;
+}
+
 function getMoraleModifier(survivor) {
   const tier = getMoraleTier(survivor.morale);
   switch(tier) {
