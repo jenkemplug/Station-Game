@@ -23,7 +23,7 @@ const BALANCE = {
     revival_kit: { reviveHP: [0.40, 0.60], desc: 'Revive ally at 40-60% HP' },
     system_override: { instakill: true, hpThreshold: 12, desc: 'Instantly kill 1 enemy with ≤12 HP' },
     stealth_field: { dodgeNext: true, duration: 1, desc: 'Dodge next attack automatically' },
-    sonic_repulsor: { threatReduction: 4, desc: 'Reduce station threat by 4%' }
+    sonic_repulsor: { threatReduction: 5, desc: 'Reduce station threat by 5%' }
   },
   BASE_HIT_CHANCE: 0.72, // Reduced from 0.75 - combat is harder
   CRIT_CHANCE: 0.12,
@@ -877,11 +877,11 @@ const RECIPES = {
   sonic_repulsor: {
     name: 'Sonic Repulsor',
     scrap: 40,
-    tech: 5,
-    electronics: 2,
-    rarity: 'rare',
+    tech: 2,
+    electronics: 1,
+    rarity: 'uncommon',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'consumable', subtype: 'sonic_repulsor', name: 'Sonic Repulsor', rarity: 'rare' };
+      const item = { id: state.nextItemId++, type: 'consumable', subtype: 'sonic_repulsor', name: 'Sonic Repulsor', rarity: 'uncommon' };
       tryAddAndLog(item);
     }
   },

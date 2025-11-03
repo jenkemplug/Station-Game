@@ -1667,8 +1667,8 @@ function renderWorkbench() {
         { item: 'ammo', name: 'Ammo', rarity: 'common' },
         { item: 'medkit', name: 'Medkit', rarity: 'uncommon' },
         { item: 'advanced_medkit', name: 'Advanced Medkit', rarity: 'uncommon' },
-        { item: 'stun_grenade', name: 'Stun Grenade', rarity: 'rare' },
-        { item: 'sonic_repulsor', name: 'Sonic Repulsor', rarity: 'rare' }
+        { item: 'sonic_repulsor', name: 'Sonic Repulsor', rarity: 'uncommon' },
+        { item: 'stun_grenade', name: 'Stun Grenade', rarity: 'rare' }
       ]
     },
     { 
