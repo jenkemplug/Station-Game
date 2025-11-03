@@ -24,7 +24,7 @@ let state = {
   equipment: { turrets: 0, bulkhead: 0 },
   systems: { filter: 0, generator: 0, turret: 0 },
   systemFailures: [], // 0.8.1 - Track system failures
-  threat: 8,
+  threat: 0,
   baseIntegrity: 100,
   raidChance: 0, // 0.7.3 - replaces boardRisk
   lastRaidAt: 0, // 0.7.3 - cooldown tracking
