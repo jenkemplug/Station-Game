@@ -289,3 +289,60 @@ function debugRaiseEscalation() {
   appendLog(`[DEBUG] Escalation raised to Level ${state.escalationLevel} (+${hpBonus}% HP, +${atkBonus}% Atk, +${armorBonus} Armor)`);
   updateUI();
 }
+
+function debugTriggerRandomMission() {
+  const missionKeys = Object.keys(AWAY_MISSIONS);
+  if (missionKeys.length === 0) {
+    appendLog("Debug: No missions available to trigger.");
+    return;
+  }
+  const randomMissionId = missionKeys[rand(0, missionKeys.length - 1)];
+  
+  // Find an empty, unexplored tile to place the mission
+  const emptyTiles = state.tiles.map((t, i) => ({ t, i }))
+    .filter(item => item.t.type === 'empty' && !state.explored.has(item.i));
+
+  if (emptyTiles.length === 0) {
+    appendLog("Debug: No empty, unexplored tiles to place a mission.");
+    return;
+  }
+  
+  const tileIndex = emptyTiles[rand(0, emptyTiles.length - 1)].i;
+  
+  // Convert the tile to a mission tile
+  state.tiles[tileIndex].type = 'mission';
+  state.tiles[tileIndex].missionId = randomMissionId;
+  state.tiles[tileIndex].scouted = true; // Make it visible
+
+  appendLog(`Debug: Triggered mission "${AWAY_MISSIONS[randomMissionId].name}" at tile ${tileIndex}.`);
+  updateUI();
+}
+
+function debugValidateMissions() {
+  if (typeof MissionValidator === 'undefined' || typeof MissionValidator.validateAllMissions !== 'function') {
+    appendLog('[Missions] MissionValidator not loaded.');
+    return;
+  }
+  const issues = MissionValidator.validateAllMissions();
+  if (!issues || issues.length === 0) {
+    appendLog('[Missions] Validation passed.');
+  } else {
+    appendLog(`[Missions] Validation completed: ${issues.length} issue(s) found.`);
+  }
+}
+
+function debugAddKeycard(keycardId) {
+  if (!state.keycards) {
+    state.keycards = [];
+  }
+  
+  if (state.keycards.includes(keycardId)) {
+    appendLog(`[DEBUG] Already have ${keycardId} keycard`);
+  } else {
+    state.keycards.push(keycardId);
+    appendLog(`[DEBUG] Added ${keycardId} keycard`);
+  }
+  
+  updateUI();
+}
+

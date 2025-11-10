@@ -492,6 +492,8 @@ js/
 
 ## Proposed 1.0 Development Plan (v3)
 
+When asked, create a todo list for this plan. Only work on one step at a time until prompted to begin the next. *Goal: Transform the game into a more exploration-focused experience with deeper mechanics and replayability.*
+
 ### Phase 1: Reworking Core Gameplay Loops
 
 *Goal: Change how players acquire survivors and gear to make exploration the central focus of the game.*
@@ -501,14 +503,9 @@ js/
     *   **Change:** Survivors can **only** be found by exploring `Survivor` tiles on the map.
     *   **Impact:** This immediately makes exploration more critical and rewarding from the very beginning. It changes the core dynamic from a passive "buy survivor" loop to an active "search and rescue" loop.
 
-2.  **Crafting Recipe Discovery:**
-    *   **Action:** Initially, lock all but the most basic crafting recipes (e.g., Makeshift Pipe, Scrap Vest).
-    *   **Change:** New recipes are unlocked by finding "Blueprints" as rare loot during exploration, especially in `Module` or `Hazard` rooms.
-    *   **Impact:** Adds a major incentive to explore and provides a sense of technological progression.
-
-3.  **Expedition Rework:**
+2.  **Expedition Rework:**
     *   **Action:** Remove the current generic "Expedition" button.
-    *   **Change:** Replace it with specific, high-risk "Away Missions" that can be discovered on the map (e.g., "Scavenge the Wrecked Medical Bay," "Raid the Alien Nest"). These would have unique challenges and guaranteed rare loot.
+    *   **Change:** Replace it with specific, high-risk "Away Missions" that can be discovered on the map (e.g., "Scavenge the Wrecked Medical Bay," "Raid the Alien Nest"). These would have unique challenges and guaranteed rare loot. This system sould be extremely deep and varied, with different mission types, difficulties, and rewards.
     *   **Impact:** Transforms expeditions from a passive timer into active, player-driven objectives.
 
 ### Phase 2: The Exploration Overhaul & Advanced AI

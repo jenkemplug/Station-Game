@@ -1,6 +1,52 @@
 // Combat System
 // Handles alien encounters, skirmishes, damage calculation
 
+// 1.0 - Advanced AI: Smart target selection for aliens
+function selectAlienTarget(alien, fighters) {
+  const validTargets = fighters.filter(f => f.hp > 0);
+  if (validTargets.length === 0) return null;
+  if (validTargets.length === 1) return validTargets[0];
+  
+  // Different alien types have different targeting priorities
+  const alienType = alien.type || 'drone';
+  
+  switch (alienType) {
+    case 'spitter':
+    case 'brood':
+      // Spitters/Broods target high-defense survivors (they have armor piercing)
+      return validTargets.reduce((highest, f) => {
+        const fDef = calculateDefense(f);
+        const highestDef = calculateDefense(highest);
+        return fDef > highestDef ? f : highest;
+      });
+      
+    case 'stalker':
+    case 'ravager':
+    case 'queen':
+      // Aggressive types focus fire on lowest HP (finish kills)
+      return validTargets.reduce((lowest, f) => {
+        const fPercent = f.hp / f.maxHp;
+        const lowestPercent = lowest.hp / lowest.maxHp;
+        return fPercent < lowestPercent ? f : lowest;
+      });
+      
+    case 'lurker':
+      // Lurkers target high-value classes (Medics, Engineers, Scientists)
+      const priorityClasses = ['Medic', 'Engineer', 'Scientist'];
+      const highValue = validTargets.filter(f => priorityClasses.includes(f.class));
+      if (highValue.length > 0) {
+        return highValue[Math.floor(Math.random() * highValue.length)];
+      }
+      // Fall through to random if no priority targets
+      
+    case 'drone':
+    case 'spectre':
+    default:
+      // Drones/Spectres: Random targeting (unpredictable)
+      return validTargets[Math.floor(Math.random() * validTargets.length)];
+  }
+}
+
 // 0.9.0 - NEW: Apply modifier bonuses to alien stats at spawn
 function applyModifiersToAlienStats(alien) {
   const effects = applyModifierStatEffects(alien);
@@ -254,7 +300,7 @@ function applyModifierStatEffects(alien) {
   
   // Drone modifiers
   if (hasModifier(alien, 'swift')) dodgeBonus += 0.30;
-  if (hasModifier(alien, 'alpha')) { atkBonus += 4; dodgeBonus += 0.50; }
+  if (hasModifier(alien, 'alpha')) { atkBonus += 4; dodgeBonus += 0.25; }
   
   // Lurker modifiers handled in ambush logic
   
@@ -680,6 +726,45 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         
         // loot on kill
         let qualityBonus = 0;
+        
+        // 1.0 - Hostile survivors drop equipment and consumables (no loot table roll)
+        if (target.type === 'hostile_human') {
+          // Drop equipped items
+          if (target.equipment) {
+            if (target.equipment.weapon) {
+              state.inventory.push(target.equipment.weapon);
+              appendLog(`⚔️ Looted: ${target.equipment.weapon.name} (${target.equipment.weapon.durability}/${target.equipment.weapon.maxDurability})`);
+            }
+            if (target.equipment.armor) {
+              state.inventory.push(target.equipment.armor);
+              appendLog(`🛡️ Looted: ${target.equipment.armor.name} (${target.equipment.armor.durability}/${target.equipment.armor.maxDurability})`);
+            }
+          }
+          
+          // Drop remaining consumables from inventory
+          if (target.inventory && target.inventory.length > 0) {
+            for (const item of target.inventory) {
+              state.inventory.push(item);
+              appendLog(`📦 Looted: ${item.name}`);
+            }
+          }
+          
+          // Bonus scrap based on hostile rarity
+          const rarityScrap = {
+            'common': rand(10, 20),
+            'uncommon': rand(20, 35),
+            'rare': rand(35, 60),
+            'legendary': rand(60, 100)
+          };
+          const scrapAmount = rarityScrap[target.rarity] || 15;
+          state.resources.scrap += scrapAmount;
+          appendLog(`💰 Looted ${scrapAmount} scrap from ${target.name}`);
+          
+          // Skip normal loot table roll for hostile survivors
+          continue;
+        }
+        
+        // Normal alien loot drops
         // Bonus for alien rarity
         switch (target.rarity) {
           case 'uncommon': qualityBonus += 0.05; break;
@@ -739,6 +824,31 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
     for (const a of aliens) {
       if (a.hp <= 0) continue;
       
+      // 1.0 - Hostile Survivor AI: Use consumables intelligently (auto-resolve)
+      if (a.type === 'hostile_human' && a.inventory && a.inventory.length > 0) {
+        // Use Medkit if HP below 50%
+        if (a.hp < a.maxHp * 0.5) {
+          const medkitIdx = a.inventory.findIndex(item => item.type === 'medkit');
+          if (medkitIdx >= 0) {
+            const healAmount = rand(15, 25);
+            a.hp = Math.min(a.maxHp, a.hp + healAmount);
+            a.inventory.splice(medkitIdx, 1);
+            appendLog(`⚕️ ${a.name} uses a Medkit and heals ${healAmount} HP!`);
+          }
+        }
+        
+        // Use Stimpack if HP below 70%
+        if (a.hp < a.maxHp * 0.7 && !a._stimpackActive) {
+          const stimpackIdx = a.inventory.findIndex(item => item.type === 'stimpack');
+          if (stimpackIdx >= 0) {
+            a._stimpackActive = true;
+            a._stimpackDefense = 5; // +5 defense for this round
+            a.inventory.splice(stimpackIdx, 1);
+            appendLog(`💉 ${a.name} uses a Stimpack (+5 defense)!`);
+          }
+        }
+      }
+      
       // Multi-strike special (queen)
       let attackCount = (a.special === 'multistrike') ? 2 : 1;
       // Empress modifier adds third attack
@@ -750,7 +860,8 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       }
       
       for (let strike = 0; strike < attackCount; strike++) {
-        const targ = fighters.find(x => x.hp > 0);
+        // 1.0 - Advanced AI: Smart targeting based on alien type
+        const targ = selectAlienTarget(a, fighters);
         if (!targ) break;
         
         const modStats = applyModifierStatEffects(a);

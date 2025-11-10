@@ -2,9 +2,9 @@
 // Main game loop that orchestrates all game systems
 
 function applyTick(isOffline = false) {
-  // production by survivors assigned
+  // production by survivors assigned (exclude mission and exploration)
   let prod = { oxygen: 0, food: 0, energy: 0, scrap: 0 };
-  const activeSurvivors = state.survivors.filter(s => !s.onMission);
+  const activeSurvivors = state.survivors.filter(s => !s.onMission && !s.onExploration);
 
   activeSurvivors.forEach(s => {
     const levelBonus = 1 + (s.level - 1) * BALANCE.LEVEL_PRODUCTION_BONUS;
@@ -151,7 +151,19 @@ function applyTick(isOffline = false) {
   
   // threat & missions & raids
   evaluateThreat();
-  tickMissions();
+  // `tickMissions` used to live in the expedition system. During the expedition
+  // overhaul that file may be removed — guard the call so the main tick loop
+  // doesn't throw a ReferenceError and stop UI updates.
+  if (typeof tickMissions === 'function') {
+    try {
+      tickMissions();
+    } catch (err) {
+      console.error('tickMissions threw an error:', err);
+    }
+  } else {
+    // If missions array exists, we may want minimal upkeep here in future.
+    // For now, silently skip so ticks and UI continue to run.
+  }
   
   // consequences
   // Oxygen critical state: warn, damage, and morale loss
@@ -193,6 +205,7 @@ function applyTick(isOffline = false) {
   // Engineer passive repair (Idle Engineers slowly repair base)
   const idleEngineers = state.survivors.filter(s => 
     !s.onMission && 
+    !s.onExploration &&
     s.task === 'Idle' && 
     (s.class === 'Engineer' || hasAbility(s, 'efficient'))
   );
@@ -218,7 +231,7 @@ function applyTick(isOffline = false) {
   
   // Desertion checks (hourly: 3600 ticks = 1 hour)
   if (state.secondsPlayed % 3600 === 0 && state.survivors.length > 1) { // Don't desert if last survivor
-    const desertionCandidates = state.survivors.filter(s => !s.onMission);
+    const desertionCandidates = state.survivors.filter(s => !s.onMission && !s.onExploration);
     for (const s of desertionCandidates) {
       const moraleTier = getMoraleTier(s.morale);
       let desertChance = 0;
@@ -243,7 +256,7 @@ function applyTick(isOffline = false) {
   state.baseIntegrity = clamp(state.baseIntegrity, -20, 100);
   
   // 0.8.11 - Scientist passive tech generation (Analytical, Genius) - nerfed to every 60s
-  const scientists = state.survivors.filter(s => !s.onMission);
+  const scientists = state.survivors.filter(s => !s.onMission && !s.onExploration);
   for (const sci of scientists) {
     if (hasAbility(sci, 'analytical') && state.secondsPlayed % 60 === 0) {
       state.resources.tech += 1;
@@ -251,9 +264,9 @@ function applyTick(isOffline = false) {
     if (hasAbility(sci, 'genius') && state.secondsPlayed % 60 === 0) {
       state.resources.tech += 2;
     }
-    // Breakthrough: random tech burst (5% chance per tick when active)
-    if (hasAbility(sci, 'breakthrough') && Math.random() < 0.05) {
-      state.resources.tech += rand(1, 3);
+    // Breakthrough: random tech burst (0.5% chance per tick when active)
+    if (hasAbility(sci, 'breakthrough') && Math.random() < 0.005) {
+      state.resources.tech += rand(1, 2);
       appendLog(`${sci.name} achieves a research breakthrough!`);
     }
   }
@@ -263,7 +276,7 @@ function applyTick(isOffline = false) {
   
   // Calculate global morale bonuses from auras like Guardian's Rallying Cry
   let globalMoraleBonus = 0;
-  const activeGuardians = state.survivors.filter(s => !s.onMission && hasAbility(s, 'rallying'));
+  const activeGuardians = state.survivors.filter(s => !s.onMission && !s.onExploration && hasAbility(s, 'rallying'));
   if (activeGuardians.length > 0) {
     globalMoraleBonus = activeGuardians.length * 0.05;
   }
@@ -289,7 +302,7 @@ function applyTick(isOffline = false) {
   
   // 0.8.11 - System failure events with Overclock/Failsafe modifiers
   if (!isOffline && state.secondsPlayed % 10 === 0) { // Check every 10 seconds
-    const activeSurvivors = state.survivors.filter(s => !s.onMission);
+    const activeSurvivors = state.survivors.filter(s => !s.onMission && !s.onExploration);
     
     // Calculate failure rate modifiers (additive stacking)
     let failureRateMod = 1.0; // Base multiplier
@@ -350,6 +363,37 @@ function applyTick(isOffline = false) {
     return;
   }
   
+  // 1.0 - Corridor Respawn System: Regenerate content on cleared corridor tiles over time
+  if (!isOffline && state.secondsPlayed % 60 === 0) { // Check every 60 seconds
+    const now = state.secondsPlayed;
+    
+    state.tiles.forEach((tile, idx) => {
+      // Only respawn on cleared corridor tiles (not rooms, not mission areas, not base)
+      if (tile.terrain === 'corridor' && tile.cleared && tile.content === null && !tile.content) {
+        // Initialize respawn timer if not set
+        if (!tile.clearedAt) {
+          tile.clearedAt = now;
+        }
+        
+        // Check if enough time has passed
+        if (now - tile.clearedAt >= BALANCE.RESPAWN_COOLDOWN) {
+          // Respawn content based on rebalanced spawn rates (more danger, less loot)
+          const roll = Math.random();
+          if (roll < 0.025) { // 2.5% alien (was 1% - 150% increase)
+            tile.content = 'alien';
+            tile.cleared = false;
+            tile.aliens = []; // Will spawn when encountered
+          } else if (roll < 0.037) { // 1.2% loot (37 - 25 = 1.2%, was 0.5% - 140% increase but matches corridor nerf)
+            tile.content = 'resource';
+            tile.cleared = false;
+          }
+          // Reset timer
+          tile.clearedAt = now;
+        }
+      }
+    });
+  }
+  
   if (!isOffline) state.secondsPlayed++;
   state.lastTick = Date.now();
 }
@@ -357,7 +401,7 @@ function applyTick(isOffline = false) {
 function calculateOfflineProgress(elapsedSeconds) {
   // --- 1. Calculate Production Rates (per second) ---
   let prod = { oxygen: 0, food: 0, energy: 0, scrap: 0 };
-  const activeSurvivors = state.survivors.filter(s => !s.onMission);
+  const activeSurvivors = state.survivors.filter(s => !s.onMission && !s.onExploration);
 
   activeSurvivors.forEach(s => {
     const levelBonus = 1 + (s.level - 1) * BALANCE.LEVEL_PRODUCTION_BONUS;

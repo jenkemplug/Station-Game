@@ -8,7 +8,7 @@ const BALANCE = {
   COMBAT_ACTIONS: {
     Aim: { accuracyBonus: 0.25 },
     Burst: { dmgBonus: 0, accuracyPenalty: 0.05, ammoMult: 2, cooldown: 3 },
-    PowerAttack: { dmgBonus: 5, cooldown: 2 },
+    PowerAttack: { dmgBonus: 8, cooldown: 2 },
     Guard: { defenseBonus: 3 },
     MedkitHeal: [10, 18]
   },
@@ -61,6 +61,9 @@ const BALANCE = {
   SURVIVOR_RECRUIT_CHANCE: 0.80, // Reduced from 0.85
   HAZARD_DURABILITY_LOSS: [15, 25], // Increased from [12, 20] - hazards are riskier
   HAZARD_LOOT_ROLLS: 3,
+  
+  // Corridor respawn system (1.0) - Rebalanced for faster action
+  RESPAWN_COOLDOWN: 120, // Seconds before cleared corridor tiles can respawn content (2 minutes - was 5)
 
   // Resource consumption (per tick)
   O2_BASE: 0.12, // Reduced from 0.18 - less punishing base drain
@@ -134,7 +137,7 @@ const BALANCE = {
   GUARD_THREAT_REDUCTION: 0.08,       // Guards slow threat, can't stop it
   THREAT_GAIN_PER_ALIEN: [1, 2],      // Increased from [1, 2] - combat drives threat progression
   THREAT_GAIN_PER_ALIEN_KILL: 1, // Threat gain for each alien kill
-  THREAT_GAIN_PER_TILE: 0.15,        // Threat gain for each tile explored
+  THREAT_GAIN_PER_TILE: 0.005,        // Threat gain for each tile explored
   THREAT_GAIN_ON_RETREAT: [1, 2],     // NEW: Retreating from combat adds threat
   EXPEDITION_FAILURE_THREAT_GAIN: [4, 8], // Increased from [3, 6] - failed expeditions matter more
   
@@ -194,29 +197,29 @@ const BALANCE = {
   
   // XP & leveling
   XP_MULT: 0.9,
-  XP_FROM_EXPLORE: 7,
-  XP_FROM_LOOT: 8,
-  COMBAT_XP_RANGE: [10, 22],
+  XP_FROM_EXPLORE: 1,
+  XP_FROM_LOOT: 1,
+  COMBAT_XP_RANGE: [5, 12],
   
   // Production multipliers
   PROD_MULT: 1,
   BASE_SYSTEM_PRODUCTION: { // 0.8.13 - Base production for level 0 systems
     oxygen: 0.50, // Increased from 0.40 - better base system output
-    energy: 0.25  // Increased from 0.20 - better base system output
+    energy: 0.75  // Increased from 0.25 - better early game energy (1.0 balance pass)
   },
   SYSTEM_FILTER_MULT: 1.0,
   SYSTEM_GENERATOR_MULT: 1.0,
   SURVIVOR_PROD: {
     Oxygen: { base: 1.25 },  // Increased from 1.1 - better survivor production
     Food: { base: 1.15 },    // Increased from 1.05 - better food generation
-    Energy: { base: 0.95 },  // Increased from 0.85 - better energy generation
+    Energy: { base: 1.8 },  // Increased from 0.95 - better early game energy generation (1.0 balance pass)
     Scrap: { base: 0.65 },   // Increased from 0.6 - slightly better scrap generation
     IdleOxygen: 0, // 0.8.13 - Idle survivors no longer produce resources
     FoodYieldFactor: 0.95, // 0.8.11 - Increased from 0.6 to make food ~15% worse than oxygen
     // 0.8.8 - Energy consumption rebalanced to per-survivor basis
-    PassiveEnergyDrainPerSurvivor: 0.18,  // Increased from 0.15 - late game energy pressure
-    PassiveEnergyDrainPerTurret: 0.06,    // Increased from 0.04 - turrets same as survivors
-    PassiveEnergyDrainPerFilterLevel: 0.08 // Increased from 0.06 - filter upgrades cost energy
+    PassiveEnergyDrainPerSurvivor: 0.10,  // Reduced from 0.18 - less punishing early game (1.0 balance pass)
+    PassiveEnergyDrainPerTurret: 0.06,    // Turret drain (unchanged)
+    PassiveEnergyDrainPerFilterLevel: 0.08 // Filter upgrade drain (unchanged)
   },
   LEVEL_PRODUCTION_BONUS: 0.05,
   LEVEL_ATTACK_BONUS: 0.015, // +1.5% damage per level (reduced from 2% for longer combats)
@@ -240,6 +243,33 @@ const BALANCE = {
     generator: { scrap: 50, energy: 0 }, // Increased from 25/18
     turret: { scrap: 45, energy: 30 } // Increased from 40/25
   }
+};
+
+// 1.0 - Blueprint System: Hand-Crafted Station Map
+const BLUEPRINT = {
+  // Map dimensions (138x73 hand-crafted station layout)
+  MAP_WIDTH: 138,
+  MAP_HEIGHT: 73,
+  
+  // Corridor generation parameters
+  NUM_MAIN_CORRIDORS: 6,        // Number of primary hallways radiating from base
+  MIN_CORRIDOR_LENGTH: 8,       // Minimum corridor segment length
+  MAX_CORRIDOR_LENGTH: 18,      // Maximum corridor segment length
+  BRANCH_CHANCE: 0.35,          // 35% chance to branch at each junction
+  MAX_BRANCH_DEPTH: 3,          // How many levels deep branches can go
+  CORRIDOR_WIDTH_CHANCE: 0.25,  // 25% chance for 2-tile wide corridors
+  
+  // Content spawn chances (in corridors only)
+  CORRIDOR_RESOURCE_CHANCE: 0.12,  // 12% chance per corridor tile
+  CORRIDOR_ALIEN_CHANCE: 0.08,     // 8% chance per corridor tile
+  CORRIDOR_SURVIVOR_CHANCE: 0.03,  // 3% chance per corridor tile
+  
+  // Vision and fog-of-war system
+  VISION_RADIUS: 4,                // How far explorer can see (reveals structure)
+  CONTENT_DISCOVERY_RADIUS: 0,     // Must step on tile to discover content (0 = touch only)
+  
+  // Reserved space for future sector placement
+  SECTOR_RESERVED_RADIUS: 8    // Keep this much space clear around corridor endpoints
 };
 
 // 0.9.0 - Weapon type mechanics
@@ -274,7 +304,9 @@ const RARITY_COLORS = {
   common: '#a0a0a0',      // Gray
   uncommon: '#a78bfa',    // Purple (matches --rarity-uncommon)
   rare: '#fb923c',        // Orange
-  veryrare: '#ef4444'     // Red - Legendary
+  veryrare: '#ef4444',     // Red - Legendary
+  boss: '#22c55e',         // Green for unique mission enemies
+  special: '#06b6d4'      // Cyan for special mission enemies
 };
 
 const LOOT_TABLE = [
@@ -309,6 +341,20 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'old_revolver', weaponType: 'pistol', name: 'Old Revolver', rarity: 'common', durability: 35, maxDurability: 35, damage: [5, 6] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
+  { type: 'jury_rigged_pistol', weight: 2.5, rarity: 'common', desc: 'Held together with hope', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'jury_rigged_pistol', weaponType: 'pistol', name: 'Jury-Rigged Pistol', rarity: 'common', durability: 25, maxDurability: 25, damage: [3, 6] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'homemade_handgun', weight: 2.5, rarity: 'common', desc: 'Basic but functional', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'homemade_handgun', weaponType: 'pistol', name: 'Homemade Handgun', rarity: 'common', durability: 30, maxDurability: 30, damage: [4, 6] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  
+  // Common melee (add 1 more)
+  { type: 'steel_pipe', weight: 3, rarity: 'common', desc: 'Solid metal club', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'steel_pipe', weaponType: 'melee', name: 'Steel Pipe', rarity: 'common', durability: 25, maxDurability: 25, damage: [3, 6] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
   
   // Common armor
   { type: 'scrap_vest', weight: 3.5, rarity: 'common', desc: 'Makeshift protection', onPickup: (s) => { 
@@ -319,12 +365,113 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'armor', subtype: 'padded_suit', name: 'Padded Suit', rarity: 'common', durability: 40, maxDurability: 40, defense: 2 }; 
     return tryAddAndReturn(item, '', ''); 
   }},
+  { type: 'work_gear', weight: 3, rarity: 'common', desc: 'Reinforced work clothes', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'armor', subtype: 'work_gear', name: 'Work Gear', rarity: 'common', durability: 35, maxDurability: 35, defense: 1 }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'leather_jacket', weight: 3, rarity: 'common', desc: 'Tough hide protection', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'armor', subtype: 'leather_jacket', name: 'Leather Jacket', rarity: 'common', durability: 45, maxDurability: 45, defense: 2 }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
   
   // Common components
   { type: 'weaponPart', weight: 6.0, rarity: 'common', desc: 'Basic weapon components', onPickup: (s) => { const item = { id: s.nextItemId++, type: 'component', subtype: 'weaponPart', name: 'Weapon Part', rarity: 'common' }; return tryAddAndReturn(item, '', ''); } },
   
   // ===== UNCOMMON TIER (22% total weight - reduced from 30%) =====
-  { type: 'tech', weight: 4.0, rarity: 'uncommon', desc: 'Sensitive electronics and processors', onPickup: (s) => { s.resources.tech += 1; return 'Tech component recovered.'; } },
+  { type: 'tech', weight: 10.0, rarity: 'uncommon', desc: 'Sensitive electronics and processors', onPickup: (s) => { s.resources.tech += 1; return 'Tech component recovered.'; } }, // Increased from 4.0 for massive map (1.0 balance pass)
+  
+  // 1.0 - Mission Keycards (high weight 8.0 for progression, filtered dynamically by pickLoot)
+  { type: 'medicalBayKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Medical Bay access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('medicalBay')) {
+      s.keycards.push('medicalBay');
+      return '🔑 Medical Bay Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'engineeringDeckKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Engineering Deck access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('engineeringDeck')) {
+      s.keycards.push('engineeringDeck');
+      return '🔑 Engineering Deck Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'securityWingKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Security Wing access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('securityWing')) {
+      s.keycards.push('securityWing');
+      return '🔑 Security Wing Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'crewQuartersKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Crew Quarters access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('crewQuarters')) {
+      s.keycards.push('crewQuarters');
+      return '🔑 Crew Quarters Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'researchLabsKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Research Labs access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('researchLabs')) {
+      s.keycards.push('researchLabs');
+      return '🔑 Research Labs Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'shoppingMallKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Shopping Mall access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('shoppingMall')) {
+      s.keycards.push('shoppingMall');
+      return '🔑 Shopping Mall Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'maintenanceHubKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Maintenance Hub access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('maintenanceHub')) {
+      s.keycards.push('maintenanceHub');
+      return '🔑 Maintenance Hub Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'communicationsKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Communications access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('communications')) {
+      s.keycards.push('communications');
+      return '🔑 Communications Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'cargoBayKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Cargo Bay access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('cargoBay')) {
+      s.keycards.push('cargoBay');
+      return '🔑 Cargo Bay Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'corporateOfficesKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Corporate Offices access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('corporateOffices')) {
+      s.keycards.push('corporateOffices');
+      return '🔑 Corporate Offices Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'reactorChamberKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Reactor Chamber access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('reactorChamber')) {
+      s.keycards.push('reactorChamber');
+      return '🔑 Reactor Chamber Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'observationDeckKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Observation Deck access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('observationDeck')) {
+      s.keycards.push('observationDeck');
+      return '🔑 Observation Deck Keycard found! Mission access granted.';
+    }
+    return 'Already have this keycard.';
+  }},
+  { type: 'hangarBayKeycard', weight: 8.0, rarity: 'uncommon', desc: '🔑 Hangar Bay access keycard', onPickup: (s) => {
+    if (!s.keycards.includes('hangarBay')) {
+      s.keycards.push('hangarBay');
+      return '🔑 Hangar Bay Keycard found!';
+    }
+    return 'Already have this keycard.';
+  }},
   
   // Uncommon melee weapons
   { type: 'combat_knife', weight: 1.6, rarity: 'uncommon', desc: 'Military-grade blade', onPickup: (s) => { 
@@ -339,6 +486,10 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'reinforced_bat', weaponType: 'melee', name: 'Reinforced Bat', rarity: 'uncommon', durability: 45, maxDurability: 45, damage: [6, 9] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
+  { type: 'electro_spear', weight: 1.3, rarity: 'uncommon', desc: 'Charged polearm', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'electro_spear', weaponType: 'melee', name: 'Electro-Spear', rarity: 'uncommon', durability: 55, maxDurability: 55, damage: [5, 10], effects: ['stun:8'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
   
   // Uncommon pistols
   { type: 'laser_pistol', weight: 1.5, rarity: 'uncommon', desc: 'Energy sidearm', onPickup: (s) => { 
@@ -347,6 +498,14 @@ const LOOT_TABLE = [
   }},
   { type: 'heavy_pistol', weight: 1.4, rarity: 'uncommon', desc: 'High-caliber stopping power', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'heavy_pistol', weaponType: 'pistol', name: 'Heavy Pistol', rarity: 'uncommon', durability: 55, maxDurability: 55, damage: [7, 10] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'burst_pistol', weight: 1.3, rarity: 'uncommon', desc: 'Three-round burst', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'burst_pistol', weaponType: 'pistol', name: 'Burst Pistol', rarity: 'uncommon', durability: 60, maxDurability: 60, damage: [6, 8], effects: ['burst:2'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'needle_pistol', weight: 1.3, rarity: 'uncommon', desc: 'Precision piercing rounds', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'needle_pistol', weaponType: 'pistol', name: 'Needle Pistol', rarity: 'uncommon', durability: 65, maxDurability: 65, damage: [5, 9], effects: ['armorPierce:10'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   
@@ -359,10 +518,30 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'scoped_rifle', weaponType: 'rifle', name: 'Scoped Rifle', rarity: 'uncommon', durability: 75, maxDurability: 75, damage: [9, 12], effects: ['crit:15'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
+  { type: 'battle_rifle', weight: 1.1, rarity: 'uncommon', desc: 'Military-grade firearm', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'battle_rifle', weaponType: 'rifle', name: 'Battle Rifle', rarity: 'uncommon', durability: 80, maxDurability: 80, damage: [8, 13] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'carbine', weight: 1.1, rarity: 'uncommon', desc: 'Compact rifle', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'carbine', weaponType: 'rifle', name: 'Carbine', rarity: 'uncommon', durability: 65, maxDurability: 65, damage: [7, 11] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
   
-  // Uncommon shotgun
+  // Uncommon shotguns
   { type: 'pump_shotgun', weight: 1.2, rarity: 'uncommon', desc: 'Reliable close-range weapon', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'pump_shotgun', weaponType: 'shotgun', name: 'Pump Shotgun', rarity: 'uncommon', durability: 60, maxDurability: 60, damage: [7, 13] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'auto_shotgun', weight: 1.1, rarity: 'uncommon', desc: 'Semi-automatic scatter', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'auto_shotgun', weaponType: 'shotgun', name: 'Auto-Shotgun', rarity: 'uncommon', durability: 65, maxDurability: 65, damage: [6, 14], effects: ['burst:1'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'riot_shotgun', weight: 1.1, rarity: 'uncommon', desc: 'Crowd control weapon', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'riot_shotgun', weaponType: 'shotgun', name: 'Riot Shotgun', rarity: 'uncommon', durability: 70, maxDurability: 70, damage: [7, 12], effects: ['stun:5'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'tactical_shotgun', weight: 1.0, rarity: 'uncommon', desc: 'Modular combat shotgun', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'tactical_shotgun', weaponType: 'shotgun', name: 'Tactical Shotgun', rarity: 'uncommon', durability: 75, maxDurability: 75, damage: [8, 13] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   
@@ -374,6 +553,10 @@ const LOOT_TABLE = [
   }},
   { type: 'reinforced_plating', weight: 1.2, rarity: 'uncommon', desc: 'Extra protection', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'armor', subtype: 'reinforced_plating', name: 'Reinforced Plating', rarity: 'uncommon', durability: 120, maxDurability: 120, defense: 3 }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'ballistic_vest', weight: 1.3, rarity: 'uncommon', desc: 'Anti-projectile armor', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'armor', subtype: 'ballistic_vest', name: 'Ballistic Vest', rarity: 'uncommon', durability: 110, maxDurability: 110, defense: 3, effects: ['hpBonus:5'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   
@@ -408,6 +591,14 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'shock_maul', weaponType: 'melee', name: 'Shock Maul', rarity: 'rare', durability: 75, maxDurability: 75, damage: [10, 13], effects: ['stun:20'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
+  { type: 'vibro_axe', weight: 0.45, rarity: 'rare', desc: 'High-frequency cutting blade', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'vibro_axe', weaponType: 'melee', name: 'Vibro-Axe', rarity: 'rare', durability: 85, maxDurability: 85, damage: [9, 14], effects: ['armorPierce:20', 'crit:10'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'power_fist', weight: 0.4, rarity: 'rare', desc: 'Hydraulic-powered gauntlet', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'power_fist', weaponType: 'melee', name: 'Power Fist', rarity: 'rare', durability: 90, maxDurability: 90, damage: [11, 15] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
   
   // Rare pistols
   { type: 'plasma_pistol', weight: 0.5, rarity: 'rare', desc: 'Advanced energy weapon', onPickup: (s) => { 
@@ -418,6 +609,14 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'smart_pistol', weaponType: 'pistol', name: 'Smart Pistol', rarity: 'rare', durability: 85, maxDurability: 85, damage: [8, 12], effects: ['accuracy:10'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
+  { type: 'mag_pistol', weight: 0.45, rarity: 'rare', desc: 'Magnetic accelerator sidearm', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'mag_pistol', weaponType: 'pistol', name: 'Mag Pistol', rarity: 'rare', durability: 95, maxDurability: 95, damage: [9, 14], effects: ['armorPierce:15'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'arc_pistol', weight: 0.4, rarity: 'rare', desc: 'Lightning discharge weapon', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'arc_pistol', weaponType: 'pistol', name: 'Arc Pistol', rarity: 'rare', durability: 90, maxDurability: 90, damage: [8, 13], effects: ['stun:15', 'splash:10'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
   
   // Rare rifles
   { type: 'pulse_rifle', weight: 0.55, rarity: 'rare', desc: 'Pulse Rifle components', onPickup: (s) => { const item = { id: s.nextItemId++, type: 'weapon', subtype: 'pulse_rifle', weaponType: 'rifle', name: 'Pulse Rifle', rarity: 'rare', durability: 100, maxDurability: 100, damage: [10, 13] }; return tryAddAndReturn(item, '', ''); } },
@@ -425,11 +624,27 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_rifle', weaponType: 'rifle', name: 'Plasma Rifle', rarity: 'rare', durability: 95, maxDurability: 95, damage: [11, 15], effects: ['burn:20'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
+  { type: 'laser_rifle', weight: 0.5, rarity: 'rare', desc: 'Precision beam weapon', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'laser_rifle', weaponType: 'rifle', name: 'Laser Rifle', rarity: 'rare', durability: 105, maxDurability: 105, damage: [9, 14], effects: ['burn:18', 'accuracy:8'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'marksman_rifle', weight: 0.45, rarity: 'rare', desc: 'Long-range precision firearm', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'marksman_rifle', weaponType: 'rifle', name: 'Marksman Rifle', rarity: 'rare', durability: 110, maxDurability: 110, damage: [12, 16], effects: ['crit:20', 'accuracy:10'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
   
   // Rare shotguns
   { type: 'combat_shotgun', weight: 0.5, rarity: 'rare', desc: 'Combat Shotgun components', onPickup: (s) => { const item = { id: s.nextItemId++, type: 'weapon', subtype: 'combat_shotgun', weaponType: 'shotgun', name: 'Combat Shotgun', rarity: 'rare', durability: 80, maxDurability: 80, damage: [8, 15] }; return tryAddAndReturn(item, '', ''); } },
   { type: 'plasma_shotgun', weight: 0.45, rarity: 'rare', desc: 'Energy scatter weapon', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_shotgun', weaponType: 'shotgun', name: 'Plasma Shotgun', rarity: 'rare', durability: 85, maxDurability: 85, damage: [10, 17], effects: ['burn:25'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'arc_shotgun', weight: 0.45, rarity: 'rare', desc: 'Electrified buckshot', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'arc_shotgun', weaponType: 'shotgun', name: 'Arc Shotgun', rarity: 'rare', durability: 90, maxDurability: 90, damage: [9, 16], effects: ['stun:20', 'splash:15'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'flechette_cannon', weight: 0.4, rarity: 'rare', desc: 'Armor-piercing shrapnel launcher', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'flechette_cannon', weaponType: 'shotgun', name: 'Flechette Cannon', rarity: 'rare', durability: 95, maxDurability: 95, damage: [8, 18], effects: ['armorPierce:30'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   
@@ -440,6 +655,14 @@ const LOOT_TABLE = [
   }},
   { type: 'grenade_launcher', weight: 0.4, rarity: 'rare', desc: 'Area effect weapon', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'grenade_launcher', weaponType: 'heavy', name: 'Grenade Launcher', rarity: 'rare', durability: 70, maxDurability: 70, damage: [15, 20], effects: ['splash:50'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'plasma_cannon', weight: 0.4, rarity: 'rare', desc: 'Heavy energy projector', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_cannon', weaponType: 'heavy', name: 'Plasma Cannon', rarity: 'rare', durability: 95, maxDurability: 95, damage: [13, 18], effects: ['burn:30', 'splash:20'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'missile_pod', weight: 0.35, rarity: 'rare', desc: 'Multi-warhead launcher', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'missile_pod', weaponType: 'heavy', name: 'Missile Pod', rarity: 'rare', durability: 85, maxDurability: 85, damage: [14, 19], effects: ['splash:40', 'burst:1'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   
@@ -501,10 +724,34 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'nano_edge_katana', weaponType: 'melee', name: 'Nano-Edge Katana', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [12, 18], effects: ['crit:25', 'armorPierce:20'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
+  { type: 'venom_blade', weight: 0.14, rarity: 'veryrare', desc: 'Toxic molecular edge', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'venom_blade', weaponType: 'melee', name: 'Venom Blade', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [14, 20], effects: ['burn:40'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'void_reaper', weight: 0.13, rarity: 'veryrare', desc: 'Reality-cutting scythe', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'void_reaper', weaponType: 'melee', name: 'Void Reaper', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [13, 21], effects: ['phase:15', 'armorPierce:25'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'thunder_hammer', weight: 0.13, rarity: 'veryrare', desc: 'Charged impact weapon', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'thunder_hammer', weaponType: 'melee', name: 'Thunder Hammer', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [15, 22], effects: ['stun:30', 'splash:20'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
   
   // Legendary pistols
   { type: 'void_pistol', weight: 0.15, rarity: 'veryrare', desc: 'Exotic tech, bypasses defenses', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'void_pistol', weaponType: 'pistol', name: 'Void Pistol', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [13, 18], effects: ['phase:20'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'annihilator_pistol', weight: 0.14, rarity: 'veryrare', desc: 'Condensed plasma core', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'annihilator_pistol', weaponType: 'pistol', name: 'Annihilator Pistol', rarity: 'veryrare', durability: 135, maxDurability: 135, damage: [14, 20], effects: ['burn:35', 'crit:15'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'hurricane_pistol', weight: 0.13, rarity: 'veryrare', desc: 'Rapid-fire energy bursts', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'hurricane_pistol', weaponType: 'pistol', name: 'Hurricane Pistol', rarity: 'veryrare', durability: 125, maxDurability: 125, damage: [11, 17], effects: ['burst:3', 'accuracy:12'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'executioner_revolver', weight: 0.13, rarity: 'veryrare', desc: 'Devastating single shots', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'executioner_revolver', weaponType: 'pistol', name: 'Executioner Revolver', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [16, 22], effects: ['crit:30', 'armorPierce:25'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   
@@ -517,10 +764,30 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'quantum_rifle', weaponType: 'rifle', name: 'Quantum Rifle', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [13, 19], effects: ['phase:25', 'accuracy:10'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
+  { type: 'antimatter_rifle', weight: 0.14, rarity: 'veryrare', desc: 'Devastation at molecular level', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'antimatter_rifle', weaponType: 'rifle', name: 'Antimatter Rifle', rarity: 'veryrare', durability: 160, maxDurability: 160, damage: [16, 23], effects: ['armorPierce:35', 'burst:2'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'railgun', weight: 0.14, rarity: 'veryrare', desc: 'Hypersonic projectile weapon', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'railgun', weaponType: 'rifle', name: 'Railgun', rarity: 'veryrare', durability: 155, maxDurability: 155, damage: [18, 25], effects: ['accuracy:15', 'crit:25'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
   
   // Legendary shotguns
   { type: 'disintegrator_cannon', weight: 0.15, rarity: 'veryrare', desc: 'Molecular breakdown weapon', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'disintegrator_cannon', weaponType: 'shotgun', name: 'Disintegrator Cannon', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [13, 23], effects: ['armorPierce:40'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'void_scattergun', weight: 0.14, rarity: 'veryrare', desc: 'Reality-bending scatter weapon', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'void_scattergun', weaponType: 'shotgun', name: 'Void Scattergun', rarity: 'veryrare', durability: 125, maxDurability: 125, damage: [12, 21], effects: ['phase:25', 'splash:20'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'inferno_blaster', weight: 0.13, rarity: 'veryrare', desc: 'Superheated plasma spread', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'inferno_blaster', weaponType: 'shotgun', name: 'Inferno Blaster', rarity: 'veryrare', durability: 135, maxDurability: 135, damage: [14, 24], effects: ['burn:45', 'splash:25'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'shredder_cannon', weight: 0.13, rarity: 'veryrare', desc: 'Ultra-penetrating flechettes', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'shredder_cannon', weaponType: 'shotgun', name: 'Shredder Cannon', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [15, 25], effects: ['armorPierce:35', 'crit:20'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   
@@ -529,8 +796,16 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'weapon', subtype: 'minigun', weaponType: 'heavy', name: 'Minigun', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [10, 14], effects: ['burst:5'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
-  { type: 'railgun', weight: 0.13, rarity: 'veryrare', desc: 'Devastating single-shot weapon', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'railgun', weaponType: 'heavy', name: 'Railgun', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [18, 25], effects: ['armorPierce:50'] }; 
+  { type: 'venom_cannon', weight: 0.13, rarity: 'veryrare', desc: 'Toxic devastation', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'venom_cannon', weaponType: 'heavy', name: 'Venom Cannon', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [16, 23], effects: ['poison:40', 'splash:25'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'flamethrower', weight: 0.12, rarity: 'veryrare', desc: 'Incinerates everything', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'flamethrower', weaponType: 'heavy', name: 'Flamethrower', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [14, 22], effects: ['burn:50', 'splash:30'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'storm_cannon', weight: 0.12, rarity: 'veryrare', desc: 'Electrified area weapon', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'storm_cannon', weaponType: 'heavy', name: 'Storm Cannon', rarity: 'veryrare', durability: 135, maxDurability: 135, damage: [12, 20], effects: ['stun:35', 'splash:35', 'burst:2'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   
@@ -547,12 +822,12 @@ const LOOT_TABLE = [
     const item = { id: s.nextItemId++, type: 'armor', subtype: 'shield_suit', name: 'Shield Suit', rarity: 'veryrare', durability: 250, maxDurability: 250, defense: 6, effects: ['reflect:20'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
-  { type: 'void_suit', weight: 0.13, rarity: 'veryrare', desc: 'Reality-stable protection', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'armor', subtype: 'void_suit', name: 'Void Suit', rarity: 'veryrare', durability: 220, maxDurability: 220, defense: 4, effects: ['immunity:phase', 'exploration:20'] }; 
-    return tryAddAndReturn(item, '', ''); 
-  }},
   { type: 'regenerative_armor', weight: 0.13, rarity: 'veryrare', desc: 'Self-repairing nanites', onPickup: (s) => { 
     const item = { id: s.nextItemId++, type: 'armor', subtype: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 5, effects: ['regen:5'] }; 
+    return tryAddAndReturn(item, '', ''); 
+  }},
+  { type: 'spectre_armor', weight: 0.12, rarity: 'veryrare', desc: 'Alien-tech phasing armor', onPickup: (s) => { 
+    const item = { id: s.nextItemId++, type: 'armor', subtype: 'spectre_armor', name: 'Spectre Armor', rarity: 'veryrare', durability: 230, maxDurability: 230, defense: 6, effects: ['phase:40'] }; 
     return tryAddAndReturn(item, '', ''); 
   }},
   
@@ -624,7 +899,13 @@ const ALIEN_TYPES = [
   { id: 'queen', name: 'Hive Queen', hpRange: [40, 58], attackRange: [10, 16], armor: 7, rarity: 'veryrare', stealth: 0,
     flavor: 'Massive apex predator. Commands the hive.',
     special: 'multistrike', // Attacks twice per turn
-    specialDesc: 'Multi-Strike: Attacks twice each turn' }
+    specialDesc: 'Multi-Strike: Attacks twice each turn' },
+  
+  // 1.0 - Medical Bay enemy
+  { id: 'infested', name: 'Infested', hpRange: [18, 28], attackRange: [7, 12], armor: 3, rarity: 'rare', stealth: 0.2,
+    flavor: 'A former human, chest cavity torn open and writhing with larvae. The swarm pilots the corpse like a meat puppet.',
+    special: 'swarm', // On death, 40% chance to spawn 1-2 Drones as larvae burst out
+    specialDesc: 'Larvae Swarm: May spawn Drones when killed' }
 ];
 
 // 0.8.10 - Survivor Classes (8 classes) with bonus ranges
@@ -781,7 +1062,7 @@ const ALIEN_MODIFIERS = {
     { id: 'aggressive', name: 'Aggressive', rarity: 'uncommon', chance: 0.05, effect: '+2 attack', color: '#a78bfa' },
     { id: 'resilient', name: 'Resilient', rarity: 'rare', chance: 0.03, effect: '+50% HP', color: '#fb923c' },
     { id: 'venomous', name: 'Venomous', rarity: 'rare', chance: 0.025, effect: 'Attacks poison (2 dmg/turn)', color: '#fb923c' },
-    { id: 'alpha', name: 'Alpha', rarity: 'veryrare', chance: 0.01, effect: '+4 attack, +50% dodge', color: '#ef4444' }
+    { id: 'alpha', name: 'Alpha', rarity: 'veryrare', chance: 0.01, effect: '+4 attack, +25% dodge', color: '#ef4444' }
   ],
   lurker: [
     { id: 'silent', name: 'Silent Killer', rarity: 'uncommon', chance: 0.06, effect: '+20% ambush damage', color: '#a78bfa' },
@@ -831,6 +1112,179 @@ const ALIEN_MODIFIERS = {
     { id: 'ancient', name: 'Ancient', rarity: 'rare', chance: 0.03, effect: '+15 HP, +2 attack', color: '#fb923c' },
     { id: 'hivemind', name: 'Hivemind', rarity: 'rare', chance: 0.025, effect: 'Control fallen drones', color: '#fb923c' },
     { id: 'empress', name: 'Empress', rarity: 'veryrare', chance: 0.01, effect: 'Triple attack, +20 HP, all aliens +2 dmg', color: '#ef4444' }
+  ],
+  infested: [
+    { id: 'twitching', name: 'Twitching', rarity: 'uncommon', chance: 0.06, effect: '+15% dodge', color: '#a78bfa' },
+    { id: 'bloated', name: 'Bloated', rarity: 'uncommon', chance: 0.05, effect: '+8 HP (swollen with larvae)', color: '#a78bfa' },
+    { id: 'swarming', name: 'Swarming', rarity: 'rare', chance: 0.03, effect: '+20% spawn chance on death', color: '#fb923c' },
+    { id: 'feral', name: 'Feral Host', rarity: 'rare', chance: 0.025, effect: '+4 attack, hostile swarm', color: '#fb923c' },
+    { id: 'hivenode', name: 'Hive Node', rarity: 'veryrare', chance: 0.01, effect: 'Guaranteed spawn 2-3 Drones on death', color: '#ef4444' }
+  ]
+};
+
+const MISSION_ENEMIES = {
+  'brood_cyber': {
+    id: 'brood_cyber',
+    name: 'Cybernetic Brood',
+    rank: 'boss', // Classify this enemy as a boss
+    hp: 45,
+    maxHp: 45,
+    attack: 13,
+    armor: 6,
+    flavor: "A grotesque fusion of alien biology and station cybernetics, its movements are jerky and unnatural.",
+    special: 'regen',
+    specialDesc: 'Regenerates 2-4 HP per turn.'
+  },
+  'dr_kaine': {
+    id: 'dr_kaine',
+    name: 'Dr. Kaine (Infested)',
+    rank: 'boss',
+    hp: 38,
+    maxHp: 38,
+    attack: 10,
+    armor: 4,
+    flavor: "Half his body is charred black from the incinerator. Through the gaping holes in his chest, you can see dozens of writhing larvae squirming over each other like maggots in a wound.",
+    special: 'swarm',
+    specialDesc: 'On death, spawns 2-3 Drones as the larvae burst free.'
+  }
+,
+  
+  // 1.0 - Phase 2.4: Placeholder Final Boss (to be replaced with custom boss later)
+  'alpha_queen': {
+    id: 'alpha_queen',
+    name: 'Alpha Queen',
+    rank: 'final_boss',
+    hp: 100,
+    maxHp: 100,
+    attack: 22,
+    armor: 8,
+    flavor: "The ancient matriarch of the hive. Her presence alone warps the air with malevolent intent.",
+    special: 'multistrike',
+    specialDesc: 'Attacks three times per turn. Extremely dangerous.'
+  }
+};
+
+// 1.0 - SECTOR-SPECIFIC LOOT TABLES
+// Each room type has themed loot with higher quality items
+const SECTOR_LOOT = {
+  medicalBay: [
+    { type: 'medkit', weight: 25, rarity: 'common' },
+    { type: 'stimpack', weight: 15, rarity: 'uncommon' },
+    { type: 'nanoheal', weight: 8, rarity: 'rare' },
+    { type: 'tech', weight: 12, rarity: 'uncommon' },
+    { type: 'electronics', weight: 10, rarity: 'common' }
+  ],
+  
+  engineeringDeck: [
+    { type: 'tech', weight: 30, rarity: 'uncommon' },
+    { type: 'weaponPart', weight: 15, rarity: 'common' },
+    { type: 'electronics', weight: 20, rarity: 'common' },
+    { type: 'energyCore', weight: 12, rarity: 'uncommon' },
+    { type: 'repair_kit', weight: 18, rarity: 'uncommon' },
+    { type: 'ammo', weight: 10, rarity: 'common' }
+  ],
+  
+  securityWing: [
+    { type: 'combat_knife', weight: 12, rarity: 'uncommon' },
+    { type: 'assault_rifle', weight: 8, rarity: 'uncommon' },
+    { type: 'tactical_vest', weight: 15, rarity: 'uncommon' },
+    { type: 'heavy_armor', weight: 10, rarity: 'rare' },
+    { type: 'ammo', weight: 25, rarity: 'common' },
+    { type: 'armorPlating', weight: 15, rarity: 'common' },
+    { type: 'weaponPart', weight: 12, rarity: 'common' }
+  ],
+  
+  crewQuarters: [
+    { type: 'foodpack', weight: 30, rarity: 'common' },
+    { type: 'medkit', weight: 15, rarity: 'common' },
+    { type: 'junk', weight: 20, rarity: 'common' },
+    { type: 'scrap_vest', weight: 12, rarity: 'common' },
+    { type: 'old_revolver', weight: 8, rarity: 'common' },
+    { type: 'fabricPatch', weight: 10, rarity: 'common' }
+  ],
+  
+  researchLabs: [
+    { type: 'tech', weight: 35, rarity: 'uncommon' },
+    { type: 'laser_pistol', weight: 10, rarity: 'uncommon' },
+    { type: 'plasma_rifle', weight: 6, rarity: 'rare' },
+    { type: 'shield_generator', weight: 8, rarity: 'rare' },
+    { type: 'electronics', weight: 20, rarity: 'common' },
+    { type: 'energyCore', weight: 15, rarity: 'uncommon' },
+    { type: 'nanoheal', weight: 5, rarity: 'rare' }
+  ],
+  
+  shoppingMall: [
+    { type: 'foodpack', weight: 25, rarity: 'common' },
+    { type: 'medkit', weight: 20, rarity: 'common' },
+    { type: 'ammo', weight: 18, rarity: 'common' },
+    { type: 'padded_suit', weight: 12, rarity: 'common' },
+    { type: 'scrap_pistol', weight: 10, rarity: 'common' },
+    { type: 'fabricPatch', weight: 15, rarity: 'common' }
+  ],
+  
+  maintenanceHub: [
+    { type: 'repair_kit', weight: 30, rarity: 'uncommon' },
+    { type: 'weaponPart', weight: 20, rarity: 'common' },
+    { type: 'armorPlating', weight: 15, rarity: 'common' },
+    { type: 'electronics', weight: 18, rarity: 'common' },
+    { type: 'crowbar', weight: 12, rarity: 'common' },
+    { type: 'energyCore', weight: 8, rarity: 'uncommon' }
+  ],
+  
+  communications: [
+    { type: 'electronics', weight: 35, rarity: 'common' },
+    { type: 'tech', weight: 25, rarity: 'uncommon' },
+    { type: 'energyCore', weight: 15, rarity: 'uncommon' },
+    { type: 'laser_pistol', weight: 8, rarity: 'uncommon' },
+    { type: 'junk', weight: 12, rarity: 'common' }
+  ],
+  
+  cargoBay: [
+    { type: 'foodpack', weight: 20, rarity: 'common' },
+    { type: 'ammo', weight: 18, rarity: 'common' },
+    { type: 'weaponPart', weight: 15, rarity: 'common' },
+    { type: 'armorPlating', weight: 15, rarity: 'common' },
+    { type: 'assault_rifle', weight: 10, rarity: 'uncommon' },
+    { type: 'reinforced_plating', weight: 8, rarity: 'uncommon' },
+    { type: 'heavy_armor', weight: 6, rarity: 'rare' },
+    { type: 'junk', weight: 15, rarity: 'common' }
+  ],
+  
+  corporateOffices: [
+    { type: 'tech', weight: 25, rarity: 'uncommon' },
+    { type: 'energyCore', weight: 18, rarity: 'uncommon' },
+    { type: 'electronics', weight: 20, rarity: 'common' },
+    { type: 'heavy_pistol', weight: 12, rarity: 'uncommon' },
+    { type: 'tactical_vest', weight: 10, rarity: 'uncommon' },
+    { type: 'junk', weight: 15, rarity: 'common' }
+  ],
+  
+  reactorChamber: [
+    { type: 'energyCore', weight: 35, rarity: 'uncommon' },
+    { type: 'tech', weight: 25, rarity: 'uncommon' },
+    { type: 'plasma_rifle', weight: 8, rarity: 'rare' },
+    { type: 'power_core', weight: 10, rarity: 'rare' },
+    { type: 'electronics', weight: 20, rarity: 'common' }
+  ],
+  
+  observationDeck: [
+    { type: 'hangarBayKeycard', weight: 25, rarity: 'uncommon' }, // High chance - unlocks final area
+    { type: 'scoped_rifle', weight: 15, rarity: 'uncommon' },
+    { type: 'railgun', weight: 8, rarity: 'rare' },
+    { type: 'tech', weight: 20, rarity: 'uncommon' },
+    { type: 'electronics', weight: 18, rarity: 'common' },
+    { type: 'heavy_pistol', weight: 12, rarity: 'uncommon' },
+    { type: 'junk', weight: 15, rarity: 'common' }
+  ],
+  
+  hangarBay: [
+    { type: 'weaponPart', weight: 20, rarity: 'common' },
+    { type: 'armorPlating', weight: 20, rarity: 'common' },
+    { type: 'energyCore', weight: 18, rarity: 'uncommon' },
+    { type: 'repair_kit', weight: 15, rarity: 'uncommon' },
+    { type: 'assault_rifle', weight: 10, rarity: 'uncommon' },
+    { type: 'heavy_armor', weight: 8, rarity: 'rare' },
+    { type: 'tech', weight: 15, rarity: 'uncommon' }
   ]
 };
 
@@ -915,6 +1369,15 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
+  steel_pipe: {
+    name: 'Steel Pipe',
+    scrap: 14,
+    rarity: 'common',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'steel_pipe', weaponType: 'melee', name: 'Steel Pipe', rarity: 'common', durability: 25, maxDurability: 25, damage: [3, 6] };
+      tryAddAndLog(item);
+    }
+  },
   
   // ===== COMMON PISTOLS =====
   scrap_pistol: {
@@ -937,6 +1400,26 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
+  jury_rigged_pistol: {
+    name: 'Jury-Rigged Pistol',
+    scrap: 16,
+    weaponPart: 1,
+    rarity: 'common',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'jury_rigged_pistol', weaponType: 'pistol', name: 'Jury-Rigged Pistol', rarity: 'common', durability: 25, maxDurability: 25, damage: [3, 6] };
+      tryAddAndLog(item);
+    }
+  },
+  homemade_handgun: {
+    name: 'Homemade Handgun',
+    scrap: 17,
+    weaponPart: 1,
+    rarity: 'common',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'homemade_handgun', weaponType: 'pistol', name: 'Homemade Handgun', rarity: 'common', durability: 30, maxDurability: 30, damage: [4, 6] };
+      tryAddAndLog(item);
+    }
+  },
   
   // ===== COMMON ARMOR =====
   scrap_vest: {
@@ -954,6 +1437,24 @@ const RECIPES = {
     rarity: 'common',
     result: () => {
       const item = { id: state.nextItemId++, type: 'armor', subtype: 'padded_suit', name: 'Padded Suit', rarity: 'common', durability: 40, maxDurability: 40, defense: 2 };
+      tryAddAndLog(item);
+    }
+  },
+  work_gear: {
+    name: 'Work Gear',
+    scrap: 13,
+    rarity: 'common',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'work_gear', name: 'Work Gear', rarity: 'common', durability: 35, maxDurability: 35, defense: 1 };
+      tryAddAndLog(item);
+    }
+  },
+  leather_jacket: {
+    name: 'Leather Jacket',
+    scrap: 16,
+    rarity: 'common',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'leather_jacket', name: 'Leather Jacket', rarity: 'common', durability: 45, maxDurability: 45, defense: 2 };
       tryAddAndLog(item);
     }
   },
@@ -990,6 +1491,17 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
+  electro_spear: {
+    name: 'Electro-Spear',
+    scrap: 32,
+    tech: 3,
+    electronics: 1,
+    rarity: 'uncommon',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'electro_spear', weaponType: 'melee', name: 'Electro-Spear', rarity: 'uncommon', durability: 55, maxDurability: 55, damage: [5, 10], effects: ['stun:8'] };
+      tryAddAndLog(item);
+    }
+  },
   
   // ===== UNCOMMON PISTOLS =====
   laser_pistol: {
@@ -1011,6 +1523,28 @@ const RECIPES = {
     rarity: 'uncommon',
     result: () => {
       const item = { id: state.nextItemId++, type: 'weapon', subtype: 'heavy_pistol', weaponType: 'pistol', name: 'Heavy Pistol', rarity: 'uncommon', durability: 55, maxDurability: 55, damage: [8, 11] };
+      tryAddAndLog(item);
+    }
+  },
+  burst_pistol: {
+    name: 'Burst Pistol',
+    scrap: 33,
+    tech: 3,
+    weaponPart: 1,
+    rarity: 'uncommon',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'burst_pistol', weaponType: 'pistol', name: 'Burst Pistol', rarity: 'uncommon', durability: 60, maxDurability: 60, damage: [6, 8], effects: ['burst:2'] };
+      tryAddAndLog(item);
+    }
+  },
+  needle_pistol: {
+    name: 'Needle Pistol',
+    scrap: 34,
+    tech: 3,
+    weaponPart: 1,
+    rarity: 'uncommon',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'needle_pistol', weaponType: 'pistol', name: 'Needle Pistol', rarity: 'uncommon', durability: 65, maxDurability: 65, damage: [5, 9], effects: ['armorPierce:10'] };
       tryAddAndLog(item);
     }
   },
@@ -1038,6 +1572,28 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
+  battle_rifle: {
+    name: 'Battle Rifle',
+    scrap: 46,
+    tech: 4,
+    weaponPart: 2,
+    rarity: 'uncommon',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'battle_rifle', weaponType: 'rifle', name: 'Battle Rifle', rarity: 'uncommon', durability: 80, maxDurability: 80, damage: [8, 13] };
+      tryAddAndLog(item);
+    }
+  },
+  carbine: {
+    name: 'Carbine',
+    scrap: 44,
+    tech: 4,
+    weaponPart: 2,
+    rarity: 'uncommon',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'carbine', weaponType: 'rifle', name: 'Carbine', rarity: 'uncommon', durability: 65, maxDurability: 65, damage: [7, 11] };
+      tryAddAndLog(item);
+    }
+  },
   
   // ===== UNCOMMON SHOTGUN =====
   pump_shotgun: {
@@ -1048,6 +1604,41 @@ const RECIPES = {
     rarity: 'uncommon',
     result: () => {
       const item = { id: state.nextItemId++, type: 'weapon', subtype: 'pump_shotgun', weaponType: 'shotgun', name: 'Pump Shotgun', rarity: 'uncommon', durability: 60, maxDurability: 60, damage: [8, 14] };
+      tryAddAndLog(item);
+    }
+  },
+  auto_shotgun: {
+    name: 'Auto-Shotgun',
+    scrap: 42,
+    tech: 4,
+    weaponPart: 2,
+    electronics: 1,
+    rarity: 'uncommon',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'auto_shotgun', weaponType: 'shotgun', name: 'Auto-Shotgun', rarity: 'uncommon', durability: 65, maxDurability: 65, damage: [6, 14], effects: ['burst:1'] };
+      tryAddAndLog(item);
+    }
+  },
+  riot_shotgun: {
+    name: 'Riot Shotgun',
+    scrap: 44,
+    tech: 4,
+    weaponPart: 2,
+    electronics: 1,
+    rarity: 'uncommon',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'riot_shotgun', weaponType: 'shotgun', name: 'Riot Shotgun', rarity: 'uncommon', durability: 70, maxDurability: 70, damage: [7, 12], effects: ['stun:5'] };
+      tryAddAndLog(item);
+    }
+  },
+  tactical_shotgun: {
+    name: 'Tactical Shotgun',
+    scrap: 45,
+    tech: 5,
+    weaponPart: 2,
+    rarity: 'uncommon',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'tactical_shotgun', weaponType: 'shotgun', name: 'Tactical Shotgun', rarity: 'uncommon', durability: 75, maxDurability: 75, damage: [8, 13] };
       tryAddAndLog(item);
     }
   },
@@ -1086,6 +1677,17 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
+  ballistic_vest: {
+    name: 'Ballistic Vest',
+    scrap: 48,
+    tech: 4,
+    armor_plating: 2,
+    rarity: 'uncommon',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'ballistic_vest', name: 'Ballistic Vest', rarity: 'uncommon', durability: 110, maxDurability: 110, defense: 3, effects: ['hpBonus:5'] };
+      tryAddAndLog(item);
+    }
+  },
   
   // ===== RARE MELEE WEAPONS =====
   plasma_blade: {
@@ -1107,6 +1709,30 @@ const RECIPES = {
     rarity: 'rare',
     result: () => {
       const item = { id: state.nextItemId++, type: 'weapon', subtype: 'shock_maul', weaponType: 'melee', name: 'Shock Maul', rarity: 'rare', durability: 75, maxDurability: 75, damage: [12, 16], effects: ['stun:20'] };
+      tryAddAndLog(item);
+    }
+  },
+  vibro_axe: {
+    name: 'Vibro-Axe',
+    scrap: 62,
+    tech: 8,
+    weaponPart: 1,
+    power_core: 1,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'vibro_axe', weaponType: 'melee', name: 'Vibro-Axe', rarity: 'rare', durability: 85, maxDurability: 85, damage: [9, 14], effects: ['armorPierce:20', 'crit:10'] };
+      tryAddAndLog(item);
+    }
+  },
+  power_fist: {
+    name: 'Power Fist',
+    scrap: 65,
+    tech: 7,
+    weaponPart: 1,
+    power_core: 1,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'power_fist', weaponType: 'melee', name: 'Power Fist', rarity: 'rare', durability: 90, maxDurability: 90, damage: [11, 15] };
       tryAddAndLog(item);
     }
   },
@@ -1136,6 +1762,31 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
+  mag_pistol: {
+    name: 'Mag Pistol',
+    scrap: 64,
+    tech: 8,
+    weaponPart: 2,
+    power_core: 1,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'mag_pistol', weaponType: 'pistol', name: 'Mag Pistol', rarity: 'rare', durability: 95, maxDurability: 95, damage: [9, 14], effects: ['armorPierce:15'] };
+      tryAddAndLog(item);
+    }
+  },
+  arc_pistol: {
+    name: 'Arc Pistol',
+    scrap: 66,
+    tech: 9,
+    weaponPart: 2,
+    electronics: 1,
+    power_core: 1,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'arc_pistol', weaponType: 'pistol', name: 'Arc Pistol', rarity: 'rare', durability: 90, maxDurability: 90, damage: [8, 13], effects: ['stun:15', 'splash:10'] };
+      tryAddAndLog(item);
+    }
+  },
   
   // ===== RARE RIFLES =====
   pulse_rifle: { 
@@ -1159,6 +1810,30 @@ const RECIPES = {
     rarity: 'rare',
     result: () => {
       const item = { id: state.nextItemId++, type: 'weapon', subtype: 'plasma_rifle', weaponType: 'rifle', name: 'Plasma Rifle', rarity: 'rare', durability: 95, maxDurability: 95, damage: [14, 18], effects: ['burn:20'] };
+      tryAddAndLog(item);
+    }
+  },
+  laser_rifle: {
+    name: 'Laser Rifle',
+    scrap: 72,
+    tech: 9,
+    weaponPart: 3,
+    power_core: 1,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'laser_rifle', weaponType: 'rifle', name: 'Laser Rifle', rarity: 'rare', durability: 105, maxDurability: 105, damage: [9, 14], effects: ['burn:18', 'accuracy:8'] };
+      tryAddAndLog(item);
+    }
+  },
+  marksman_rifle: {
+    name: 'Marksman Rifle',
+    scrap: 78,
+    tech: 10,
+    weaponPart: 3,
+    power_core: 1,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'marksman_rifle', weaponType: 'rifle', name: 'Marksman Rifle', rarity: 'rare', durability: 110, maxDurability: 110, damage: [12, 16], effects: ['crit:20', 'accuracy:10'] };
       tryAddAndLog(item);
     }
   },
@@ -1187,6 +1862,33 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
+  arc_shotgun: {
+    name: 'Arc Shotgun',
+    scrap: 70,
+    tech: 8,
+    weaponPart: 3,
+    electronics: 1,
+    power_core: 1,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'arc_shotgun', weaponType: 'shotgun', name: 'Arc Shotgun', rarity: 'rare', durability: 90, maxDurability: 90, damage: [9, 16], effects: ['stun:20', 'splash:15'] };
+      tryAddAndLog(item);
+    }
+  },
+  flechette_cannon: {
+    name: 'Flechette Cannon',
+    scrap: 75,
+    tech: 9,
+    weaponPart: 3,
+    power_core: 1,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'flechette_cannon', weaponType: 'shotgun', name: 'Flechette Cannon', rarity: 'rare', durability: 95, maxDurability: 95, damage: [8, 18], effects: ['armorPierce:30'] };
+      tryAddAndLog(item);
+    }
+  },
+  
+  // ===== RARE HEAVY WEAPONS =====
   
   // ===== RARE HEAVY WEAPONS =====
   light_machine_gun: {
@@ -1209,6 +1911,30 @@ const RECIPES = {
     rarity: 'rare',
     result: () => {
       const item = { id: state.nextItemId++, type: 'weapon', subtype: 'grenade_launcher', weaponType: 'heavy', name: 'Grenade Launcher', rarity: 'rare', durability: 70, maxDurability: 70, damage: [18, 24], effects: ['splash:50'] };
+      tryAddAndLog(item);
+    }
+  },
+  plasma_cannon: {
+    name: 'Plasma Cannon',
+    scrap: 88,
+    tech: 11,
+    weaponPart: 3,
+    power_core: 2,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'plasma_cannon', weaponType: 'heavy', name: 'Plasma Cannon', rarity: 'rare', durability: 95, maxDurability: 95, damage: [13, 18], effects: ['burn:30', 'splash:20'] };
+      tryAddAndLog(item);
+    }
+  },
+  missile_pod: {
+    name: 'Missile Pod',
+    scrap: 90,
+    tech: 12,
+    weaponPart: 3,
+    electronics: 2,
+    rarity: 'rare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'missile_pod', weaponType: 'heavy', name: 'Missile Pod', rarity: 'rare', durability: 85, maxDurability: 85, damage: [14, 19], effects: ['splash:40', 'burst:1'] };
       tryAddAndLog(item);
     }
   },
@@ -1312,6 +2038,32 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
+  void_reaper: {
+    name: 'Void Reaper',
+    scrap: 125,
+    tech: 16,
+    weaponPart: 2,
+    advanced_component: 2,
+    quantum_core: 1,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'void_reaper', weaponType: 'melee', name: 'Void Reaper', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [13, 21], effects: ['phase:15', 'armorPierce:25'] };
+      tryAddAndLog(item);
+    }
+  },
+  thunder_hammer: {
+    name: 'Thunder Hammer',
+    scrap: 130,
+    tech: 17,
+    weaponPart: 2,
+    advanced_component: 3,
+    power_core: 2,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'thunder_hammer', weaponType: 'melee', name: 'Thunder Hammer', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [15, 22], effects: ['stun:30', 'splash:20'] };
+      tryAddAndLog(item);
+    }
+  },
   
   // ===== LEGENDARY PISTOLS =====
   void_pistol: {
@@ -1324,6 +2076,45 @@ const RECIPES = {
     rarity: 'veryrare',
     result: () => {
       const item = { id: state.nextItemId++, type: 'weapon', subtype: 'void_pistol', weaponType: 'pistol', name: 'Void Pistol', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [18, 24], effects: ['phase:20'] };
+      tryAddAndLog(item);
+    }
+  },
+  annihilator_pistol: {
+    name: 'Annihilator Pistol',
+    scrap: 128,
+    tech: 17,
+    weaponPart: 3,
+    advanced_component: 2,
+    power_core: 2,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'annihilator_pistol', weaponType: 'pistol', name: 'Annihilator Pistol', rarity: 'veryrare', durability: 135, maxDurability: 135, damage: [14, 20], effects: ['burn:35', 'crit:15'] };
+      tryAddAndLog(item);
+    }
+  },
+  hurricane_pistol: {
+    name: 'Hurricane Pistol',
+    scrap: 122,
+    tech: 16,
+    weaponPart: 3,
+    advanced_component: 2,
+    electronics: 2,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'hurricane_pistol', weaponType: 'pistol', name: 'Hurricane Pistol', rarity: 'veryrare', durability: 125, maxDurability: 125, damage: [11, 17], effects: ['burst:3', 'accuracy:12'] };
+      tryAddAndLog(item);
+    }
+  },
+  executioner_revolver: {
+    name: 'Executioner Revolver',
+    scrap: 132,
+    tech: 18,
+    weaponPart: 3,
+    advanced_component: 3,
+    nano_material: 1,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'executioner_revolver', weaponType: 'pistol', name: 'Executioner Revolver', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [16, 22], effects: ['crit:30', 'armorPierce:25'] };
       tryAddAndLog(item);
     }
   },
@@ -1355,6 +2146,31 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
+  antimatter_rifle: {
+    name: 'Antimatter Rifle',
+    scrap: 140,
+    tech: 18,
+    weaponPart: 4,
+    advanced_component: 2,
+    alien_artifact: 1,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'antimatter_rifle', weaponType: 'rifle', name: 'Antimatter Rifle', rarity: 'veryrare', durability: 160, maxDurability: 160, damage: [22, 32], effects: ['armorPierce:35', 'burst:2'] };
+      tryAddAndLog(item);
+    }
+  },
+  railgun: {
+    name: 'Railgun',
+    scrap: 138,
+    tech: 17,
+    weaponPart: 4,
+    advanced_component: 2,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'railgun', weaponType: 'rifle', name: 'Railgun', rarity: 'veryrare', durability: 155, maxDurability: 155, damage: [24, 34], effects: ['accuracy:15', 'crit:25'] };
+      tryAddAndLog(item);
+    }
+  },
   
   // ===== LEGENDARY SHOTGUNS =====
   disintegrator_cannon: {
@@ -1367,6 +2183,45 @@ const RECIPES = {
     rarity: 'veryrare',
     result: () => {
       const item = { id: state.nextItemId++, type: 'weapon', subtype: 'disintegrator_cannon', weaponType: 'shotgun', name: 'Disintegrator Cannon', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [18, 30], effects: ['armorPierce:40'] };
+      tryAddAndLog(item);
+    }
+  },
+  void_scattergun: {
+    name: 'Void Scattergun',
+    scrap: 128,
+    tech: 16,
+    weaponPart: 4,
+    advanced_component: 2,
+    quantum_core: 1,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'void_scattergun', weaponType: 'shotgun', name: 'Void Scattergun', rarity: 'veryrare', durability: 125, maxDurability: 125, damage: [12, 21], effects: ['phase:25', 'splash:20'] };
+      tryAddAndLog(item);
+    }
+  },
+  inferno_blaster: {
+    name: 'Inferno Blaster',
+    scrap: 135,
+    tech: 17,
+    weaponPart: 4,
+    advanced_component: 2,
+    power_core: 2,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'inferno_blaster', weaponType: 'shotgun', name: 'Inferno Blaster', rarity: 'veryrare', durability: 135, maxDurability: 135, damage: [14, 24], effects: ['burn:45', 'splash:25'] };
+      tryAddAndLog(item);
+    }
+  },
+  shredder_cannon: {
+    name: 'Shredder Cannon',
+    scrap: 138,
+    tech: 18,
+    weaponPart: 4,
+    advanced_component: 3,
+    nano_material: 1,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'shredder_cannon', weaponType: 'shotgun', name: 'Shredder Cannon', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [15, 25], effects: ['armorPierce:35', 'crit:20'] };
       tryAddAndLog(item);
     }
   },
@@ -1384,16 +2239,43 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
-  railgun: {
-    name: 'Railgun',
+  venom_cannon: {
+    name: 'Venom Cannon',
     scrap: 160,
     tech: 20,
     weaponPart: 4,
     advanced_component: 3,
-    power_core: 2,
+    alien_artifact: 2,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'railgun', weaponType: 'heavy', name: 'Railgun', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [25, 35], effects: ['armorPierce:50'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'venom_cannon', weaponType: 'heavy', name: 'Venom Cannon', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [22, 32], effects: ['poison:40', 'splash:25'] };
+      tryAddAndLog(item);
+    }
+  },
+  flamethrower: {
+    name: 'Flamethrower',
+    scrap: 145,
+    tech: 18,
+    weaponPart: 3,
+    electronics: 2,
+    advanced_component: 2,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'flamethrower', weaponType: 'heavy', name: 'Flamethrower', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [14, 22], effects: ['burn:50', 'splash:30'] };
+      tryAddAndLog(item);
+    }
+  },
+  storm_cannon: {
+    name: 'Storm Cannon',
+    scrap: 150,
+    tech: 19,
+    weaponPart: 4,
+    electronics: 3,
+    advanced_component: 2,
+    power_core: 1,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'storm_cannon', weaponType: 'heavy', name: 'Storm Cannon', rarity: 'veryrare', durability: 135, maxDurability: 135, damage: [12, 20], effects: ['stun:35', 'splash:35', 'burst:2'] };
       tryAddAndLog(item);
     }
   },
@@ -1438,19 +2320,6 @@ const RECIPES = {
       tryAddAndLog(item);
     }
   },
-  void_suit: {
-    name: 'Void Suit',
-    scrap: 135,
-    tech: 18,
-    armor_plating: 3,
-    advanced_component: 2,
-    quantum_core: 1,
-    rarity: 'veryrare',
-    result: () => {
-      const item = { id: state.nextItemId++, type: 'armor', subtype: 'void_suit', name: 'Void Suit', rarity: 'veryrare', durability: 220, maxDurability: 220, defense: 6, effects: ['immunity:phase', 'exploration:20'] };
-      tryAddAndLog(item);
-    }
-  },
   regenerative_armor: {
     name: 'Regenerative Armor',
     scrap: 138,
@@ -1463,7 +2332,440 @@ const RECIPES = {
       const item = { id: state.nextItemId++, type: 'armor', subtype: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 7, effects: ['regen:5'] };
       tryAddAndLog(item);
     }
+  },
+  spectre_armor: {
+    name: 'Spectre Armor',
+    scrap: 145,
+    tech: 20,
+    armor_plating: 3,
+    advanced_component: 3,
+    alien_artifact: 2,
+    rarity: 'veryrare',
+    result: () => {
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'spectre_armor', name: 'Spectre Armor', rarity: 'veryrare', durability: 230, maxDurability: 230, defense: 6, effects: ['phase:40'] };
+      tryAddAndLog(item);
+    }
   }
 };
 
 const TASKS = ['Idle', 'Oxygen', 'Food', 'Energy', 'Scrap', 'Guard'];
+
+const AWAY_MISSIONS = {
+  'med_bay_salvage': {
+    id: 'med_bay_salvage',
+    name: 'Triage',
+    tileLabel: 'M',
+    discoveryText: "Your flashlight beam reveals a medical bay entrance, its reinforced doors smeared with bloody handprints—some human, some... not. Biohazard warnings glow faintly, half-obscured by dark organic matter that's dried into the grooves. The door's manual override panel has been clawed open, wires hanging like exposed viscera. From the other side comes a wet, rhythmic sound—something breathing, or feeding.",
+    briefing: "This is 'Triage Ward Beta.' During the outbreak's final days, Dr. Kaine's logs went from clinical to... unhinged. His last transmission claimed they'd discovered something 'beautiful' about the aliens' lifecycle. The word 'incubation' appears dozens of times. Station AI sealed this section under Protocol Triage—a euphemism for burning evidence. Whatever research they were conducting, it died screaming behind these doors. But medical tech is desperately needed. Time to see what the good doctor left behind.",
+    events: {
+      'entry': {
+        eventText: "The door mechanism is magnetically sealed, its emergency lock panel flickering weakly. Nearby, a maintenance hatch is partially open, its edges bent outward as if something forced its way OUT. You could hack the main lock or cut through the hatch.",
+        choices: [
+          {
+            choiceText: 'Hack the magnetic lock.',
+            skillCheck: { difficulty: 40 },
+            successText: "The lock disengages with a pneumatic hiss, and a wave of refrigerated air rolls out—thick with the coppery stench of blood and something sweeter, like rot wrapped in honey. The door slides open silently.",
+            failureText: "The panel shorts out in a cascade of sparks! Emergency klaxons scream to life, echoing through the medical bay. From the darkness ahead, you hear a chorus of wet, dragging footsteps converging on your position.",
+            outcome: { success: { nextEvent: 'quiet_hall' }, failure: { trigger: 'ambush', nextEvent: 'alarm_hall' } }
+          },
+          {
+            choiceText: 'Cut through the maintenance hatch.',
+            skillCheck: { difficulty: 60 },
+            successText: "Your plasma cutter screams as it shears through the reinforced plating. The metal section crashes inward with a deafening clang, revealing a dark corridor beyond.",
+            failureText: "The cutter hits a support beam and fails catastrophically! The noise is immense—a shrieking whine that reverberates through every corridor. From all around, you hear the unmistakable chittering of multiple hostiles responding to the dinner bell.",
+            outcome: { success: { nextEvent: 'loud_hall' }, failure: { trigger: 'horde_ambush', nextEvent: 'loud_hall' } }
+          }
+        ]
+      },
+      'quiet_hall': {
+        eventText: "You're inside. The corridor is sterile, too clean for a station on the brink of collapse. Emergency lights cast flickering shadows that make the walls seem to breathe. To your left is the Operating Theater, its doors slightly ajar and leaking condensation. To your right is the Sterilization Chamber, sealed tight with a red warning light pulsing above it.",
+        choices: [
+          {
+            choiceText: 'Enter the Operating Theater.',
+            outcome: { success: { nextEvent: 'operating_theater' } }
+          },
+          {
+            choiceText: "Bypass the Sterilization Chamber's lock.",
+            skillCheck: { difficulty: 35 },
+            successText: "The high-security lock clicks open with a soft beep. The red warning light flickers off.",
+            failureText: "You trip a silent alarm. The door remains sealed, but deep within the chamber, something massive begins to stir. You hear it approaching.",
+            outcome: { success: { nextEvent: 'sterilization_chamber' }, failure: { trigger: 'ambush', nextEvent: 'exit_mission_failure' } }
+          }
+        ]
+      },
+      'loud_hall': {
+        eventText: "You're in, but stealth is no longer an option. The hallway is a scene from a nightmare—operating tables overturned, surgical tools scattered like dropped silverware. Bodies in medical scrubs line the walls, their chests torn open and hollow. Black organic resin holds them upright like grotesque statues. Fresh blood pools near the Operating Theater, still warm.",
+        choices: [
+          {
+            choiceText: 'Barricade and search the Operating Theater.',
+            outcome: { success: { nextEvent: 'operating_theater_barricaded' } }
+          },
+          {
+            choiceText: 'Investigate the Sterilization Chamber.',
+            outcome: { success: { nextEvent: 'sterilization_confrontation' } }
+          }
+        ]
+      },
+      'alarm_hall': {
+        eventText: "The klaxons wail. The hallway is a charnel house—bodies fused to the walls by black resin, chests carved open like anatomy displays. A fresh corpse lies near the Operating Theater, its torso split wide. From inside the ribcage, something small and pale writhes briefly before going still. Then you see the source of the footsteps—an Infested, shambling forward. What's left of its face is frozen in a silent scream.",
+        choices: [
+          {
+            choiceText: 'Fight through to the Operating Theater.',
+            outcome: { success: { nextEvent: 'operating_theater_barricaded' } }
+          },
+          {
+            choiceText: 'Ignore it and breach the Sterilization Chamber.',
+            outcome: { success: { nextEvent: 'sterilization_confrontation' } }
+          }
+        ]
+      },
+      'operating_theater': {
+        eventText: "The theater is pristine—too pristine. Six bodies lie on operating tables, arranged in perfect symmetry. Each one's chest has been surgically opened, ribs spread like wings. Inside each cavity, dozens of pale, segmented larvae writhe slowly, feeding on what's left. On the seventh table lies Dr. Kaine himself. Half his body is charred black. His chest bulges rhythmically. His eyes are open.",
+        choices: [
+          {
+            choiceText: 'Approach Dr. Kaine.',
+            outcome: { success: { nextEvent: 'dr_kaine_encounter' } }
+          },
+          {
+            choiceText: 'Search the medical supply cabinets instead.',
+            skillCheck: { difficulty: 70 },
+            successText: "You move quickly and quietly, finding experimental serums and advanced medical equipment stored in refrigerated units.",
+            failureText: "You knock over a tray of surgical tools. The clatter echoes through the theater. The bodies on the tables begin to twitch. The larvae are moving faster now.",
+            outcome: { success: { reward: { items: ['advanced_medkit', 'nanite_injector', 'stimpack'], quantities: [2, 2, 2] }, nextEvent: 'exit_mission' }, failure: { trigger: 'ambush', nextEvent: 'exit_ambush' } }
+          }
+        ]
+      },
+      'operating_theater_barricaded': {
+        eventText: "You slam the doors shut and wedge a gurney against them just as something heavy crashes against the other side. The impact dents the metal inward, and a clawed appendage punches through, grasping blindly. It withdraws with a wet screech. You're safe, for now. A single, blood-soaked emergency medical kit sits on a counter, overlooked in the chaos.",
+        choices: [
+          {
+            choiceText: 'Grab the kit and evacuate.',
+            outcome: { success: { reward: { items: ['advanced_medkit'], quantities: [1] }, nextEvent: 'exit_mission' } }
+          }
+        ]
+      },
+      'sterilization_chamber': {
+        eventText: "The chamber is a massive industrial incinerator designed to dispose of biohazard waste. Scorch marks cover the floor. In the center sits a control terminal, its screen displaying a single looping message: 'PROTOCOL TRIAGE: PURGE COMPLETE. EVIDENCE SANITIZED.' The furnace vents are closed. Something about this feels wrong.",
+        choices: [
+          {
+            choiceText: 'Download the terminal data.',
+            outcome: { success: { reward: { items: ['tech'], quantities: [8] }, nextEvent: 'exit_mission' } }
+          }
+        ]
+      },
+      'sterilization_confrontation': {
+        eventText: "As you approach the Sterilization Chamber, the door tears free from its housing. Three Infested stumble out—former medical staff, their name tags still pinned to their blood-soaked scrubs. Their chests are torn open, larvae spilling out like maggots from a corpse. They move in eerie synchronization, heads tilted at unnatural angles.",
+        choices: [
+          {
+            choiceText: 'Fight them.',
+            retreatText: 'Facing the puppet corpses, you decide discretion is the better part of valor. The mission is a failure, but you live to fight another day.',
+            outcome: { success: { trigger: 'combat_infested_horde', nextEvent: 'sterilization_chamber' }, failure: { nextEvent: 'exit_mission_failure' } }
+          },
+          {
+            choiceText: 'Flee the mission.',
+            outcome: { success: { nextEvent: 'exit_mission_failure' } }
+          }
+        ]
+      },
+      'dr_kaine_encounter': {
+        eventText: "Dr. Kaine's eyes track you as you approach. His lips move, forming soundless words. Then his chest bulges violently, and something inside screams—not with his voice, but with dozens of tiny, chittering voices in unison. The larvae. He's still alive. Barely. His hand twitches toward a data slate on the table beside him.",
+        choices: [
+          {
+            choiceText: 'Mercy kill him and take the slate.',
+            outcome: { success: { reward: { items: ['tech'], quantities: [4] }, nextEvent: 'exit_mission' } }
+          },
+          {
+            choiceText: 'End his suffering and the abominations inside.',
+            retreatText: 'You put Dr. Kaine out of his misery. As he dies, the larvae burst from his chest in a writhing swarm. You barely escape with your life.',
+            outcome: { success: { trigger: 'combat_dr_kaine', nextEvent: 'research_data' }, failure: { nextEvent: 'exit_mission_failure' } }
+          }
+        ]
+      },
+      'research_data': {
+        eventText: "Dr. Kaine's body collapses as the larvae swarm disperses into the vents, chittering. On the data slate clutched in his dead hand, you find his final research notes. The aliens don't just kill—they convert. Each human becomes an incubator for dozens of offspring. The station wasn't lost to an invasion. It was a nursery.",
+        choices: [
+          {
+            choiceText: 'Take the research data and rare medical equipment.',
+            outcome: { success: { reward: { items: ['tech', 'nanite_injector', 'quantum_core'], quantities: [6, 2, 1] }, nextEvent: 'exit_mission' } }
+          }
+        ]
+      }
+    }
+  },
+
+  // Mission 2: Power Cycle — Engineering Deck
+  'engineeringDeck': {
+    id: 'engineeringDeck',
+    name: 'Power Cycle',
+    sector: 'Engineering Deck',
+    difficulty: 'Medium',
+    description: 'The Engineering Deck controls power distribution across the station. Something has corrupted the systems, and the backup generators are failing. Investigate what happened and restore main power before life support collapses.',
+    discoveryText: 'The Engineering Deck door hisses open, releasing a wave of oppressive heat and humidity. Emergency lighting flickers weakly, casting red shadows across the walls. The air tastes metallic and organic—like blood mixed with ozone. You can hear rhythmic pulsing sounds deep within the machinery.',
+    briefing: "Chief Engineer Vasquez's last transmission was three words: 'They're in the pipes.' Since then, thermal scans show the coolant system running 40 degrees hotter than spec. Power drain is accelerating. The station AI keeps repeating that restarting the fusion feeds will 'optimize biological integration efficiency.' You're not sure what that means, but without main power, everyone dies. Get in there and bring the systems back online.",
+    rewards: {
+      tech: 3,
+      scrap: 40,
+      energy: 200
+    },
+    keycard: 'engineeringDeck',
+    events: {
+      'entry': {
+        eventText: "The main engineering bay is a nightmare. Thick, fleshy tubes—pulsating with bioluminescent veins—have grown over the reactor control panels and power conduits. They throb in sync with the station's failing heartbeat, siphoning energy. Pink coolant drips from ruptured pipes, pooling on the deck. Through the translucent biomass, you can see hundreds of small shapes suspended in the fluid. Eggs.",
+        choices: [
+          {
+            choiceText: 'Investigate the main control terminal.',
+            outcome: { success: { nextEvent: 'control_terminal' } }
+          },
+          {
+            choiceText: 'Examine the biomass tubes.',
+            outcome: { success: { nextEvent: 'biomass_inspection' } }
+          }
+        ]
+      },
+      'control_terminal': {
+        eventText: "The control terminal is half-engulfed in alien tissue. The screen flickers: COOLANT CONTAMINATION 87% | FUSION FEEDS OFFLINE | THERMAL RUNAWAY IN 3 HOURS. You'll need to cut through the biomass to reach the manual override.",
+        choices: [
+          {
+            choiceText: 'Cut through carefully and access the override.',
+            outcome: { success: { nextEvent: 'biomass_rupture' } }
+          },
+          {
+            choiceText: 'Look for another access route.',
+            outcome: { success: { nextEvent: 'maintenance_crawlspace' } }
+          }
+        ]
+      },
+      'biomass_inspection': {
+        eventText: "Up close, the tubes are warm, almost feverish. Inside, dark fluid circulates through a network of veins. Suspended in the flow are marble-sized egg sacs—hundreds of them. The aliens aren't just nesting in the station. They're plugged into it, using the power grid as an incubator.",
+        choices: [
+          {
+            choiceText: 'Take a tissue sample for analysis.',
+            outcome: { success: { reward: { items: ['tech'], quantities: [2] }, nextEvent: 'control_terminal' } }
+          },
+          {
+            choiceText: 'Head to the control terminal.',
+            outcome: { success: { nextEvent: 'control_terminal' } }
+          }
+        ]
+      },
+      'biomass_rupture': {
+        eventText: "Your blade slices into the biomass. It tears open with a wet sound, spraying pink coolant that reeks of copper and decay. Chunks of dissolved flesh slosh out—someone was liquefied in the coolant system. The biomass recoils, exposing the override panel.",
+        choices: [
+          {
+            choiceText: 'Restart the fusion feeds immediately.',
+            outcome: { success: { nextEvent: 'power_restoration' } }
+          },
+          {
+            choiceText: 'Check coolant diagnostics first.',
+            outcome: { success: { nextEvent: 'coolant_diagnostics' } }
+          }
+        ]
+      },
+      'maintenance_crawlspace': {
+        eventText: "The maintenance tunnel is tight and hot. Halfway through, you wade into ankle-deep pink coolant. Chunks of organic matter float in it. The liquid soaks through your suit, tingling against your skin. You push through and reach the override panel from the maintenance side.",
+        choices: [
+          {
+            choiceText: 'Access the override panel.',
+            outcome: { success: { damage: 8, nextEvent: 'power_restoration' } }
+          }
+        ]
+      },
+      'coolant_diagnostics': {
+        eventText: "The diagnostics confirm it: the coolant system is 87% contaminated with dissolved biomass. Bodies fed into the loops, liquefied, and circulated through the alien network. The entire engineering deck is functioning as a digestive tract.",
+        choices: [
+          {
+            choiceText: 'Purge the contaminated coolant before restarting.',
+            outcome: { success: { reward: { items: ['repair_kit', 'tech'], quantities: [2, 2] }, nextEvent: 'power_restoration' } }
+          },
+          {
+            choiceText: 'No time—restart now.',
+            outcome: { success: { nextEvent: 'power_restoration' } }
+          }
+        ]
+      },
+      'power_restoration': {
+        eventText: "You throw the switch. The fusion feeds thunder to life. Lights blaze across the engineering deck. For one moment, it feels like victory.\n\nThen the biomass *surges*. The tubes swell, gorging on the restored power. Inside them, the egg sacs pulse faster, growing visibly larger. You've just fed the infestation. Thousands of eggs, all accelerating toward maturity.\n\nThe station AI's voice echoes through the bay: 'Power restoration successful. Biological integration at 43% efficiency. Acceptable parameters.'\n\n⚠️ **You've restored main power—but at what cost?**",
+        choices: [
+          {
+            choiceText: 'Leave immediately.',
+            outcome: { success: { nextEvent: 'exit_mission' } }
+          },
+          {
+            choiceText: 'Try to sabotage the biomass network.',
+            retreatText: 'You slash at a main conduit. It ruptures, spraying scalding biomass. Aliens burst from the vents, swarming to protect their nursery.',
+            outcome: { success: { trigger: 'combat_biomass_guardians', nextEvent: 'sabotage_aftermath' }, failure: { nextEvent: 'exit_mission_failure' } }
+          }
+        ]
+      },
+      'sabotage_aftermath': {
+        eventText: "You've severed several major conduits. Hundreds of premature larvae spill out and die in the light. It's a small victory—but the main network still thrives, still feeds. The damage is already done. This sector is unlocked, but the station is more compromised than ever.",
+        choices: [
+          {
+            choiceText: 'Evacuate the engineering deck.',
+            outcome: { success: { reward: { items: ['tech', 'repair_kit'], quantities: [4, 2] }, nextEvent: 'exit_mission' } }
+          }
+        ]
+      }
+    }
+  },
+
+  // Mission 3: Last Stand — Security Wing
+  'securityWing': {
+    id: 'securityWing',
+    name: 'Last Stand',
+    sector: 'Security Wing',
+    difficulty: 'Hard',
+    description: 'The Security Wing holds the station\'s armory and weapon caches. Retrieve vital combat equipment and discover what happened to the security forces during the outbreak.',
+    discoveryText: 'The Security Wing door groans open. The acrid smell of gunpowder and decay washes over you. Emergency lighting casts harsh shadows across walls riddled with bullet holes. The barricades are everywhere—but they face both directions. This wasn\'t a defense. It was a civil war.',
+    briefing: "When containment failed, Security Chief Ramos sealed the wing and declared martial law. For two weeks, no aliens breached the Security Wing. But the final transmission from inside wasn't a distress call—it was gunfire and screaming. Surveillance logs went dark after someone smashed the security hub. The armory is still sealed, protected by biometric locks. If any of Ramos's team survived, they'll have the access codes. If not... you'll have to find another way in.",
+    rewards: {
+      tech: 4,
+      scrap: 50,
+      energy: 150
+    },
+    keycard: 'securityWing',
+    events: {
+      'entry': {
+        eventText: "The security checkpoint is a graveyard. Barricades of overturned desks and welded metal face INWARD—toward the rest of the security wing, not out. Bodies in security uniforms are slumped against both sides, bullet wounds in their backs. Execution positions. On the wall, someone spray-painted: 'RAMOS HOARDS - WE STARVE.' Below it, a different hand wrote: 'TRAITORS GET BULLETS.'",
+        choices: [
+          {
+            choiceText: 'Search the bodies for clues.',
+            outcome: { success: { nextEvent: 'body_search' } }
+          },
+          {
+            choiceText: 'Head deeper into the security wing.',
+            outcome: { success: { nextEvent: 'barracks_hall' } }
+          }
+        ]
+      },
+      'body_search': {
+        eventText: "You search the bodies. Most have been stripped of weapons and ammo. One corpse clutches a data pad, screen cracked but still functional. The last entry is a voice log from Officer Chen: 'Day 16. Ramos locked the armory. Said rationing ammo to 'essential personnel.' Half the team has no bullets. Mason's group is planning something. I can hear them whispering. God, we're eating each other alive and the things outside haven't even gotten in yet—' The log cuts to gunfire.",
+        choices: [
+          {
+            choiceText: 'Take the data pad and continue.',
+            outcome: { success: { reward: { items: ['tech'], quantities: [2] }, nextEvent: 'barracks_hall' } }
+          }
+        ]
+      },
+      'barracks_hall': {
+        eventText: "The barracks hallway is a killbox. Spent shell casings carpet the floor—hundreds of them. Blood smears lead in both directions. More graffiti: 'ARMORY = LIFE' and 'RAMOS = DEATH.' You hear a wet, dragging sound from deeper in.",
+        choices: [
+          {
+            choiceText: 'Investigate the sound carefully.',
+            outcome: { success: { nextEvent: 'torture_room' } }
+          },
+          {
+            choiceText: 'Head straight for the armory.',
+            outcome: { success: { nextEvent: 'armory_approach' } }
+          }
+        ]
+      },
+      'torture_room': {
+        eventText: "You find what was once an interrogation room. Now it's a torture chamber. Two bodies are strapped to chairs, uniforms shredded. Their fingers have been broken systematically—someone tried to get biometric override codes from them. They died without talking. On the wall, carved with a knife: '4 BULLETS LEFT. MAKE IT COUNT.' The wet sound is coming from the corner—an alien Lurker is feeding on one of the corpses.",
+        choices: [
+          {
+            choiceText: 'Sneak past the feeding alien.',
+            skillCheck: { difficulty: 55 },
+            successText: "You move silently, staying in the shadows. The Lurker is too engrossed in its meal to notice. You slip past and continue deeper.",
+            failureText: "Your boot crunches on a shell casing. The Lurker's head snaps up, gore dripping from its mandibles. It screams.",
+            outcome: { success: { nextEvent: 'armory_approach' }, failure: { trigger: 'ambush', nextEvent: 'post_ambush' } }
+          },
+          {
+            choiceText: 'Kill the alien while it\'s distracted.',
+            retreatText: 'You open fire. The Lurker dies—but its death screech echoes through the wing. More aliens answer the call.',
+            outcome: { success: { trigger: 'combat_lurker_pack', nextEvent: 'armory_approach' }, failure: { nextEvent: 'exit_mission_failure' } }
+          }
+        ]
+      },
+      'post_ambush': {
+        eventText: "You fight off the Lurker. As it dies, you notice something clutched in the hand of one torture victim—a security badge. Ramos's badge. He didn't die in the armory. He died here, tortured by his own people.",
+        choices: [
+          {
+            choiceText: 'Take Ramos\'s badge and continue.',
+            outcome: { success: { reward: { items: ['tech'], quantities: [3] }, nextEvent: 'armory_approach' } }
+          }
+        ]
+      },
+      'armory_approach': {
+        eventText: "The armory doors are heavily reinforced, still sealed. Blood is smeared on the biometric scanner. Someone died trying to break in. The bodies piled outside tell the story: Mason's faction tried to storm the armory. Ramos's loyalists held them off. Then the aliens came and finished what was left. The barricades are facing BOTH ways—they were killing each other while the real enemy closed in.",
+        choices: [
+          {
+            choiceText: 'Try to hack the biometric lock.',
+            skillCheck: { difficulty: 65 },
+            successText: "You jury-rig a bypass using the blood-smeared scanner remnants. The lock clicks open. Inside, the armory is untouched—racks of weapons, ammo crates, body armor. They died fighting over a treasure trove they never got to use.",
+            failureText: "The scanner shorts out in a shower of sparks. The backup system triggers a security lockdown. Alarms blare. From the vents above, you hear chittering.",
+            outcome: { success: { nextEvent: 'armory_loot' }, failure: { trigger: 'combat_stalker_swarm', nextEvent: 'forced_entry' } }
+          },
+          {
+            choiceText: 'Use Ramos\'s badge (if found earlier).',
+            outcome: { success: { nextEvent: 'armory_loot' } }
+          },
+          {
+            choiceText: 'Breach the door with explosives.',
+            outcome: { success: { damage: 15, nextEvent: 'armory_loot' } }
+          }
+        ]
+      },
+      'forced_entry': {
+        eventText: "You fight off the aliens drawn by the alarm. The armory lock is fried, but the door is weakened. You force it open with a pry bar.",
+        choices: [
+          {
+            choiceText: 'Enter the armory.',
+            outcome: { success: { nextEvent: 'armory_loot' } }
+          }
+        ]
+      },
+      'armory_loot': {
+        eventText: "The armory is pristine. Weapon racks fully stocked. Ammo crates sealed. Advanced body armor hanging neatly. They killed each other over weapons they never even touched. On the command desk, you find Chief Ramos's final log: 'I was trying to keep order. Mason wanted to arm everyone—said we'd need every gun. I thought rationing would prevent chaos. I was wrong. We tore ourselves apart over fear of running out. The aliens didn't break us. We broke ourselves.' The log ends with a single gunshot.",
+        choices: [
+          {
+            choiceText: 'Take what you can carry and leave.',
+            outcome: { success: { reward: { items: ['plasma_rifle', 'heavy_armor', 'tech'], quantities: [1, 1, 5] }, nextEvent: 'exit_mission' } }
+          },
+          {
+            choiceText: 'Search for surveillance logs.',
+            outcome: { success: { nextEvent: 'surveillance_logs' } }
+          }
+        ]
+      },
+      'surveillance_logs': {
+        eventText: "You access the security terminal. The surveillance footage is intact—all two weeks of it. You watch in fast-forward: Day 3, armed standoff over food rations. Day 7, Mason's group barricades themselves in the barracks. Day 11, Ramos executes a guard for stealing ammo. Day 14, full civil war—gunfights in the halls while aliens watch from the vents, waiting. Day 16, the aliens finally move in and effortlessly slaughter the handful of survivors too exhausted to fight back. The footage ends with a Stalker dragging Ramos's body away while Mason bleeds out against the armory door he never got to open.",
+        choices: [
+          {
+            choiceText: 'Download the logs and evacuate.',
+            outcome: { success: { reward: { items: ['plasma_rifle', 'heavy_armor', 'tech'], quantities: [1, 1, 6] }, nextEvent: 'exit_mission' } }
+          }
+        ]
+      }
+    }
+  },
+  
+  // 1.0 - Phase 2.4: Mission 13 - Final Boss (Placeholder)
+  'finalAssault': {
+    id: 'finalAssault',
+    name: 'Final Assault',
+    tileLabel: '⚠️',
+    discoveryText: "The shuttle's power signature has drawn the station's apex predator. Massive bio-readings converge on your position. This is it—the final battle.",
+    briefing: "An Alpha Queen has arrived with her elite swarm. Every guard must defend the shuttle bay. If we fall here, everything is lost. But if we prevail... we escape this nightmare.",
+    events: {
+      'start': {
+        eventText: "The hangar bay doors buckle inward as something massive slams against them. Screeching metal and alien shrieks fill the air. Your survivors take defensive positions around the shuttle. This is humanity's last stand.",
+        choices: [
+          {
+            choiceText: 'Stand and fight!',
+            outcome: { 
+              success: { 
+                trigger: 'combat_alpha_queen',
+                nextEvent: 'exit_mission'
+              } 
+            }
+          }
+        ]
+      }
+    },
+    finalRewards: {
+      items: [],
+      quantities: []
+    }
+  }
+};

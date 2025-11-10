@@ -10,6 +10,31 @@ function appendLog(text) {
   }
 }
 
+// 1.0 - Mission-specific log that displays in the mission modal
+function appendMissionLog(text) {
+  const logEl = el('missionLog');
+  if (!logEl) return; // Modal not open
+  
+  const node = document.createElement('div');
+  node.innerHTML = text;
+  node.style.marginBottom = '4px';
+  logEl.appendChild(node);
+  
+  // Auto-scroll to bottom
+  logEl.scrollTop = logEl.scrollHeight;
+  
+  // Keep max 50 entries
+  while (logEl.childNodes.length > 50) {
+    logEl.removeChild(logEl.firstChild);
+  }
+}
+
+// 1.0 - Clear mission log (called when opening new mission)
+function clearMissionLog() {
+  const logEl = el('missionLog');
+  if (logEl) logEl.innerHTML = '';
+}
+
 // 0.9.0 - Generate tooltip for items and recipes (plain text for native tooltips)
 function getItemTooltip(item, isRecipe = false) {
   if (!item) return '';
@@ -66,7 +91,7 @@ function getItemTooltip(item, isRecipe = false) {
   }
   
   // Helper function to format effect descriptions
-  const formatEffect = (eff, baseDamage = null) => {
+  const formatEffect = (eff, baseDamage = null, itemType = null) => {
     const [name, value] = eff.split(':');
     const val = parseInt(value) || 0;
     
@@ -87,6 +112,10 @@ function getItemTooltip(item, isRecipe = false) {
         return `Stun: ${val}% chance to stun (enemy skips turn)`;
       
       case 'phase':
+        // Phase effect differs between weapons (offensive) and armor (defensive)
+        if (itemType === 'armor') {
+          return `Phase: ${val}% chance to phase out and avoid attacks completely`;
+        }
         return `Phase: ${val}% chance to destabilize enemy (50% chance to fail next attack)`;
       
       case 'poison':
@@ -158,7 +187,7 @@ function getItemTooltip(item, isRecipe = false) {
     if (item.effects && item.effects.length > 0) {
       parts.push(`Effects:`);
       item.effects.forEach(eff => {
-        parts.push(`  • ${formatEffect(eff)}`);
+        parts.push(`  • ${formatEffect(eff, null, 'armor')}`);
       });
     }
   }
@@ -193,10 +222,22 @@ let lastRenderedThreatSnapshot = null;
 // 0.8.10 - Additional snapshots for base panel and map info
 let lastRenderedSurvivorCount = null;
 let lastRenderedMapInfo = null;
+// 1.0 - Keycard inventory snapshot
+let lastRenderedKeycardSnapshot = null;
+// Note: `lastRenderedAvailableExplorers` lives in `js/state.js` to keep snapshot state centralized.
 
 function computeMapSnapshot() {
   try {
     const parts = [state.mapSize.w, state.mapSize.h];
+    
+    // 1.0 - Include exploration mode and explorer position
+    parts.push(`${state.isExploring ? 1 : 0}:${state.explorerPos ? `${state.explorerPos.x},${state.explorerPos.y}` : 'none'}`);
+    
+    // 1.0 - Include viewport position
+    parts.push(`vp:${state.viewport.x},${state.viewport.y}`);
+    
+    // 1.0 - Include vision state (visible and seen sets)
+    parts.push(`vis:${state.visible.size}:${state.seen.size}`);
     
     // 0.8.10 - Include explorer ID and bonuses in snapshot to update tooltips
     const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
@@ -208,7 +249,9 @@ function computeMapSnapshot() {
     for (let i = 0; i < state.tiles.length; i++) {
       const t = state.tiles[i];
       const aliensAlive = (t.aliens && t.aliens.some(a => a && a.hp > 0)) ? 1 : 0;
-      parts.push(`${t.type}:${t.scouted?1:0}:${t.cleared?1:0}:${aliensAlive}`);
+      const isVisible = state.visible.has(i) ? 1 : 0;
+      const isSeen = state.seen.has(i) ? 1 : 0;
+      parts.push(`${t.terrain}:${t.content || 'none'}:${t.cleared?1:0}:${aliensAlive}:${isVisible}:${isSeen}`);
     }
     return parts.join('|');
   } catch (e) {
@@ -258,6 +301,36 @@ function updateUI() {
     lastRenderedSurvivorCount = currentSurvivorCount;
     el('survivorCount').textContent = currentSurvivorCount;
   }
+
+  // Render keycard inventory
+  const keycardSnapshot = JSON.stringify(state.keycards);
+  if (lastRenderedKeycardSnapshot !== keycardSnapshot) {
+    lastRenderedKeycardSnapshot = keycardSnapshot;
+    const keycardList = el('keycard-list');
+    if (keycardList) {
+      const sectorNames = {
+        medicalBay: 'Medical Bay',
+        engineeringDeck: 'Engineering Deck',
+        securityWing: 'Security Wing',
+        crewQuarters: 'Crew Quarters',
+        researchLabs: 'Research Labs',
+        shoppingMall: 'Shopping Mall',
+        maintenanceHub: 'Maintenance Hub',
+        communications: 'Communications',
+        cargoBay: 'Cargo Bay',
+        corporateOffices: 'Corporate Offices',
+        reactorChamber: 'Reactor Chamber',
+        observationDeck: 'Observation Deck',
+        hangarBay: 'Hangar Bay'
+      };
+      
+      keycardList.innerHTML = state.keycards.map(keycard => {
+        const displayName = sectorNames[keycard] || keycard;
+        return `<span style="padding:4px 8px;background:rgba(74,158,255,0.2);border:1px solid var(--accent);border-radius:4px;font-size:12px;">🔑 ${displayName}</span>`;
+      }).join('');
+    }
+  }
+
   renderSurvivors();
 
   // 0.8.5 - Only update systems panel if values changed
@@ -333,15 +406,35 @@ function updateUI() {
   // map
   renderMap();
   
+  // 1.0 - Update exploration mode UI
+  const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
+  const btnBegin = el('btnBeginExploration');
+  const btnReturn = el('btnReturnToBase');
+  const explorerStatus = el('explorerStatus');
+  
+  if (state.isExploring) {
+    btnBegin.style.display = 'none';
+    btnReturn.style.display = 'inline-block';
+    if (state.explorerPos) {
+      explorerStatus.textContent = `📍 Position: (${state.explorerPos.x}, ${state.explorerPos.y})`;
+    } else {
+      explorerStatus.textContent = '🚶 Exploring...';
+    }
+  } else {
+    btnBegin.style.display = explorer ? 'inline-block' : 'none';
+    btnReturn.style.display = 'none';
+    explorerStatus.textContent = explorer ? '🏠 At Base' : '⚠️ Select explorer';
+  }
+  
   // 0.8.10 - Only update map info if changed
-  const mapInfoText = `Explored: ${state.explored.size}/${state.mapSize.w * state.mapSize.h}`;
+  const mapInfoText = `Explored: ${state.explored.size}/${state.fullMap.width * state.fullMap.height}`;
   if (lastRenderedMapInfo !== mapInfoText) {
     lastRenderedMapInfo = mapInfoText;
     el('mapInfo').textContent = mapInfoText;
   }
 
   // Show "New Map" button when map is fully explored
-  const totalTiles = state.mapSize.w * state.mapSize.h;
+  const totalTiles = state.fullMap.width * state.fullMap.height;
   const btnNewMap = el('btnNewMap');
   if (btnNewMap) {
     if (state.explored.size >= totalTiles) {
@@ -369,7 +462,6 @@ function updateUI() {
     alienKills: state.alienKills,
     activeGuards: state.survivors.filter(s => s.task === 'Guard' && !s.onMission).length,
     totalSurvivors: state.survivors.length,
-    activeExpeditions: state.missions.length,
     inventoryUsage: state.inventory.length,
     inventoryCapacity: getInventoryCapacity(),
     exploredTiles: state.explored.size,
@@ -522,7 +614,6 @@ Threat locks at 100% (escalation takes over).`;
     el('alienKills').textContent = state.alienKills;
     el('activeGuards').textContent = state.survivors.filter(s => s.task === 'Guard' && !s.onMission).length;
     el('totalSurvivors').textContent = state.survivors.length;
-    el('activeExpeditions').textContent = state.missions.length;
     el('inventoryUsage').textContent = `${state.inventory.length}/${getInventoryCapacity()}`;
     el('exploredTiles').textContent = state.explored.size;
 
@@ -536,14 +627,17 @@ Threat locks at 100% (escalation takes over).`;
 
   // 0.8.1 - Render workbench with dynamic costs
   renderWorkbench();
+  
+  // 1.0 - Phase 2.4: Render shuttle repair panel
+  renderShuttleRepair();
 
-  renderExpeditionSurvivorSelect();
   renderExplorerSelect();
 }
 
 function renderExplorerSelect() {
   const cont = el('explorerDropdown');
-  const availableSurvivors = state.survivors.filter(s => !s.onMission);
+  // Keep the currently selected explorer available even if they were just assigned to a mission
+  const availableSurvivors = state.survivors.filter(s => !s.onMission || s.id === state.selectedExplorerId);
   const availableSurvivorsSnapshot = JSON.stringify(availableSurvivors);
 
   // Optimization: Only re-render if the list of available explorers has changed.
@@ -553,6 +647,9 @@ function renderExplorerSelect() {
   lastRenderedAvailableExplorers = availableSurvivorsSnapshot;
 
   cont.innerHTML = '';
+
+  // 1.0 - Lock explorer selection while exploring
+  const isLocked = state.isExploring;
 
   if (availableSurvivors.length === 0) {
     cont.textContent = 'No explorers available';
@@ -572,23 +669,30 @@ function renderExplorerSelect() {
   upArrow.className = 'task-arrow task-arrow-up';
   upArrow.type = 'button';
   upArrow.textContent = '▲';
-  upArrow.title = 'Previous explorer';
+  upArrow.title = isLocked ? 'Cannot change explorer while exploring' : 'Previous explorer';
+  upArrow.disabled = isLocked;
   
   const display = document.createElement('div');
   display.className = 'task-display';
   const selectedSurvivor = availableSurvivors.find(s => s.id === state.selectedExplorerId);
   display.textContent = selectedSurvivor ? selectedSurvivor.name : 'Select Explorer';
-  display.title = 'Selected for exploration';
+  display.title = isLocked ? 'Explorer locked during exploration' : 'Selected for exploration';
+  if (isLocked) display.style.opacity = '0.7';
   
   const downArrow = document.createElement('button');
   downArrow.className = 'task-arrow task-arrow-down';
   downArrow.type = 'button';
   downArrow.textContent = '▼';
-  downArrow.title = 'Next explorer';
+  downArrow.title = isLocked ? 'Cannot change explorer while exploring' : 'Next explorer';
+  downArrow.disabled = isLocked;
   
   // Up arrow click handler (previous explorer)
   upArrow.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (isLocked) {
+      appendLog('⚠️ Cannot change explorer while exploring.');
+      return;
+    }
     const currentIdx = availableSurvivors.findIndex(s => s.id === state.selectedExplorerId);
     let newIdx = currentIdx - 1;
     if (newIdx < 0) newIdx = availableSurvivors.length - 1; // Wrap to end
@@ -601,6 +705,10 @@ function renderExplorerSelect() {
   // Down arrow click handler (next explorer)
   downArrow.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (isLocked) {
+      appendLog('⚠️ Cannot change explorer while exploring.');
+      return;
+    }
     const currentIdx = availableSurvivors.findIndex(s => s.id === state.selectedExplorerId);
     let newIdx = currentIdx + 1;
     if (newIdx >= availableSurvivors.length) newIdx = 0; // Wrap to start
@@ -614,21 +722,6 @@ function renderExplorerSelect() {
   selector.appendChild(display);
   selector.appendChild(downArrow);
   cont.appendChild(selector);
-}
-
-function updateExpeditionTimers() {
-  state.survivors.forEach(s => {
-    if (s.onMission) {
-      const statusEl = document.querySelector(`#survivor-${s.id}-status`);
-      if (statusEl) {
-        const activeMission = state.missions.find(m => m.party.includes(s.id) && m.status === 'active');
-        if (activeMission) {
-          const remainingSec = Math.max(0, activeMission.durationSec - activeMission.progress);
-          statusEl.textContent = `Lvl ${s.level} • On Expedition (${formatTime(remainingSec)})`;
-        }
-      }
-    }
-  });
 }
 
 function renderSurvivors() {
@@ -655,7 +748,6 @@ function renderSurvivors() {
 
   // Only do full re-render if core survivor data changed (and we have survivors)
   if (lastRenderedSurvivors === currentSurvivorsSnapshot && state.survivors.length > 0) {
-    updateExpeditionTimers();
     // Update morale bars without full re-render
     state.survivors.forEach(s => {
       const moraleBar = el(`moraleBar-${s.id}`);
@@ -773,21 +865,9 @@ function renderSurvivors() {
     taskSelector.appendChild(taskDisplay);
     taskSelector.appendChild(downArrow);
 
-    // Get expedition time remaining if on mission
-    let expeditionStatus = '';
-    if (s.onMission) {
-      const activeMission = state.missions.find(m => m.party.includes(s.id) && m.status === 'active');
-      if (activeMission) {
-        const remainingSec = Math.max(0, activeMission.durationSec - activeMission.progress);
-        expeditionStatus = `On Expedition (${formatTime(remainingSec)})`;
-      } else {
-        expeditionStatus = 'On Expedition';
-      }
-    }
-
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong style="color:var(--accent)">${s.name}</strong><div class="small" id="survivor-${s.id}-status"><span title="Level increases max HP and combat effectiveness.">Lvl ${s.level}</span> • ${s.onMission ? expeditionStatus : (s.task || 'Idle')}</div></div>
+        <div><strong style="color:var(--accent)">${s.name}</strong><div class="small" id="survivor-${s.id}-status"><span title="Level increases max HP and combat effectiveness.">Lvl ${s.level}</span> • ${s.onExploration ? '🚶 Exploring' : (s.task || 'Idle')}</div></div>
         <div class="small">HP ${s.hp}/${effectiveMaxHp}</div>
       </div>
       <div style="margin-top:6px" class="small">
@@ -1403,8 +1483,9 @@ function renderLoadoutContent() {
 }
 
 function renderMap() {
+  // 1.0 - Vision System: Show walls, fog-of-war, and content discovery
   const grid = el('mapGrid');
-  const { w, h } = state.mapSize;
+  
   // Early-out if nothing relevant changed to prevent hover/focus flicker
   const snapshot = computeMapSnapshot();
   if (lastRenderedMapSnapshot === snapshot) {
@@ -1412,67 +1493,242 @@ function renderMap() {
   }
   lastRenderedMapSnapshot = snapshot;
 
-  grid.style.gridTemplateColumns = `repeat(${w},1fr)`;
+  // Set grid size based on viewport dimensions (not full map)
+  const vp = state.viewport;
+  grid.style.gridTemplateColumns = `repeat(${vp.width},1fr)`;
   grid.innerHTML = '';
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = y * w + x;
-      const t = state.tiles[idx];
-      const tile = document.createElement('div');
-      tile.className = 'tile';
-
-      // Add explored and base classes
-      if (t.scouted || state.explored.has(idx)) tile.classList.add('explored');
-      if (t.type === 'base') tile.classList.add('base');
-
-      // Check if tile is explorable (adjacent to explored OR can be revisited)
-      const tileObj = { x, y, idx };
-      const canExplore = isExplorable(tileObj);
-      
-      if (canExplore) {
-        tile.classList.add('explorable');
-        // Add click handler for explorable tiles
-        tile.onclick = () => exploreTile(idx);
-        
-        // 0.8.10 - Calculate energy cost with Scout class bonus + abilities
-        const baseCost = getTileEnergyCost(t);
-        const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
-        let actualCost = baseCost;
-        
-        // Apply Scout class exploration bonus
-        if (explorer && explorer.classBonuses && explorer.classBonuses.exploration) {
-          actualCost = Math.floor(actualCost * explorer.classBonuses.exploration);
-        }
-        
-        // Apply Pathfinder ability (stacks with class bonus)
-        if (explorer && hasAbility(explorer, 'pathfinder')) {
-          actualCost = Math.floor(actualCost * 0.85); // -15% cost for Pathfinder
-        }
-        
-        // Show energy cost in tooltip
-        if (state.explored.has(idx) && t.cleared === false) {
-          tile.classList.add('revisitable');
-          if (t.type === 'hazard') {
-            tile.title = `Hazard room (needs Hazmat Suit) - Energy: ${actualCost}`;
-          } else if (t.type === 'alien') {
-            tile.title = `Aliens remain - Energy: ${actualCost}`;
-          } else {
-            tile.title = `Click to re-explore (Energy: ${actualCost})`;
-          }
-        } else {
-          tile.title = `Click to explore (Energy: ${actualCost})`;
-        }
-      } else if (state.explored.has(idx)) {
-        tile.title = `${t.type} (Explored)`;
-      } else {
-        tile.title = 'Too far to explore';
-      }
-
-      const content = document.createElement('span');
-      content.textContent = t.scouted ? (t.type === 'base' ? 'B' : (t.type[0] || '?').toUpperCase()) : '.';
-      tile.appendChild(content);
-      grid.appendChild(tile);
+  
+  // Get visible tiles within viewport
+  const visibleTiles = getVisibleTiles();
+  
+  for (const {x, y, idx, tile: t, viewportX, viewportY} of visibleTiles) {
+    const tileEl = document.createElement('div');
+    tileEl.className = 'tile';
+    
+    // Determine visibility state
+    const isVisible = state.visible.has(idx);     // Currently in vision range
+    const isExplored = state.explored.has(idx);   // Physically visited
+    const isExplorerHere = state.isExploring && state.explorerPos && state.explorerPos.x === x && state.explorerPos.y === y;
+    
+    // Apply terrain-based styling
+    if (t.terrain === 'wall') {
+      tileEl.classList.add('tile-wall');
+      // Add pseudo-random variant based on tile position for true randomness
+      const variant = ((x * 7919 + y * 7927) % 10); // Prime numbers for good distribution
+      tileEl.setAttribute('data-wall-variant', variant);
+    } else if (t.terrain === 'corridor') {
+      tileEl.classList.add('tile-corridor');
+    } else if (t.terrain === 'room') {
+      tileEl.classList.add('tile-room');
+    } else if (t.terrain === 'void') {
+      tileEl.classList.add('tile-void');
+    } else if (['baseRoom', 'medicalBay', 'engineeringDeck', 'securityWing', 'crewQuarters', 'researchLabs', 
+                'shoppingMall', 'maintenanceHub', 'communications', 'cargoBay', 'corporateOffices',
+                'reactorChamber', 'observationDeck', 'hangarBay'].includes(t.terrain)) {
+      // 1.0 - Sector-specific room styling (including base room)
+      tileEl.classList.add(`tile-${t.terrain}`);
     }
+    
+    // 1.0 - Check if this is a locked/unlocked door
+    const doorTerrains = ['mission1Door', 'mission2Door', 'mission3Door', 'mission4Door', 'mission5Door', 'mission6Door', 
+                          'mission7Door', 'mission8Door', 'mission9Door', 'mission10Door', 'mission11Door', 'mission12Door', 'hangarDoor'];
+    const isDoor = doorTerrains.includes(t.terrain);
+    
+    const terrainToKeycard = {
+      'mission1Door': 'medicalBay', 'mission2Door': 'engineeringDeck', 'mission3Door': 'securityWing',
+      'mission4Door': 'crewQuarters', 'mission5Door': 'researchLabs', 'mission6Door': 'shoppingMall',
+      'mission7Door': 'maintenanceHub', 'mission8Door': 'communications', 'mission9Door': 'cargoBay',
+      'mission10Door': 'corporateOffices', 'mission11Door': 'reactorChamber', 'mission12Door': 'observationDeck',
+      'hangarDoor': 'hangarBay'
+    };
+    
+    const requiredKeycard = terrainToKeycard[t.terrain];
+    const hasKeycard = requiredKeycard && state.keycards.includes(requiredKeycard);
+    const missionCompleted = requiredKeycard && state.successfulMissions.includes(requiredKeycard);
+    
+    // 1.0 - Three door states:
+    // 1. No keycard = red + locked
+    // 2. Has keycard (mission not completed) = green + locked
+    // 3. Mission completed = green + unlocked
+    if (isDoor) {
+      if (missionCompleted) {
+        tileEl.classList.add('unlocked-door'); // Green with unlocked emoji
+      } else if (hasKeycard) {
+        tileEl.classList.add('has-keycard-door'); // Green with locked emoji
+      } else {
+        tileEl.classList.add('locked-door'); // Red with locked emoji
+      }
+    }
+    
+    // Mark explored (stepped on) tiles
+    if (isExplored) {
+      tileEl.classList.add('explored');
+    }
+    
+    // Mark base
+    if (t.content === 'base') {
+      tileEl.classList.add('base');
+    }
+    
+    // Mark dangerous uncollected content as revisitable (red)
+    // 1.0 - Only hazards are marked red (aliens should be hidden until discovered)
+    if (isVisible && !t.cleared && t.content === 'hazard') {
+      tileEl.classList.add('revisitable');
+    }
+    
+    // Show explorer token
+    if (isExplorerHere) {
+      tileEl.classList.add('explorer-token');
+    }
+
+    // Check if tile is clickable (adjacent corridor/room in exploration mode)
+    const tileObj = { x, y, idx };
+    const canMove = state.isExploring && 
+                    t.terrain !== 'wall' && 
+                    state.explorerPos &&
+                    ((Math.abs(x - state.explorerPos.x) === 1 && y === state.explorerPos.y) ||
+                     (Math.abs(y - state.explorerPos.y) === 1 && x === state.explorerPos.x));
+    
+    if (canMove) {
+      tileEl.classList.add('explorable');
+      tileEl.onclick = () => moveExplorer(x, y);
+      
+      // Calculate movement cost
+      const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
+      let cost = t.terrain === 'room' ? 10 : 8;
+      
+      if (explorer && explorer.classBonuses && explorer.classBonuses.exploration) {
+        cost = Math.floor(cost * explorer.classBonuses.exploration);
+      }
+      if (explorer && hasAbility(explorer, 'pathfinder')) {
+        cost = Math.floor(cost * 0.85);
+      }
+      
+      // Show tooltip
+      if (isVisible && t.content && !t.cleared) {
+        if (t.content === 'hazard') {
+          tileEl.title = `⚠️ Hazard room (needs Hazmat Suit) - Energy: ${cost}`;
+        } else if (t.content === 'alien') {
+          tileEl.title = `⚠️ Aliens ahead - Energy: ${cost}`;
+        } else if (t.content === 'resource') {
+          tileEl.title = `Resources detected - Energy: ${cost}`;
+        } else if (t.content === 'survivor') {
+          tileEl.title = `Life signs detected - Energy: ${cost}`;
+        } else {
+          tileEl.title = `Move here (Energy: ${cost})`;
+        }
+      } else if (isDoor) {
+        // 1.0 - Spoiler-free door tooltips with lock status
+        const sectorNames = {
+          'medicalBay': 'Medical Bay', 'engineeringDeck': 'Engineering Deck', 'securityWing': 'Security Wing',
+          'crewQuarters': 'Crew Quarters', 'researchLabs': 'Research Labs', 'shoppingMall': 'Shopping Mall',
+          'maintenanceHub': 'Maintenance Hub', 'communications': 'Communications', 'cargoBay': 'Cargo Bay',
+          'corporateOffices': 'Corporate Offices', 'reactorChamber': 'Reactor Chamber',
+          'observationDeck': 'Observation Deck', 'hangarBay': 'Hangar Bay'
+        };
+        const sectorName = sectorNames[requiredKeycard] || 'Unknown';
+        const sectorUnlocked = state.successfulMissions.includes(requiredKeycard);
+        
+        if (sectorUnlocked) {
+          // Mission completed - sector unlocked
+          tileEl.title = `🔓 ${sectorName} - Unlocked (Energy: ${cost})`;
+        } else if (!hasKeycard) {
+          // No keycard yet
+          tileEl.title = `🔒 Door to ${sectorName} - Find keycard to access mission`;
+        } else {
+          // Has keycard but mission not completed
+          tileEl.title = `🔒 Door to ${sectorName} - Complete mission to unlock sector (Energy: ${cost})`;
+        }
+      } else {
+        tileEl.title = `Move here (Energy: ${cost})`;
+      }
+    } else if (t.terrain === 'wall') {
+      // Wall tooltip even when not adjacent
+      tileEl.title = 'Wall';
+    } else {
+      // 1.0 - Non-adjacent tiles: no tooltip
+      tileEl.title = '';
+    }
+
+    // Add room interior tooltips only for scouted room tiles
+    if (isVisible && ['medicalBay', 'engineeringDeck', 'securityWing', 'crewQuarters', 'researchLabs',
+                'shoppingMall', 'maintenanceHub', 'communications', 'cargoBay', 'corporateOffices',
+                'reactorChamber', 'observationDeck', 'hangarBay'].includes(t.terrain)) {
+      // 1.0 - Room interior tooltips showing common loot
+      const roomLoot = {
+        'medicalBay': 'Medical supplies, medkits, stimpacks',
+        'engineeringDeck': 'Tech components, weapon parts, energy cores',
+        'securityWing': 'Weapons, armor, ammunition',
+        'crewQuarters': 'Food, basic supplies, personal items',
+        'researchLabs': 'Advanced tech, energy weapons, rare components',
+        'shoppingMall': 'General supplies, varied loot',
+        'maintenanceHub': 'Repair kits, tools, components',
+        'communications': 'Electronics, tech, communication gear',
+        'cargoBay': 'Massive mixed loot, all types',
+        'corporateOffices': 'Tech, luxury items, keycards',
+        'reactorChamber': 'Energy cores, power components',
+        'observationDeck': 'Scoped weapons, tech, observation gear',
+        'hangarBay': 'Ship parts, advanced components'
+      };
+      tileEl.title = roomLoot[t.terrain] || 'Sector room';
+    }
+
+    // Render tile content
+    const content = document.createElement('span');
+    
+    if (isExplorerHere) {
+      // Explorer token
+      content.textContent = '👤';
+    } else if (t.terrain === 'wall') {
+      // Walls always visible
+      content.textContent = '█';
+    } else if (t.terrain === 'void') {
+      // Void/dead space
+      content.textContent = '';
+    } else if (t.content === 'base') {
+      // Base always visible
+      content.textContent = 'B';
+    } else if (isDoor) {
+      // 1.0 - Show lock status for mission doors (🔒 locked, 🔓 unlocked)
+      // Doors are unlocked ONLY if the mission has been successfully completed
+      const sectorUnlocked = requiredKeycard && state.successfulMissions.includes(requiredKeycard);
+      if (sectorUnlocked) {
+        content.textContent = '🔓'; // Sector unlocked (mission completed)
+      } else {
+        content.textContent = '🔒'; // Sector locked
+      }
+    } else if (isExplored && t.content && !t.cleared) {
+      // Only show content AFTER stepping on it
+      if (t.content === 'alien') content.textContent = '👾';
+      else if (t.content === 'resource') content.textContent = '📦';
+      else if (t.content === 'survivor') content.textContent = '👤';
+      else if (t.content === 'hazard') content.textContent = '☢️';
+      else if (t.content === 'mission') content.textContent = '⚠️';
+      else if (t.content === 'module') content.textContent = '⚙️';
+      else if (t.content === 'hostile') content.textContent = '⚔️';
+      else content.textContent = (t.content[0] || '?').toUpperCase();
+    } else if (!isExplored && t.content && !t.cleared && t.terrain !== 'wall' && t.terrain !== 'void') {
+      // 1.0 - Show generic "?" ONLY for tiles adjacent to explored tiles
+      const isAdjacentToExplored = [
+        state.tiles[idx - 1], // left
+        state.tiles[idx + 1], // right
+        state.tiles[idx - state.mapWidth], // up
+        state.tiles[idx + state.mapWidth]  // down
+      ].some(neighbor => neighbor && state.explored.has(state.tiles.indexOf(neighbor)));
+      
+      if (isAdjacentToExplored) {
+        content.textContent = '?';
+        content.style.opacity = '0.6';
+      } else {
+        content.textContent = ' '; // Hide corridor dots completely
+      }
+    } else {
+      // Empty corridor/room or undiscovered content
+      content.textContent = ' '; // Hide corridor dots completely
+    }
+    
+    tileEl.appendChild(content);
+    grid.appendChild(tileEl);
   }
 }
 
@@ -1554,78 +1810,124 @@ function threatText() {
   return `${Math.round(v)}%`;
 }
 
-function renderExpeditionSurvivorSelect() {
-  const cont = el('expeditionSurvivorDropdown');
-  const availableSurvivors = state.survivors.filter(s => !s.onMission);
-  const availableSurvivorsSnapshot = JSON.stringify(availableSurvivors);
+// --- Mission Modal Logic ---
+let activeMissionId = null;
 
-  if (lastRenderedAvailableSurvivors === availableSurvivorsSnapshot) {
+function openMissionModal(missionId) {
+  activeMissionId = missionId;
+  const modal = el('missionModal');
+  modal.style.display = 'flex';
+  
+  // Clear and initialize mission log
+  clearMissionLog();
+  const missionData = AWAY_MISSIONS[missionId];
+  if (missionData) {
+    // Set title
+    const titleEl = el('missionModalTitle');
+    if (titleEl) titleEl.textContent = missionData.name;
+    
+    // Add initial narrative to log
+    appendMissionLog(`<div style="color:var(--accent); font-weight:bold; margin-bottom:8px;">${missionData.name}</div>`);
+    appendMissionLog(`<div style="color:var(--muted); font-style:italic; margin-bottom:16px;">${missionData.discoveryText}</div>`);
+    appendMissionLog(`<div style="margin-bottom:16px;">${missionData.briefing}</div>`);
+    
+    // Add current event to log
+    const missionState = state.activeMissions.find(m => m.missionId === missionId);
+    if (missionState) {
+      const currentEvent = missionData.events[missionState.currentEvent];
+      appendMissionLog(`<div style="border-left: 3px solid var(--accent); padding-left: 12px; margin: 16px 0;">${currentEvent.eventText}</div>`);
+    }
+  }
+  
+  renderMissionModalContent();
+  const btnClose = el('btnCloseMissionModal');
+  if (btnClose) btnClose.onclick = closeMissionModal;
+}
+
+function closeMissionModal() {
+  const modal = el('missionModal');
+  modal.style.display = 'none';
+  activeMissionId = null;
+  updateUI(); // Refresh main UI in case mission state changed
+}
+
+function renderMissionModalContent() {
+  const cont = el('missionModalControls');
+  const missionState = state.activeMissions.find(m => m.missionId === activeMissionId);
+  if (!missionState) {
+    cont.innerHTML = '<div class="small">Error: Mission not found.</div>';
     return;
   }
-  lastRenderedAvailableSurvivors = availableSurvivorsSnapshot;
 
-  cont.innerHTML = '';
-
-  if (availableSurvivors.length === 0) {
-    cont.textContent = 'No survivors available';
+  // NEW: Check for a pending combat state
+  if (missionState.pendingCombat) {
+    cont.innerHTML = `
+      <button id="btnBeginMissionCombat" class="danger" style="width: 100%; padding: 12px; font-size: 16px;">⚔️ Begin Combat</button>
+    `;
+    el('btnBeginMissionCombat').onclick = () => {
+      if (typeof triggerPendingMissionCombat === 'function') {
+        triggerPendingMissionCombat(missionState.missionId);
+      }
+    };
     return;
   }
 
-  // Use state.selectedExpeditionSurvivorId for persistence
-  if (!state.selectedExpeditionSurvivorId || !availableSurvivors.some(s => s.id === state.selectedExpeditionSurvivorId)) {
-    state.selectedExpeditionSurvivorId = availableSurvivors[0].id;
+  const missionData = AWAY_MISSIONS[missionState.missionId];
+  const currentEvent = missionData.events[missionState.currentEvent];
+
+  // Build survivor selector
+  const availableSurvivorsForAssign = state.survivors.filter(s => !s.onMission || s.id === missionState.survivorId);
+  let survivorSelectorHtml = '';
+  if (missionState.survivorId) {
+    const assigned = state.survivors.find(s => s.id === missionState.survivorId);
+    const assignedLabel = assigned ? `${assigned.name} (Lvl ${assigned.level} ${assigned.class})` : 'Assigned';
+    survivorSelectorHtml = `<div class="small" style="margin-bottom:12px; color: var(--accent);">Assigned: <strong>${assignedLabel}</strong></div>`;
+  } else {
+    let survivorOptions = '<option value="">Assign Survivor</option>';
+    availableSurvivorsForAssign.forEach(s => {
+      survivorOptions += `<option value="${s.id}">${s.name} (Lvl ${s.level} ${s.class})</option>`;
+    });
+    survivorSelectorHtml = `<select class="mission-survivor-select" data-mission-id="${missionState.missionId}" style="width:100%; margin-bottom:12px; padding:8px;">${survivorOptions}</select>`;
   }
 
-  // Create selector with arrow buttons
-  const selector = document.createElement('div');
-  selector.className = 'task-selector';
-  
-  const upArrow = document.createElement('button');
-  upArrow.className = 'task-arrow task-arrow-up';
-  upArrow.type = 'button';
-  upArrow.textContent = '▲';
-  upArrow.title = 'Previous survivor';
-  
-  const display = document.createElement('div');
-  display.className = 'task-display';
-  const selectedSurvivor = availableSurvivors.find(s => s.id === state.selectedExpeditionSurvivorId);
-  display.textContent = selectedSurvivor ? selectedSurvivor.name : 'Select Survivor';
-  display.title = 'Selected for expedition';
-  
-  const downArrow = document.createElement('button');
-  downArrow.className = 'task-arrow task-arrow-down';
-  downArrow.type = 'button';
-  downArrow.textContent = '▼';
-  downArrow.title = 'Next survivor';
-  
-  // Up arrow click handler (previous survivor)
-  upArrow.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const currentIdx = availableSurvivors.findIndex(s => s.id === state.selectedExpeditionSurvivorId);
-    let newIdx = currentIdx - 1;
-    if (newIdx < 0) newIdx = availableSurvivors.length - 1; // Wrap to end
-    
-    state.selectedExpeditionSurvivorId = availableSurvivors[newIdx].id;
-    display.textContent = availableSurvivors[newIdx].name;
-    appendLog(`${availableSurvivors[newIdx].name} selected for expedition.`);
+  // Build choice buttons
+  let choiceButtons = '';
+  if (missionState.survivorId) {
+    currentEvent.choices.forEach((choice, index) => {
+      choiceButtons += `<button class="mission-choice" data-mission-id="${missionState.missionId}" data-choice-index="${index}" style="width:100%; margin-bottom:8px; padding:10px; text-align:left;">${choice.choiceText}</button>`;
+    });
+  } else {
+    choiceButtons = '<div class="small" style="color:var(--muted);">Assign a survivor to see available actions.</div>';
+  }
+
+  cont.innerHTML = `
+    ${survivorSelectorHtml}
+    <div class="mission-choices">${choiceButtons}</div>
+  `;
+
+  // Bind events
+  const selectEl = cont.querySelector('.mission-survivor-select');
+  if (selectEl) {
+    selectEl.onchange = (e) => {
+      const missionId = e.target.dataset.missionId;
+      const survivorId = e.target.value ? parseInt(e.target.value) : null;
+      if (typeof assignSurvivorToMission === 'function') {
+        assignSurvivorToMission(missionId, survivorId);
+      }
+      renderMissionModalContent();
+    };
+  }
+
+  cont.querySelectorAll('.mission-choice').forEach(button => {
+    button.onclick = (e) => {
+      const missionId = e.target.dataset.missionId;
+      const choiceIndex = parseInt(e.target.dataset.choiceIndex);
+      if (typeof resolveMissionChoice === 'function') {
+        resolveMissionChoice(missionId, choiceIndex);
+        renderMissionModalContent();
+      }
+    };
   });
-  
-  // Down arrow click handler (next survivor)
-  downArrow.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const currentIdx = availableSurvivors.findIndex(s => s.id === state.selectedExpeditionSurvivorId);
-    let newIdx = currentIdx + 1;
-    if (newIdx >= availableSurvivors.length) newIdx = 0; // Wrap to start
-    
-    state.selectedExpeditionSurvivorId = availableSurvivors[newIdx].id;
-    display.textContent = availableSurvivors[newIdx].name;
-    appendLog(`${availableSurvivors[newIdx].name} selected for expedition.`);
-  });
-  
-  selector.appendChild(upArrow);
-  selector.appendChild(display);
-  selector.appendChild(downArrow);
-  cont.appendChild(selector);
 }
 
 // 0.8.1 - Render workbench with dynamic crafting costs
@@ -1677,83 +1979,141 @@ function renderWorkbench() {
     { 
       name: '🔪 Melee Weapons', 
       recipes: [
+        // Common (sorted by scrap: 12, 15, 18, 20)
         { item: 'makeshift_pipe', name: 'Makeshift Pipe', rarity: 'common' },
         { item: 'sharpened_tool', name: 'Sharpened Tool', rarity: 'common' },
         { item: 'crowbar', name: 'Crowbar', rarity: 'common' },
+        { item: 'steel_pipe', name: 'Steel Pipe', rarity: 'common' },
+        // Uncommon (sorted by scrap: 25, 28, 30, 32)
         { item: 'combat_knife', name: 'Combat Knife', rarity: 'uncommon' },
-        { item: 'stun_baton', name: 'Stun Baton', rarity: 'uncommon' },
         { item: 'reinforced_bat', name: 'Reinforced Bat', rarity: 'uncommon' },
+        { item: 'stun_baton', name: 'Stun Baton', rarity: 'uncommon' },
+        { item: 'electro_spear', name: 'Electro-Spear', rarity: 'uncommon' },
+        // Rare (sorted by scrap: 60, 65, 70, 75)
         { item: 'plasma_blade', name: 'Plasma Blade', rarity: 'rare' },
         { item: 'shock_maul', name: 'Shock Maul', rarity: 'rare' },
+        { item: 'vibro_axe', name: 'Vibro-Axe', rarity: 'rare' },
+        { item: 'power_fist', name: 'Power Fist', rarity: 'rare' },
+        // Legendary (sorted by scrap: 110, 115, 120, 125)
         { item: 'nano_edge_katana', name: 'Nano-Edge Katana', rarity: 'veryrare' },
-        { item: 'venom_blade', name: 'Venom Blade', rarity: 'veryrare' }
+        { item: 'venom_blade', name: 'Venom Blade', rarity: 'veryrare' },
+        { item: 'void_reaper', name: 'Void Reaper', rarity: 'veryrare' },
+        { item: 'thunder_hammer', name: 'Thunder Hammer', rarity: 'veryrare' }
       ]
     },
     { 
       name: '🔫 Pistols', 
       recipes: [
+        // Common (sorted by scrap: 18, 20, 22, 24)
         { item: 'scrap_pistol', name: 'Scrap Pistol', rarity: 'common' },
         { item: 'old_revolver', name: 'Old Revolver', rarity: 'common' },
-        { item: 'laser_pistol', name: 'Laser Pistol', rarity: 'uncommon' },
+        { item: 'jury_rigged_pistol', name: 'Jury-Rigged Pistol', rarity: 'common' },
+        { item: 'homemade_handgun', name: 'Homemade Handgun', rarity: 'common' },
+        // Uncommon (sorted by scrap: 32, 33, 34, 35)
         { item: 'heavy_pistol', name: 'Heavy Pistol', rarity: 'uncommon' },
+        { item: 'burst_pistol', name: 'Burst Pistol', rarity: 'uncommon' },
+        { item: 'needle_pistol', name: 'Needle Pistol', rarity: 'uncommon' },
+        { item: 'laser_pistol', name: 'Laser Pistol', rarity: 'uncommon' },
+        // Rare (sorted by scrap: 70, 75, 80, 85)
         { item: 'plasma_pistol', name: 'Plasma Pistol', rarity: 'rare' },
         { item: 'smart_pistol', name: 'Smart Pistol', rarity: 'rare' },
-        { item: 'void_pistol', name: 'Void Pistol', rarity: 'veryrare' }
+        { item: 'mag_pistol', name: 'Mag Pistol', rarity: 'rare' },
+        { item: 'arc_pistol', name: 'Arc Pistol', rarity: 'rare' },
+        // Legendary (sorted by scrap: 120, 125, 130, 135)
+        { item: 'void_pistol', name: 'Void Pistol', rarity: 'veryrare' },
+        { item: 'annihilator_pistol', name: 'Annihilator Pistol', rarity: 'veryrare' },
+        { item: 'hurricane_pistol', name: 'Hurricane Pistol', rarity: 'veryrare' },
+        { item: 'executioner_revolver', name: 'Executioner Revolver', rarity: 'veryrare' }
       ]
     },
     { 
       name: '🎯 Rifles', 
       recipes: [
+        // Uncommon (sorted by scrap: 44, 45, 46, 48)
+        { item: 'carbine', name: 'Carbine', rarity: 'uncommon' },
         { item: 'assault_rifle', name: 'Assault Rifle', rarity: 'uncommon' },
+        { item: 'battle_rifle', name: 'Battle Rifle', rarity: 'uncommon' },
         { item: 'scoped_rifle', name: 'Scoped Rifle', rarity: 'uncommon' },
+        // Rare (sorted by scrap: 90, 95, 100, 105)
         { item: 'pulse_rifle', name: 'Pulse Rifle', rarity: 'rare' },
         { item: 'plasma_rifle', name: 'Plasma Rifle', rarity: 'rare' },
-        { item: 'gauss_rifle', name: 'Gauss Rifle', rarity: 'veryrare' },
-        { item: 'quantum_rifle', name: 'Quantum Rifle', rarity: 'veryrare' }
+        { item: 'laser_rifle', name: 'Laser Rifle', rarity: 'rare' },
+        { item: 'marksman_rifle', name: 'Marksman Rifle', rarity: 'rare' },
+        // Legendary (sorted by scrap: 135, 138, 140)
+        { item: 'quantum_rifle', name: 'Quantum Rifle', rarity: 'veryrare' },
+        { item: 'railgun', name: 'Railgun', rarity: 'veryrare' },
+        { item: 'antimatter_rifle', name: 'Antimatter Rifle', rarity: 'veryrare' },
+        { item: 'gauss_rifle', name: 'Gauss Rifle', rarity: 'veryrare' }
       ]
     },
     { 
       name: '💥 Shotguns', 
       recipes: [
+        // Uncommon (sorted by scrap: 40, 42, 44, 46)
         { item: 'pump_shotgun', name: 'Pump Shotgun', rarity: 'uncommon' },
+        { item: 'auto_shotgun', name: 'Auto-Shotgun', rarity: 'uncommon' },
+        { item: 'riot_shotgun', name: 'Riot Shotgun', rarity: 'uncommon' },
+        { item: 'tactical_shotgun', name: 'Tactical Shotgun', rarity: 'uncommon' },
+        // Rare (sorted by scrap: 95, 100, 105, 110)
         { item: 'combat_shotgun', name: 'Combat Shotgun', rarity: 'rare' },
         { item: 'plasma_shotgun', name: 'Plasma Shotgun', rarity: 'rare' },
-        { item: 'disintegrator_cannon', name: 'Disintegrator Cannon', rarity: 'veryrare' }
+        { item: 'arc_shotgun', name: 'Arc Shotgun', rarity: 'rare' },
+        { item: 'flechette_cannon', name: 'Flechette Cannon', rarity: 'rare' },
+        // Legendary (sorted by scrap: 130, 135, 140, 145)
+        { item: 'disintegrator_cannon', name: 'Disintegrator Cannon', rarity: 'veryrare' },
+        { item: 'void_scattergun', name: 'Void Scattergun', rarity: 'veryrare' },
+        { item: 'inferno_blaster', name: 'Inferno Blaster', rarity: 'veryrare' },
+        { item: 'shredder_cannon', name: 'Shredder Cannon', rarity: 'veryrare' }
       ]
     },
     { 
       name: '🔥 Heavy Weapons', 
       recipes: [
+        // Rare (sorted by scrap: 100, 105, 110, 115)
         { item: 'light_machine_gun', name: 'Light Machine Gun', rarity: 'rare' },
         { item: 'grenade_launcher', name: 'Grenade Launcher', rarity: 'rare' },
+        { item: 'plasma_cannon', name: 'Plasma Cannon', rarity: 'rare' },
+        { item: 'missile_pod', name: 'Missile Pod', rarity: 'rare' },
+        // Legendary (sorted by scrap: 140, 145, 150, 160)
         { item: 'minigun', name: 'Minigun', rarity: 'veryrare' },
-        { item: 'railgun', name: 'Railgun', rarity: 'veryrare' }
+        { item: 'flamethrower', name: 'Flamethrower', rarity: 'veryrare' },
+        { item: 'storm_cannon', name: 'Storm Cannon', rarity: 'veryrare' },
+        { item: 'venom_cannon', name: 'Venom Cannon', rarity: 'veryrare' }
       ]
     },
     { 
       name: '🛡️ Light Armor', 
       recipes: [
+        // Common (sorted by scrap: 25, 28, 30, 32)
         { item: 'scrap_vest', name: 'Scrap Vest', rarity: 'common' },
         { item: 'padded_suit', name: 'Padded Suit', rarity: 'common' },
+        { item: 'work_gear', name: 'Work Gear', rarity: 'common' },
+        { item: 'leather_jacket', name: 'Leather Jacket', rarity: 'common' },
+        // Uncommon (sorted by scrap: 40, 45, 50, 55)
         { item: 'light_armor', name: 'Light Armor', rarity: 'uncommon' },
         { item: 'tactical_vest', name: 'Tactical Vest', rarity: 'uncommon' },
         { item: 'reinforced_plating', name: 'Reinforced Plating', rarity: 'uncommon' },
+        { item: 'ballistic_vest', name: 'Ballistic Vest', rarity: 'uncommon' },
+        // Rare (sorted by scrap: 85, 90)
         { item: 'composite_armor', name: 'Composite Armor', rarity: 'rare' },
         { item: 'stealth_suit', name: 'Stealth Suit', rarity: 'rare' },
+        // Legendary (sorted by scrap: 155)
         { item: 'nano_weave_armor', name: 'Nano-Weave Armor', rarity: 'veryrare' }
       ]
     },
     { 
       name: '🛡️ Heavy Armor', 
       recipes: [
-        { item: 'heavy_armor', name: 'Heavy Armor', rarity: 'rare' },
-        { item: 'power_armor_frame', name: 'Power Armor Frame', rarity: 'rare' },
+        // Rare (sorted by scrap: 85, 90, 95, 100)
         { item: 'hazmat_suit', name: 'Hazmat Suit', rarity: 'rare' },
         { item: 'thermal_suit', name: 'Thermal Suit', rarity: 'rare' },
-        { item: 'titan_armor', name: 'Titan Armor', rarity: 'veryrare' },
+        { item: 'heavy_armor', name: 'Heavy Armor', rarity: 'rare' },
+        { item: 'power_armor_frame', name: 'Power Armor Frame', rarity: 'rare' },
+        // Legendary (sorted by scrap: 160, 165, 170, 175)
+        { item: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare' },
+        { item: 'spectre_armor', name: 'Spectre Armor', rarity: 'veryrare' },
         { item: 'shield_suit', name: 'Shield Suit', rarity: 'veryrare' },
-        { item: 'void_suit', name: 'Void Suit', rarity: 'veryrare' },
-        { item: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare' }
+        { item: 'titan_armor', name: 'Titan Armor', rarity: 'veryrare' }
       ]
     }
   ];
@@ -1828,5 +2188,124 @@ function renderWorkbench() {
 
       workbench.appendChild(button);
     });
+  });
+}
+
+// 1.0 - Phase 2.4: Render Shuttle Repair Panel
+function renderShuttleRepair() {
+  const panel = el('shuttleRepairPanel');
+  const progressEl = el('shuttleProgress');
+  const progressBar = el('shuttleProgressBar');
+  const componentsEl = el('shuttleComponents');
+  
+  // Show/hide panel based on unlock status
+  if (!state.shuttleRepair || !state.shuttleRepair.unlocked) {
+    panel.style.display = 'none';
+    return;
+  }
+  
+  panel.style.display = 'block';
+  
+  // Update progress display
+  const progress = state.shuttleRepair.progress || 0;
+  progressEl.textContent = `${Math.floor(progress)}%`;
+  progressBar.style.width = `${progress}%`;
+  
+  // Check if fully repaired
+  if (progress >= 100) {
+    componentsEl.innerHTML = '<div style="color:var(--success);text-align:center;padding:12px;font-weight:bold;">✅ Shuttle Ready for Launch!</div>';
+    return;
+  }
+  
+  // Define repair components
+  const components = [
+    { 
+      id: 'hullPlating', 
+      name: 'Hull Plating', 
+      scrap: 150, 
+      tech: 25, 
+      icon: '🔩',
+      materials: { armor_plating: 8, weaponPart: 5 }
+    },
+    { 
+      id: 'engineCore', 
+      name: 'Engine Core', 
+      scrap: 200, 
+      tech: 40, 
+      icon: '⚙️',
+      materials: { power_core: 4, electronics: 6, advanced_component: 3 }
+    },
+    { 
+      id: 'navigationSystem', 
+      name: 'Navigation System', 
+      scrap: 100, 
+      tech: 50, 
+      icon: '🧭',
+      materials: { electronics: 8, advanced_component: 5 }
+    },
+    { 
+      id: 'lifeSupport', 
+      name: 'Life Support', 
+      scrap: 120, 
+      tech: 30, 
+      icon: '🌬️',
+      materials: { electronics: 5, nano_material: 4, power_core: 2 }
+    },
+    { 
+      id: 'fuelCell', 
+      name: 'Fuel Cell', 
+      scrap: 180, 
+      tech: 35, 
+      icon: '⚡',
+      materials: { power_core: 5, quantum_core: 2, nano_material: 3 }
+    }
+  ];
+  
+  // Render component buttons
+  componentsEl.innerHTML = '';
+  components.forEach(comp => {
+    const button = document.createElement('button');
+    button.className = 'workbench-button';
+    
+    // Check affordability (resources + materials)
+    const canAffordResources = state.resources.scrap >= comp.scrap && state.resources.tech >= comp.tech;
+    let canAffordMaterials = true;
+    const materialStatus = [];
+    
+    for (const [matType, needed] of Object.entries(comp.materials)) {
+      const available = state.inventory.filter(item => item.type === matType).length;
+      const hasEnough = available >= needed;
+      canAffordMaterials = canAffordMaterials && hasEnough;
+      
+      const displayName = matType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()).replace(/([a-z])(Part)/, '$1 $2');
+      materialStatus.push(`${displayName} ${available}/${needed}`);
+    }
+    
+    const canAfford = canAffordResources && canAffordMaterials;
+    button.disabled = !canAfford;
+    
+    button.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span>${comp.icon} ${comp.name}</span>
+          <span style="font-size:11px;color:${canAffordResources ? 'var(--muted)' : 'var(--danger)'}">
+            ${comp.scrap}s ${comp.tech}t
+          </span>
+        </div>
+        <div style="font-size:10px;color:${canAffordMaterials ? 'var(--muted)' : 'var(--danger)'}">
+          ${materialStatus.join(', ')}
+        </div>
+      </div>
+    `;
+    
+    button.title = `Install ${comp.name}\nCost: ${comp.scrap} Scrap, ${comp.tech} Tech\nMaterials: ${materialStatus.join(', ')}\nGrants +20% repair progress`;
+    
+    button.onclick = () => {
+      if (typeof installShuttleComponent === 'function') {
+        installShuttleComponent(comp.id);
+      }
+    };
+    
+    componentsEl.appendChild(button);
   });
 }

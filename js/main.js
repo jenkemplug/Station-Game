@@ -1,22 +1,15 @@
 let isPaused = false;
 
 function bindUI() {
-  el('btnAssign').onclick = () => {
-    recruitSurvivor();
-    saveGame('action');
-    updateUI();
-  };
-  el('btnExpedition').onclick = () => {
-    startExpedition('Deep Run', 45);
-    saveGame('action');
-    updateUI();
-  };
-
   el('btnUpgradeFilter').onclick = upgradeFilter;
   el('btnUpgradeGen').onclick = upgradeGenerator;
   el('btnBuildTurret').onclick = buildTurret;
   
   el('btnNewMap').onclick = generateNewMap;
+
+  // 1.0 - Exploration mode buttons
+  el('btnBeginExploration').onclick = beginExploration;
+  el('btnReturnToBase').onclick = returnToBase;
 
   // 0.8.0 - System repair buttons
   el('btnRepairFilter').onclick = () => {
@@ -59,6 +52,10 @@ function bindUI() {
     el('btnPause').textContent = isPaused ? 'Resume' : 'Pause';
   };
   el('btnReset').onclick = resetGame;
+  
+  // 1.0 - Phase 3.1: Tutorial button
+  el('btnTutorial').onclick = openTutorial;
+  el('btnCloseTutorial').onclick = closeTutorial;
 
   el('btnExport').onclick = exportSave;
   el('btnImport').onclick = () => el('importFile').click();
@@ -67,6 +64,10 @@ function bindUI() {
     if (f) handleImportFile(f);
     ev.target.value = '';
   });
+
+  // 1.0 - Keyboard movement throttle (only throttle when holding, not rapid tapping)
+  let lastMoveTime = 0;
+  const MOVE_THROTTLE_MS = 150; // 200ms delay between moves when holding key
 
   document.addEventListener('keydown', e => {
     const k = (e.key || '').toLowerCase();
@@ -78,10 +79,44 @@ function bindUI() {
       return;
     }
 
-    // Existing shortcuts
-    if (k === 'r') {
-      recruitSurvivor();
+    // 1.0 - WASD movement in exploration mode
+    if (state.isExploring && state.explorerPos) {
+      let targetX = state.explorerPos.x;
+      let targetY = state.explorerPos.y;
+      let moved = false;
+
+      if (k === 'w' || k === 'arrowup') {
+        targetY -= 1;
+        moved = true;
+      } else if (k === 's' || k === 'arrowdown') {
+        targetY += 1;
+        moved = true;
+      } else if (k === 'a' || k === 'arrowleft') {
+        targetX -= 1;
+        moved = true;
+      } else if (k === 'd' || k === 'arrowright') {
+        targetX += 1;
+        moved = true;
+      }
+
+      if (moved) {
+        e.preventDefault();
+        
+        // Only throttle if this is a key repeat (holding), not a fresh tap
+        if (e.repeat) {
+          const now = Date.now();
+          if (now - lastMoveTime < MOVE_THROTTLE_MS) {
+            return; // Too soon, ignore this repeated keypress
+          }
+          lastMoveTime = now;
+        }
+        
+        moveExplorer(targetX, targetY);
+        return;
+      }
     }
+
+    // Existing shortcuts
 
   });
 
@@ -153,7 +188,13 @@ function resetGame() {
   state.highestThreatTier = 0;
   state.highestRaidTier = 0;
   state.gameOver = false; // Reset game over flag
-  state.missions = [];
+  state.activeMissions = []; // Clear active missions
+  state.completedMissions = []; // Clear completed missions for a true reset
+  state.keycards = []; // 1.0 - Reset keycards for new game
+  state.successfulMissions = []; // 1.0 - Reset successful missions for new game
+  // 1.0 - Reset exploration state (fixes issue where new saves spawn with explorer on map)
+  state.isExploring = false;
+  state.explorerPos = null;
   initTiles();
   saveGame();
   location.reload();
@@ -281,6 +322,11 @@ function triggerGameOver(message) {
 // Initial load and startup
 let loopHandle;
 loadGame();
+
+// 1.0 Phase 3.2 - Initialize resource animation tracker after game loads
+if (typeof initResourceTracker === 'function') {
+  initResourceTracker();
+}
 
 // Check if this is a game over state
 if (state.gameOver) {

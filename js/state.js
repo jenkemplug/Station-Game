@@ -15,9 +15,16 @@ let state = {
   survivors: [],
   nextSurvivorId: 1,
   tiles: [],
-  mapSize: { w: 20, h: 10 },
-  baseTile: { x: 10, y: 5 },
+  // 1.0 - Blueprint System: Large map with viewport window
+  fullMap: { width: BLUEPRINT.MAP_WIDTH, height: BLUEPRINT.MAP_HEIGHT }, // Actual station size (80x80)
+  viewport: { x: 0, y: 0, width: 20, height: 10 }, // Visible window
+  explorerPos: null, // {x, y} when in exploration mode, null when at base
+  isExploring: false, // Track exploration mode state
+  mapSize: { w: 20, h: 10 }, // DEPRECATED - kept for compatibility during transition
+  baseTile: { x: BLUEPRINT.MAP_WIDTH / 2, y: BLUEPRINT.MAP_HEIGHT / 2 }, // Base at center (40, 40)
   explored: new Set(),
+  visible: new Set(), // 1.0 - Currently in vision range (shows structure + content)
+  seen: new Set(),    // 1.0 - Previously seen (shows structure only, content hidden)
   inventory: [], // Changed to an array to support item durability
   nextItemId: 1,
   inventoryCapacity: 30, // 0.9.0 - Increased from 20 to 30 for better early game
@@ -43,7 +50,19 @@ let state = {
   escalationLevel: 0,    // Increments past 100% threat for endless difficulty scaling
   lastEscalationTime: 0, // Timestamp for time-based escalation
   threatLocked: false,   // Once at 100%, threat cannot decrease
-  missions: [], // active expeditions
+  activeMissions: [], // active away missions
+  completedMissions: [], // 1.0 - Stores mission IDs (e.g., 'med_bay_salvage') - prevents re-discovery/re-triggering
+  keycards: [], // 1.0 - Unlocked sectors (starts empty, first keycard earned from mission 1)
+  successfulMissions: [], // 1.0 - Stores sector names (e.g., 'medicalBay') - used for door unlocking and keycard progression
+  // 1.0 - Phase 2.4: Shuttle Repair & Win Condition
+  shuttleRepair: {
+    unlocked: false,      // Unlocked after completing hangarBay mission
+    progress: 0,          // 0-100%, represents repair completion
+    componentsInstalled: 0, // Track component installations
+    fuelCellsInstalled: 0,  // Track fuel cell installations
+    finalBossDefeated: false // Track if Alpha Queen has been beaten
+  },
+  gameWon: false, // 1.0 - Track win state
   timeNow: Date.now(),
   gameOver: false, // 0.8.10 - Track game over state to prevent respawn on reload
 };

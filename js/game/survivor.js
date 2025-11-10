@@ -22,16 +22,6 @@ function rollAbilities(classId) {
 }
 
 function recruitSurvivor(name) {
-  // Check recruitment cost
-  const cost = getRecruitCost();
-  if (!name && state.resources.scrap < cost) {
-    appendLog(`Need ${cost} scrap to recruit.`);
-    return;
-  }
-
-  // Only deduct cost if this is a manual recruitment (not from exploration)
-  if (!name) state.resources.scrap -= cost;
-
   // 0.8.0 - Assign random class and roll for abilities
   const survivorClass = assignRandomClass();
   const abilities = rollAbilities(survivorClass);
@@ -91,7 +81,7 @@ function recruitSurvivor(name) {
   state.survivors.push(s);
   
   // Build recruitment log message
-  let logMsg = `${s.name} was recruited${!name ? ` (cost: ${cost} scrap)` : ''}.`;
+  let logMsg = `${s.name} was recruited.`;
   const className = SURVIVOR_CLASSES.find(c => c.id === survivorClass)?.name || survivorClass;
   logMsg += ` Class: ${className}`;
   if (abilities.length > 0) {
@@ -163,11 +153,21 @@ function grantXp(survivor, amount) {
   const gained = Math.round(amount * xpMult);
   survivor.xp += gained;
   appendLog(`${survivor.name} gains ${gained} XP.`);
+  
+  // 1.0 Phase 3.2 - Show XP popup animation
+  if (typeof showXPPopup === 'function') {
+    showXPPopup(survivor.id, gained);
+  }
 
   // Check for level up
   if (survivor.xp >= survivor.nextXp) {
     survivor.level++;
     // skill removed - redundant with level (0.9.0)
+    
+    // 1.0 Phase 3.2 - Flash level up animation
+    if (typeof flashLevelUp === 'function') {
+      flashLevelUp(survivor.id);
+    }
     
     // 0.9.0 - Increase max HP by 5, maintaining HP percentage if armor equipped
     const oldEffectiveMaxHp = getEffectiveMaxHp(survivor);

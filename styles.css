@@ -348,46 +348,113 @@ button:disabled {
   transform: translateX(2px);
 }
 .map {
-  background: rgba(0,0,0,0.2);
+  background: 
+    linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.3)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 1px,
+      transparent 34px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 1px,
+      transparent 34px
+    );
   padding: 12px;
   border-radius: 8px;
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: 4px;
   justify-content: center;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
 }
 
 .tile {
   width: 100%;
   padding-bottom: 100%;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.03);
+  border-radius: 4px;
+  background: 
+    /* Metallic sheen overlay */
+    linear-gradient(135deg, 
+      rgba(180,200,220,0.08) 0%, 
+      rgba(100,120,140,0.04) 25%,
+      rgba(60,80,100,0.02) 50%,
+      rgba(100,120,140,0.04) 75%,
+      rgba(180,200,220,0.08) 100%
+    ),
+    /* Subtle panel lines */
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 2px,
+      transparent 16px
+    ),
+    /* Base metallic color */
+    radial-gradient(ellipse at center, rgba(50,55,65,0.9) 0%, rgba(30,35,45,0.95) 100%);
+  border: 1px solid rgba(120,140,160,0.15);
+  box-shadow: 
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -1px 0 rgba(0,0,0,0.4),
+    0 2px 4px rgba(0,0,0,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   position: relative;
-  transition: all 0.2s;
+  transition: all 0.2s ease-out;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  will-change: background, border-color, box-shadow;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .tile.explorable {
   cursor: pointer;
-  border-color: rgba(74,158,255,0.3);
-  background: rgba(74,158,255,0.05);
+  border-color: rgba(74,158,255,0.4);
+  background: 
+    /* Energy glow effect */
+    radial-gradient(ellipse at center, rgba(74,158,255,0.15) 0%, transparent 70%),
+    /* Metallic sheen */
+    linear-gradient(135deg, 
+      rgba(100,180,255,0.12) 0%, 
+      rgba(74,158,255,0.06) 50%,
+      rgba(100,180,255,0.12) 100%
+    ),
+    /* Base metallic */
+    radial-gradient(ellipse at center, rgba(50,60,75,0.9) 0%, rgba(35,45,60,0.95) 100%);
+  box-shadow: 
+    inset 0 1px 0 rgba(74,158,255,0.2),
+    inset 0 -1px 0 rgba(0,0,0,0.4),
+    0 0 10px rgba(74,158,255,0.3),
+    0 2px 4px rgba(0,0,0,0.5);
 }
 
 .tile.revisitable {
-  border-color: rgba(255,170,0,0.4);
-  background: rgba(255,170,0,0.06);
+  border-color: rgba(255,170,0,0.6);
+  background: 
+    linear-gradient(135deg, rgba(255,170,0,0.15) 0%, rgba(255,170,0,0.06) 100%),
+    rgba(30,30,40,0.4);
   color: var(--warning);
+  box-shadow: 
+    inset 0 1px 2px rgba(0,0,0,0.3),
+    0 0 10px rgba(255,170,0,0.25);
 }
 
 .tile.explorable:hover {
-  background: rgba(74,158,255,0.1);
-  transform: scale(1.05);
+  background: 
+    linear-gradient(135deg, rgba(74,158,255,0.20) 0%, rgba(74,158,255,0.08) 100%),
+    rgba(30,30,40,0.5);
+  transform: scale(1.08);
   border-color: var(--accent);
+  box-shadow: 
+    inset 0 1px 3px rgba(74,158,255,0.2),
+    0 0 15px rgba(74,158,255,0.4);
 }
 
 .tile > span {
@@ -395,28 +462,361 @@ button:disabled {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  font-size: 12px; /* Reduced from 18px to prevent row expansion */
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.9));
+  line-height: 1;
+  display: inline-block;
 }
 
 .tile.explored {
-  background: rgba(74,158,255,0.1);
+  background: 
+    /* Illuminated metallic surface */
+    radial-gradient(circle at 30% 30%, rgba(100,180,255,0.2) 0%, transparent 50%),
+    linear-gradient(135deg, 
+      rgba(74,158,255,0.18) 0%, 
+      rgba(50,120,200,0.10) 50%,
+      rgba(74,158,255,0.18) 100%
+    ),
+    /* Subtle panel texture */
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      rgba(74,158,255,0.03) 1px,
+      transparent 2px,
+      transparent 16px
+    ),
+    /* Base metal */
+    radial-gradient(ellipse at center, rgba(50,65,85,0.9) 0%, rgba(35,50,70,0.95) 100%);
   color: var(--accent);
   font-weight: 600;
-  border-color: rgba(74,158,255,0.2);
+  border-color: rgba(74,158,255,0.35);
+  box-shadow: 
+    inset 0 1px 0 rgba(74,158,255,0.25),
+    inset 0 -1px 0 rgba(0,0,0,0.5),
+    0 0 8px rgba(74,158,255,0.2);
 }
 
 /* Ensure revisitable tiles stand out, even when also marked explored/explorable */
 .tile.explored.revisitable,
 .tile.explorable.revisitable {
-  background: rgba(255,68,68,0.10);
-  border-color: rgba(255,68,68,0.40);
+  background: 
+    linear-gradient(135deg, rgba(255,68,68,0.18) 0%, rgba(255,68,68,0.10) 100%),
+    rgba(30,30,40,0.5);
+  border-color: rgba(255,68,68,0.6);
   color: var(--danger);
+  box-shadow: 
+    inset 0 1px 2px rgba(0,0,0,0.3),
+    0 0 12px rgba(255,68,68,0.3);
 }
 
 .tile.base {
-  background: rgba(68,255,68,0.1);
+  background: 
+    radial-gradient(circle at center, rgba(68,255,68,0.2) 0%, rgba(68,255,68,0.1) 100%),
+    rgba(30,30,40,0.5);
   color: var(--success);
   font-weight: 700;
-  border-color: rgba(68,255,68,0.2);
+  border-color: rgba(68,255,68,0.5);
+  box-shadow: 
+    inset 0 0 10px rgba(68,255,68,0.1),
+    0 0 20px rgba(68,255,68,0.3);
+}
+
+/* 1.0 - Explorer token highlighting */
+.tile.explorer-token {
+  background: rgba(255,215,0,0.25) !important;
+  border: 2px solid rgba(255,215,0,0.9) !important;
+  box-shadow: 
+    0 0 15px rgba(255,215,0,0.6),
+    inset 0 0 10px rgba(255,215,0,0.3);
+  animation: explorer-pulse 2s ease-in-out infinite;
+  z-index: 10; /* Ensure explorer is always visible above other tiles */
+}
+
+.tile.explorer-token > span {
+  font-size: 18px; /* Slightly larger for better visibility */
+  filter: drop-shadow(0 0 4px rgba(255,215,0,0.9));
+  /* Remove animation that breaks centering */
+}
+
+@keyframes explorer-pulse {
+  0%, 100% { 
+    box-shadow: 
+      0 0 15px rgba(255,215,0,0.6),
+      inset 0 0 10px rgba(255,215,0,0.3);
+    border-color: rgba(255,215,0,0.9);
+  }
+  50% { 
+    box-shadow: 
+      0 0 25px rgba(255,215,0,0.8),
+      inset 0 0 15px rgba(255,215,0,0.5);
+    border-color: rgba(255,215,0,1);
+  }
+}
+
+/* 1.0 - Terrain-specific styling */
+.tile.tile-wall {
+  background: 
+    /* Strong metallic highlight */
+    linear-gradient(135deg, 
+      rgba(140,150,170,0.5) 0%, 
+      rgba(90,100,120,0.3) 25%,
+      rgba(60,70,90,0.2) 50%,
+      rgba(90,100,120,0.3) 75%,
+      rgba(140,150,170,0.5) 100%
+    ),
+    /* Shiny metal reflection */
+    radial-gradient(ellipse at 30% 30%, 
+      rgba(200,210,230,0.4) 0%, 
+      rgba(120,130,150,0.2) 40%,
+      transparent 70%
+    ),
+    /* Panel rivets/details */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      rgba(0,0,0,0.15) 1px,
+      transparent 2px,
+      transparent 8px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      rgba(0,0,0,0.15) 1px,
+      transparent 2px,
+      transparent 8px
+    ),
+    /* Base metal color */
+    radial-gradient(ellipse at center, rgba(85,95,110,0.98) 0%, rgba(65,75,90,0.98) 100%);
+  border: 1px solid rgba(130,145,165,0.7) !important;
+  box-shadow: 
+    inset 2px 2px 4px rgba(180,190,210,0.4),
+    inset -2px -2px 4px rgba(0,0,0,0.6),
+    0 0 8px rgba(100,120,150,0.3),
+    0 2px 4px rgba(0,0,0,0.5) !important;
+}
+
+/* Wall Variations - Using data attributes for true per-tile randomness based on coordinates */
+.tile.tile-wall[data-wall-variant="0"] {
+  background: linear-gradient(130deg, rgba(58,58,68,0.95) 0%, rgba(38,38,48,0.95) 100%) !important;
+}
+
+.tile.tile-wall[data-wall-variant="1"] {
+  background: linear-gradient(140deg, rgba(62,62,72,0.95) 0%, rgba(42,42,52,0.95) 100%) !important;
+}
+
+.tile.tile-wall[data-wall-variant="2"] {
+  background: linear-gradient(125deg, rgba(55,55,65,0.92) 0%, rgba(40,40,50,0.92) 100%) !important;
+}
+
+.tile.tile-wall[data-wall-variant="3"] {
+  background: linear-gradient(145deg, rgba(63,63,73,0.96) 0%, rgba(43,43,53,0.96) 100%) !important;
+}
+
+.tile.tile-wall[data-wall-variant="4"] {
+  background: linear-gradient(132deg, rgba(57,57,67,0.94) 0%, rgba(37,37,47,0.94) 100%) !important;
+}
+
+.tile.tile-wall[data-wall-variant="5"] {
+  background: linear-gradient(138deg, rgba(61,61,71,0.93) 0%, rgba(41,41,51,0.93) 100%) !important;
+}
+
+.tile.tile-wall[data-wall-variant="6"] {
+  background: linear-gradient(128deg, rgba(59,59,69,0.97) 0%, rgba(39,39,49,0.97) 100%) !important;
+}
+
+.tile.tile-wall[data-wall-variant="7"] {
+  background: linear-gradient(142deg, rgba(64,64,74,0.95) 0%, rgba(44,44,54,0.95) 100%) !important;
+}
+
+.tile.tile-wall[data-wall-variant="8"] {
+  background: linear-gradient(133deg, rgba(56,56,66,0.96) 0%, rgba(36,36,46,0.96) 100%) !important;
+}
+
+.tile.tile-wall[data-wall-variant="9"] {
+  background: linear-gradient(137deg, rgba(65,65,75,0.94) 0%, rgba(45,45,55,0.94) 100%) !important;
+}
+
+.tile.tile-wall > span {
+  display: none; /* Hide the wall character completely */
+}
+
+.tile.tile-corridor {
+  background: 
+    linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%),
+    rgba(25,25,35,0.5);
+  border-color: rgba(255,255,255,0.10);
+  color: var(--muted);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+}
+
+.tile.tile-room {
+  background: 
+    linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(255,255,255,0.15);
+  color: var(--muted);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* 1.0 - Base room unique styling (safe zone) */
+.tile.tile-baseRoom { 
+  background: 
+    radial-gradient(circle at center, rgba(74,158,255,0.20) 0%, rgba(74,158,255,0.10) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(74,158,255,0.5);
+  box-shadow: 
+    inset 0 0 8px rgba(74,158,255,0.15),
+    0 0 12px rgba(74,158,255,0.4);
+}
+
+/* 1.0 - Sector-specific room colors with enhanced gradients */
+.tile.tile-medicalBay { 
+  background: 
+    linear-gradient(135deg, rgba(0,220,120,0.12) 0%, rgba(0,180,100,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(0,200,100,0.25); 
+  box-shadow: inset 0 1px 2px rgba(0,200,100,0.1);
+}
+.tile.tile-engineeringDeck { 
+  background: 
+    linear-gradient(135deg, rgba(255,180,0,0.12) 0%, rgba(255,145,0,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(255,165,0,0.25); 
+  box-shadow: inset 0 1px 2px rgba(255,165,0,0.1);
+}
+.tile.tile-securityWing { 
+  background: 
+    linear-gradient(135deg, rgba(220,0,0,0.12) 0%, rgba(180,0,0,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(200,0,0,0.25); 
+  box-shadow: inset 0 1px 2px rgba(200,0,0,0.1);
+}
+.tile.tile-crewQuarters { 
+  background: 
+    linear-gradient(135deg, rgba(120,170,255,0.12) 0%, rgba(100,150,255,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(100,150,255,0.25); 
+  box-shadow: inset 0 1px 2px rgba(100,150,255,0.1);
+}
+.tile.tile-researchLabs { 
+  background: 
+    linear-gradient(135deg, rgba(170,0,255,0.12) 0%, rgba(130,0,235,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(150,0,255,0.25); 
+  box-shadow: inset 0 1px 2px rgba(150,0,255,0.1);
+}
+.tile.tile-shoppingMall { 
+  background: 
+    linear-gradient(135deg, rgba(255,235,0,0.12) 0%, rgba(235,195,0,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(255,215,0,0.25); 
+  box-shadow: inset 0 1px 2px rgba(255,215,0,0.1);
+}
+.tile.tile-maintenanceHub { 
+  background: 
+    linear-gradient(135deg, rgba(170,170,170,0.12) 0%, rgba(130,130,130,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(150,150,150,0.25); 
+  box-shadow: inset 0 1px 2px rgba(150,150,150,0.1);
+}
+.tile.tile-communications { 
+  background: 
+    linear-gradient(135deg, rgba(0,170,255,0.12) 0%, rgba(0,130,235,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(0,150,255,0.25); 
+  box-shadow: inset 0 1px 2px rgba(0,150,255,0.1);
+}
+.tile.tile-cargoBay { 
+  background: 
+    linear-gradient(135deg, rgba(159,89,39,0.12) 0%, rgba(119,49,0,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(139,69,19,0.25); 
+  box-shadow: inset 0 1px 2px rgba(139,69,19,0.1);
+}
+.tile.tile-corporateOffices { 
+  background: 
+    linear-gradient(135deg, rgba(84,84,84,0.12) 0%, rgba(44,44,44,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(64,64,64,0.25); 
+  box-shadow: inset 0 1px 2px rgba(64,64,64,0.1);
+}
+.tile.tile-reactorChamber { 
+  background: 
+    linear-gradient(135deg, rgba(255,70,70,0.12) 0%, rgba(235,30,30,0.06) 100%),
+    rgba(30,30,40,0.6);
+  border-color: rgba(255,50,50,0.25); 
+  box-shadow: inset 0 1px 2px rgba(255,50,50,0.1);
+}
+.tile.tile-observationDeck { background: rgba(100,100,200,0.06); border-color: rgba(100,100,200,0.15); }
+.tile.tile-hangarBay { background: rgba(180,180,180,0.06); border-color: rgba(180,180,180,0.15); }
+
+/* Explorable tiles override terrain styling */
+.tile.explorable {
+  background: rgba(74,158,255,0.08) !important;
+  border-color: rgba(74,158,255,0.4) !important;
+}
+
+.tile.explorable:hover {
+  background: rgba(74,158,255,0.15) !important;
+  border-color: var(--accent) !important;
+}
+
+/* Override for dangerous content */
+.tile.revisitable {
+  background: rgba(255,68,68,0.15) !important;
+  border-color: rgba(255,68,68,0.5) !important;
+  color: var(--danger) !important;
+}
+
+/* 1.0 - Locked/Unlocked door styling */
+.tile.locked-door {
+  background: rgba(255,68,68,0.12) !important;
+  border-color: rgba(255,68,68,0.6) !important;
+  color: var(--danger) !important;
+  font-size: 1.2em;
+}
+
+.tile.has-keycard-door {
+  background: rgba(34,197,94,0.12) !important;
+  border-color: rgba(34,197,94,0.6) !important;
+  color: #22c55e !important;
+  font-size: 1.2em;
+}
+
+.tile.unlocked-door {
+  background: rgba(34,197,94,0.12) !important;
+  border-color: rgba(34,197,94,0.6) !important;
+  color: #22c55e !important;
+  font-size: 1.2em;
+}
+
+.tile.locked-door:hover {
+  background: rgba(255,68,68,0.2) !important;
+  cursor: not-allowed;
+}
+
+.tile.has-keycard-door:hover {
+  background: rgba(34,197,94,0.2) !important;
+}
+
+.tile.unlocked-door:hover {
+  background: rgba(34,197,94,0.2) !important;
+}
+
+.tile.tile-void {
+  background: transparent !important;
+  border: none !important;
+}
+
+.tile.tile-void > span {
+  display: none;
+}
+
+.tile.tile-mission.discovered {
+  background: rgba(167, 139, 250, 0.1);
+  color: var(--rarity-uncommon);
+  font-weight: 700;
+  border-color: rgba(167, 139, 250, 0.2);
 }
 .task-list {
   display: flex;
@@ -615,6 +1015,7 @@ footer {
   border: 1px solid rgba(255,255,255,0.03);
   box-shadow: var(--shadow-sm);
   transition: all 0.2s;
+  position: relative; /* 1.0 Phase 3.2 - For XP popups */
 }
 
 .survivor-card:hover {
@@ -1156,4 +1557,1029 @@ footer {
 
 .repair-item-action {
   text-align: right;
+}
+
+/* --- Mission Modal Styles --- */
+#missionModal .modal-header h3 {
+  font-size: 20px;
+  color: var(--text);
+}
+.mission-title {
+  font-size: 18px;
+  color: var(--accent);
+  margin-bottom: 0;
+}
+.mission-briefing {
+  color: var(--text);
+  opacity: 0.9;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.mission-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mission-event-text {
+  background: rgba(0,0,0,0.2);
+  padding: 12px;
+  border-radius: 4px;
+  font-style: italic;
+  color: var(--muted);
+  border-left: 3px solid var(--accent);
+}
+.mission-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.mission-survivor-select {
+  width: 100%;
+  padding: 8px;
+  background: #111;
+  border: 1px solid #444;
+  color: #fff;
+  border-radius: 4px;
+}
+.mission-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mission-choice {
+  flex: 1 1 180px; /* Allow buttons to wrap on small screens */
+  padding: 10px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: center;
+}
+.mission-choice:hover {
+  background: #6aaaff;
+}
+
+/* 1.0 - Phase 3.1: Tutorial System Styles */
+.tutorial-tab {
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.tutorial-tab:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text);
+}
+
+.tutorial-tab.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.tutorial-section {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.tutorial-section h2 {
+  margin-top: 0;
+}
+
+.tutorial-section p {
+  margin: 12px 0;
+  line-height: 1.7;
+}
+
+.tutorial-section ul,
+.tutorial-section ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.tutorial-section li {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.tutorial-box {
+  background: rgba(74, 158, 255, 0.05);
+  border: 1px solid rgba(74, 158, 255, 0.2);
+  border-left: 3px solid var(--accent);
+  padding: 16px;
+  margin: 16px 0;
+  border-radius: 4px;
+}
+
+.tutorial-box strong {
+  color: var(--accent);
+  display: block;
+  margin-bottom: 8px;
+  font-size: 1.05em;
+}
+
+.tutorial-box ul,
+.tutorial-box ol {
+  margin-top: 8px;
+}
+
+.tutorial-tip {
+  background: rgba(68, 255, 68, 0.05);
+  border: 1px solid rgba(68, 255, 68, 0.2);
+  border-left: 3px solid var(--success);
+  padding: 12px;
+  margin: 16px 0;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+.tutorial-warning {
+  background: rgba(255, 68, 68, 0.05);
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  border-left: 3px solid var(--danger);
+  padding: 12px;
+  margin: 16px 0;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 1.0 - Phase 3.2: Resource Change Animations */
+@keyframes resourceIncrease {
+  0% { 
+    color: var(--success);
+  }
+  50% { 
+    color: var(--success);
+    filter: brightness(1.2);
+  }
+  100% { 
+    color: inherit;
+  }
+}
+
+@keyframes resourceDecrease {
+  0% { 
+    color: var(--danger);
+  }
+  50% { 
+    color: var(--danger);
+    filter: brightness(1.2);
+  }
+  100% { 
+    color: inherit;
+  }
+}
+
+@keyframes resourceCritical {
+  0%, 100% { 
+    color: var(--danger);
+    filter: brightness(1);
+  }
+  50% { 
+    color: var(--danger);
+    filter: brightness(1.3);
+  }
+}
+
+.resource-increase {
+  animation: resourceIncrease 0.3s ease-out;
+}
+
+.resource-decrease {
+  animation: resourceDecrease 0.3s ease-out;
+}
+
+.resource-critical {
+  animation: resourceCritical 1.5s ease-in-out infinite;
+  font-weight: bold;
+}
+
+/* Button pulse for important actions */
+@keyframes buttonPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(74, 158, 255, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(74, 158, 255, 0);
+  }
+}
+
+.button-highlight {
+  animation: buttonPulse 2s ease-in-out infinite;
+}
+
+/* Loot drop animation */
+@keyframes lootDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.8);
+  }
+  60% {
+    transform: translateY(5px) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.loot-notification {
+  animation: lootDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* XP gain animation */
+@keyframes xpGain {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+    color: var(--success);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-5px);
+    filter: brightness(1.4);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+.xp-popup {
+  animation: xpGain 1.5s ease-out forwards;
+  position: absolute;
+  pointer-events: none;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+/* Level up animation */
+@keyframes levelUp {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  25% {
+    transform: scale(1.2) rotate(-5deg);
+    filter: brightness(1.5) drop-shadow(0 0 12px rgba(74, 158, 255, 0.8));
+  }
+  50% {
+    transform: scale(1.2) rotate(5deg);
+    filter: brightness(1.5) drop-shadow(0 0 12px rgba(74, 158, 255, 0.8));
+  }
+  75% {
+    transform: scale(1.2) rotate(-5deg);
+    filter: brightness(1.5) drop-shadow(0 0 12px rgba(74, 158, 255, 0.8));
+  }
+}
+
+.level-up-flash {
+  animation: levelUp 0.8s ease-in-out;
+}
+
+/* 1.0 Phase 3.2 - Combat UI Animations */
+@keyframes hitImpact {
+  0% { 
+    transform: translateX(0);
+  }
+  25% { 
+    transform: translateX(-8px);
+  }
+  50% { 
+    transform: translateX(6px);
+  }
+  75% { 
+    transform: translateX(-4px);
+  }
+  100% { 
+    transform: translateX(0);
+  }
+}
+
+@keyframes damageFlash {
+  0%, 100% {
+    background: var(--card-gradient);
+  }
+  50% {
+    background: linear-gradient(135deg, rgba(255,68,68,0.3), rgba(255,68,68,0.1));
+  }
+}
+
+@keyframes healFlash {
+  0%, 100% {
+    background: var(--card-gradient);
+  }
+  50% {
+    background: linear-gradient(135deg, rgba(74,222,128,0.3), rgba(74,222,128,0.1));
+  }
+}
+
+@keyframes dodgeSwipe {
+  0% {
+    transform: translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(20px) rotate(10deg);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes shootFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 200, 50, 1);
+    filter: brightness(1);
+  }
+  20% {
+    box-shadow: 0 0 30px 15px rgba(255, 165, 0, 0.9), 0 0 60px 30px rgba(255, 100, 0, 0.5);
+    filter: brightness(1.4);
+  }
+  40% {
+    box-shadow: 0 0 25px 12px rgba(255, 165, 0, 0.6);
+    filter: brightness(1.2);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 165, 0, 0);
+    filter: brightness(1);
+  }
+}
+
+@keyframes meleeSlash {
+  0% {
+    transform: translateX(0) scale(1);
+    filter: brightness(1);
+  }
+  30% {
+    transform: translateX(10px) scale(1.05);
+    filter: brightness(1.2);
+  }
+  60% {
+    transform: translateX(-5px) scale(1.03);
+    filter: brightness(1.15);
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes powerAttack {
+  0% {
+    transform: translateX(0) scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
+  }
+  20% {
+    transform: translateX(-8px) scale(1.1);
+    filter: brightness(1.1);
+    box-shadow: 0 0 15px 10px rgba(255, 68, 68, 0.5);
+  }
+  40% {
+    transform: translateX(-5px) scale(1.15);
+    filter: brightness(1.2);
+    box-shadow: 0 0 25px 15px rgba(255, 68, 68, 0.7);
+  }
+  60% {
+    transform: translateX(15px) scale(1.2);
+    filter: brightness(1.3);
+    box-shadow: 0 0 30px 20px rgba(255, 68, 68, 0.9);
+  }
+  75% {
+    transform: translateX(-3px) scale(1.05);
+    filter: brightness(1.15);
+    box-shadow: 0 0 15px 10px rgba(255, 68, 68, 0.5);
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
+  }
+}
+
+@keyframes throwGrenade {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  40% {
+    transform: translateY(-15px) rotate(-20deg);
+  }
+  70% {
+    transform: translateY(-8px) rotate(10deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes missSwing {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(15px);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* 1.0 Phase 3.2 - Explosion effect for splash damage */
+@keyframes explode {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(3);
+    opacity: 0;
+  }
+}
+
+/* 1.0 Phase 3.2 - Flame spread effect for flamethrower splash */
+@keyframes burnSpread {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5) rotate(0deg);
+    opacity: 1;
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(2.5) rotate(180deg);
+    opacity: 0.9;
+    filter: hue-rotate(20deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(4) rotate(360deg);
+    opacity: 0;
+    filter: hue-rotate(0deg);
+  }
+}
+
+/* 1.0 Phase 3.2 - Plasma/energy wave effect */
+@keyframes plasmaWave {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 1;
+    filter: brightness(2);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 0.8;
+    filter: brightness(1.5);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(3.5);
+    opacity: 0;
+    filter: brightness(1);
+  }
+}
+
+@keyframes stunEffect {
+  0%, 100% {
+    filter: brightness(1) hue-rotate(0deg);
+    transform: translateX(0);
+  }
+  25% {
+    filter: brightness(1.5) hue-rotate(30deg);
+    transform: translateX(-3px);
+  }
+  50% {
+    filter: brightness(1.5) hue-rotate(-30deg);
+    transform: translateX(3px);
+  }
+  75% {
+    filter: brightness(1.5) hue-rotate(30deg);
+    transform: translateX(-3px);
+  }
+}
+
+@keyframes burnEffect {
+  0%, 100% {
+    filter: brightness(1.1);
+    box-shadow: 0 0 12px 4px rgba(255, 120, 0, 0.45);
+  }
+  33% {
+    filter: brightness(1.3) saturate(1.25);
+    box-shadow: 0 0 18px 8px rgba(255, 80, 0, 0.6);
+  }
+  66% {
+    filter: brightness(1.2) saturate(1.2);
+    box-shadow: 0 0 15px 6px rgba(255, 140, 20, 0.5);
+  }
+}
+
+@keyframes poisonEffect {
+  0%, 100% {
+    filter: brightness(1);
+    box-shadow: 0 0 10px 3px rgba(147, 51, 234, 0.4);
+  }
+  50% {
+    filter: brightness(1.15) saturate(1.2);
+    box-shadow: 0 0 16px 7px rgba(147, 51, 234, 0.6);
+  }
+}
+
+@keyframes bleedEffect {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(139, 0, 0, 0);
+  }
+  50% {
+    box-shadow: 0 0 15px 8px rgba(139, 0, 0, 0.8);
+  }
+}
+
+@keyframes weakenEffect {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+    filter: grayscale(0.5);
+  }
+}
+
+@keyframes phasedEffect {
+  0%, 100% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+  50% {
+    opacity: 0.4;
+    filter: blur(3px) brightness(1.5);
+    transform: translateX(5px);
+  }
+}
+
+@keyframes destabilizedEffect {
+  0%, 100% {
+    transform: translateX(0);
+    filter: hue-rotate(0deg);
+  }
+  25% {
+    transform: translateX(-3px);
+    filter: hue-rotate(90deg) blur(1px);
+  }
+  50% {
+    transform: translateX(3px);
+    filter: hue-rotate(180deg) blur(2px);
+  }
+  75% {
+    transform: translateX(-2px);
+    filter: hue-rotate(270deg) blur(1px);
+  }
+}
+
+@keyframes consumableUse {
+  0% {
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1);
+  }
+  25% {
+    transform: scale(1.1) rotate(-10deg);
+    filter: brightness(1.4);
+  }
+  50% {
+    transform: scale(1.15) rotate(10deg);
+    filter: brightness(1.5);
+    box-shadow: 0 0 30px 15px rgba(74, 222, 128, 0.6);
+  }
+  75% {
+    transform: scale(1.1) rotate(-5deg);
+    filter: brightness(1.4);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1);
+  }
+}
+
+/* 1.0 Phase 3.2 - Color-coded consumable animations */
+@keyframes consumableUseHeal {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.3);
+    box-shadow: 0 0 25px 12px rgba(74, 222, 128, 0.8);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+}
+
+@keyframes consumableUseStimpack {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.3);
+    box-shadow: 0 0 25px 12px rgba(6, 182, 212, 0.8);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+  }
+}
+
+@keyframes consumableUseRepair {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(74, 158, 255, 0);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.3);
+    box-shadow: 0 0 25px 12px rgba(74, 158, 255, 0.8);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(74, 158, 255, 0);
+  }
+}
+
+@keyframes consumableUseDrug {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(255, 100, 0, 0);
+  }
+  50% {
+    transform: scale(1.1);
+    filter: brightness(1.4) saturate(1.3);
+    box-shadow: 0 0 25px 12px rgba(255, 100, 0, 0.9);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(255, 100, 0, 0);
+  }
+}
+
+@keyframes consumableUseStealth {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.5);
+    box-shadow: 0 0 30px 15px rgba(255, 255, 255, 0.9);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+@keyframes consumableUseNanite {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+  50% {
+    transform: scale(1.12);
+    filter: brightness(1.5);
+    box-shadow: 0 0 30px 15px rgba(16, 185, 129, 0.9);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes consumableUseStun {
+  0% {
+    transform: scale(1);
+    filter: brightness(1) saturate(1) hue-rotate(0deg);
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+  }
+  50% {
+    transform: scale(1.1);
+    filter: brightness(1.5) saturate(1.5) hue-rotate(180deg);
+    box-shadow: 0 0 30px 15px rgba(138, 43, 226, 0.9), 0 0 40px 20px rgba(0, 255, 255, 0.7);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1) saturate(1) hue-rotate(360deg);
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+  }
+}
+
+@keyframes consumableUseOverride {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+  50% {
+    transform: scale(1.1);
+    filter: brightness(1.4) saturate(1.4);
+    box-shadow: 0 0 30px 15px rgba(239, 68, 68, 0.9);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes consumableUseRevival {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+  }
+  50% {
+    transform: scale(1.12);
+    filter: brightness(1.6);
+    box-shadow: 0 0 35px 18px rgba(6, 182, 212, 0.95);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+  }
+}
+
+@keyframes aimPulse {
+  0%, 100% {
+    border-color: rgba(255,255,255,0.1);
+    box-shadow: 0 0 0 0 rgba(74, 158, 255, 0);
+  }
+  50% {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(74, 158, 255, 0.3);
+  }
+}
+
+@keyframes guardGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(100, 200, 255, 0);
+    filter: brightness(1);
+  }
+  30% {
+    box-shadow: 0 0 20px 8px rgba(100, 200, 255, 0.5), inset 0 0 15px rgba(100, 200, 255, 0.3);
+    filter: brightness(1.2);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(100, 200, 255, 0);
+    filter: brightness(1);
+  }
+}
+
+@keyframes deathFade {
+  0% {
+    opacity: 1;
+    filter: grayscale(0);
+  }
+  100% {
+    opacity: 0.5;
+    filter: grayscale(1);
+  }
+}
+
+@keyframes reviveGlow {
+  0% {
+    filter: grayscale(1) brightness(0.7);
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+  50% {
+    box-shadow: 0 0 30px 10px rgba(74, 222, 128, 0.6);
+  }
+  100% {
+    filter: grayscale(0) brightness(1);
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+}
+
+@keyframes criticalHit {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.15) rotate(-5deg);
+  }
+  50% {
+    transform: scale(1.15) rotate(5deg);
+  }
+  75% {
+    transform: scale(1.15) rotate(-5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes statusEffect {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+}
+
+/* Combat animation classes */
+.combat-hit {
+  animation: hitImpact 0.6s ease-out;
+}
+
+.combat-damage {
+  animation: damageFlash 0.7s ease-out;
+}
+
+.combat-heal {
+  animation: healFlash 0.7s ease-out;
+}
+
+.combat-dodge {
+  animation: dodgeSwipe 0.7s ease-out;
+}
+
+.combat-shoot {
+  animation: shootFlash 0.5s ease-out;
+}
+
+.combat-shoot-burst {
+  animation: shootFlash 0.35s ease-out 3; /* 3 flashes = 1.05s total */
+}
+
+.combat-melee {
+  animation: meleeSlash 0.7s ease-out;
+}
+
+.combat-power-attack {
+  animation: powerAttack 0.9s ease-out;
+}
+
+.combat-throw {
+  animation: throwGrenade 0.7s ease-out;
+}
+
+.combat-miss {
+  animation: missSwing 0.6s ease-out;
+}
+
+.combat-aim {
+  animation: aimPulse 1.5s ease-in-out;
+}
+
+.combat-guard {
+  animation: guardGlow 0.6s ease-out;
+}
+
+.combat-death {
+  animation: deathFade 0.8s ease-out forwards;
+  pointer-events: none;
+}
+
+.combat-revive {
+  animation: reviveGlow 1s ease-out;
+}
+
+.combat-crit {
+  animation: criticalHit 0.5s ease-out;
+}
+
+.status-stunned {
+  animation: stunEffect 0.6s ease-in-out 3;
+}
+
+.status-burning {
+  animation: burnEffect 1s ease-in-out infinite;
+}
+
+.status-poisoned {
+  animation: poisonEffect 1.5s ease-in-out infinite;
+}
+
+.status-bleeding {
+  animation: bleedEffect 1.2s ease-in-out infinite;
+}
+
+.status-weakened {
+  animation: weakenEffect 1.5s ease-in-out infinite;
+}
+
+.status-phased {
+  animation: phasedEffect 1.2s ease-in-out infinite;
+}
+
+.status-destabilized {
+  animation: destabilizedEffect 1s ease-in-out infinite;
+}
+
+.combat-consumable {
+  animation: consumableUse 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.combat-consumable-heal {
+  animation: consumableUseHeal 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.combat-consumable-stimpack {
+  animation: consumableUseStimpack 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.combat-consumable-repair {
+  animation: consumableUseRepair 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.combat-consumable-drug {
+  animation: consumableUseDrug 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.combat-consumable-stealth {
+  animation: consumableUseStealth 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.combat-consumable-nanite {
+  animation: consumableUseNanite 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.combat-consumable-stun {
+  animation: consumableUseStun 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.combat-consumable-override {
+  animation: consumableUseOverride 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.combat-consumable-revival {
+  animation: consumableUseRevival 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.status-effect-popup {
+  animation: statusEffect 2s ease-out forwards;
+  position: absolute;
+  pointer-events: none;
+  font-weight: bold;
+  font-size: 1.2em;
+  z-index: 100;
+}
+
+/* Enhanced combat button feedback */
+.combat-actions button:active {
+  transform: scale(0.95);
+  filter: brightness(0.9);
+}
+
+.combat-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.combat-actions button.action-ready {
+  animation: buttonPulse 2s ease-in-out infinite;
 }

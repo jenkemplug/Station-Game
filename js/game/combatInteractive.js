@@ -1,6 +1,51 @@
 // Interactive Combat System (0.7.0)
 // Presents a modal where the player can select actions per round.
 
+// 1.0 - Advanced AI: Smart target selection for aliens in interactive combat
+function selectAlienTargetInteractive(alien, validTargets) {
+  if (validTargets.length === 0) return null;
+  if (validTargets.length === 1) return validTargets[0];
+  
+  // Different alien types have different targeting priorities
+  const alienType = alien.type || 'drone';
+  
+  switch (alienType) {
+    case 'spitter':
+    case 'brood':
+      // Spitters/Broods target high-defense survivors (they have armor piercing)
+      return validTargets.reduce((highest, f) => {
+        const fDef = calculateDefense(f);
+        const highestDef = calculateDefense(highest);
+        return fDef > highestDef ? f : highest;
+      });
+      
+    case 'stalker':
+    case 'ravager':
+    case 'queen':
+      // Aggressive types focus fire on lowest HP (finish kills)
+      return validTargets.reduce((lowest, f) => {
+        const fPercent = f.hp / f.maxHp;
+        const lowestPercent = lowest.hp / lowest.maxHp;
+        return fPercent < lowestPercent ? f : lowest;
+      });
+      
+    case 'lurker':
+      // Lurkers target high-value classes (Medics, Engineers, Scientists)
+      const priorityClasses = ['Medic', 'Engineer', 'Scientist'];
+      const highValue = validTargets.filter(f => priorityClasses.includes(f.class));
+      if (highValue.length > 0) {
+        return highValue[Math.floor(Math.random() * highValue.length)];
+      }
+      // Fall through to random if no priority targets
+      
+    case 'drone':
+    case 'spectre':
+    default:
+      // Drones/Spectres: Random targeting (unpredictable)
+      return validTargets[Math.floor(Math.random() * validTargets.length)];
+  }
+}
+
 // 0.9.0 - Helper: Calculate effective max HP including armor bonuses
 function getEffectiveMaxHpCombat(survivor) {
   let effectiveMax = survivor.maxHp || 20;
@@ -134,10 +179,23 @@ function getStatusEffectsDisplay(entity, isAlien = false, rarityColor = null, pa
   }
   
   // Check currentCombat objects for action-based status (these persist across renders)
-  if (currentCombat && currentCombat.guarding && currentCombat.guarding[entity.id]) {
+  // 1.0 Phase 3.2 FIX: Only check ONE source per status to avoid duplicates
+  // For player survivors: use currentCombat.guarding/aimed
+  // For hostile survivors/aliens: use entity._guardActive/_aimedShot
+  const useEntityFlags = isAlien || entity.type === 'hostile_human';
+  
+  if (!useEntityFlags && currentCombat && currentCombat.guarding && currentCombat.guarding[entity.id]) {
     effects.push({ text: '🛡️ Guarding', color: 'var(--accent)', tooltip: `+${BALANCE.COMBAT_ACTIONS.Guard.defenseBonus} defense this turn` });
   }
-  if (currentCombat && currentCombat.aimed && currentCombat.aimed[entity.id]) {
+  if (!useEntityFlags && currentCombat && currentCombat.aimed && currentCombat.aimed[entity.id]) {
+    effects.push({ text: '🎯 Aimed', color: 'var(--accent)', tooltip: `+${Math.round(BALANCE.COMBAT_ACTIONS.Aim.accuracyBonus * 100)}% hit chance next shot` });
+  }
+  
+  // 1.0 Phase 3.2 - Hostile survivor AI status effects (only for aliens/hostiles)
+  if (useEntityFlags && entity._guardActive) {
+    effects.push({ text: '🛡️ Guarding', color: 'var(--accent)', tooltip: `+${BALANCE.COMBAT_ACTIONS.Guard.defenseBonus} defense this turn` });
+  }
+  if (useEntityFlags && entity._aimedShot) {
     effects.push({ text: '🎯 Aimed', color: 'var(--accent)', tooltip: `+${Math.round(BALANCE.COMBAT_ACTIONS.Aim.accuracyBonus * 100)}% hit chance next shot` });
   }
   
@@ -397,7 +455,17 @@ function applyWeaponEffectsInteractive(weapon, target, attacker, baseDmg) {
           target._burnQueue.push(3); // Add new stack with 3 turns
           target._burnStacks = target._burnQueue.length;
           logCombat(`🔥 ${target.name} is set ablaze! (${target._burnStacks} stack${target._burnStacks > 1 ? 's' : ''})`, true);
-          renderCombatUI(); // Update UI to show burn status
+          
+          // 1.0 Phase 3.2 - Queue burn animation
+          if (typeof queueAnimation === 'function' && typeof applyStatusAnimation === 'function') {
+            queueAnimation(() => {
+              const targetCard = getCombatantCard(target.id, true);
+              applyStatusAnimation(targetCard, 'burning', true);
+              renderCombatUI();
+            }, 400);
+          } else {
+            renderCombatUI();
+          }
           break;
         
         case 'poison':
@@ -407,7 +475,17 @@ function applyWeaponEffectsInteractive(weapon, target, attacker, baseDmg) {
           target._poisonQueue.push(3); // Add new stack with 3 turns
           target._poisonStacks = target._poisonQueue.length;
           logCombat(`☠️ ${target.name} is poisoned! (${target._poisonStacks} stack${target._poisonStacks > 1 ? 's' : ''})`, true);
-          renderCombatUI(); // Update UI to show poison status
+          
+          // 1.0 Phase 3.2 - Queue poison animation
+          if (typeof queueAnimation === 'function' && typeof applyStatusAnimation === 'function') {
+            queueAnimation(() => {
+              const targetCard = getCombatantCard(target.id, true);
+              applyStatusAnimation(targetCard, 'poisoned', true);
+              renderCombatUI();
+            }, 400);
+          } else {
+            renderCombatUI();
+          }
           break;
           
         case 'stun':
@@ -415,7 +493,18 @@ function applyWeaponEffectsInteractive(weapon, target, attacker, baseDmg) {
           if (!target._stunned) {
             target._stunned = 1;
             logCombat(`⚡ ${target.name} is stunned!`, true);
-            renderCombatUI(); // Update UI to show stun status
+            
+            // 1.0 Phase 3.2 - Queue stun animation
+            if (typeof queueAnimation === 'function' && typeof applyStatusAnimation === 'function') {
+              queueAnimation(() => {
+                const targetCard = getCombatantCard(target.id, true);
+                applyStatusAnimation(targetCard, 'stunned', true);
+                setTimeout(() => applyStatusAnimation(targetCard, 'stunned', false), 1800);
+                renderCombatUI();
+              }, 500);
+            } else {
+              renderCombatUI();
+            }
           }
           break;
           
@@ -431,11 +520,24 @@ function applyWeaponEffectsInteractive(weapon, target, attacker, baseDmg) {
           // Phase: Chance to ignore next attack
           target._phaseActive = true;
           logCombat(`👻 ${target.name} is destabilized!`, true);
-          renderCombatUI(); // Update UI to show destabilized status
+          
+          // 1.0 Phase 3.2 - Queue destabilized animation
+          if (typeof queueAnimation === 'function' && typeof applyStatusAnimation === 'function') {
+            queueAnimation(() => {
+              const targetCard = getCombatantCard(target.id, true);
+              applyStatusAnimation(targetCard, 'destabilized', true);
+              if (typeof showStatusEffect === 'function') {
+                showStatusEffect(targetCard, '🌀 DESTABILIZED', 'var(--danger)');
+              }
+              renderCombatUI();
+            }, 400);
+          } else {
+            renderCombatUI();
+          }
           break;
           
         case 'splash':
-          // Splash: Hit additional targets (always triggers)
+          // 1.0 Phase 3.2 - Splash: Hit additional targets with weapon-specific effect
           const splashDmg = Math.max(1, Math.floor(baseDmg * 0.5)); // 50% splash damage
           const targetIndex = currentCombat.aliens.findIndex(al => al.id === target.id);
           const splashTargets = [];
@@ -449,16 +551,97 @@ function applyWeaponEffectsInteractive(weapon, target, attacker, baseDmg) {
           }
           
           if (splashTargets.length > 0) {
-            logCombat(`💥 Splash damage hits adjacent targets!`, true);
-            for (const splashTarget of splashTargets) {
-              // Apply alien armor to splash damage too
-              const splashArmor = splashTarget.armor || 0;
-              const splashDealt = Math.max(1, splashDmg - splashArmor);
-              splashTarget.hp -= splashDealt;
-              logCombat(`${splashTarget.name} is hit by splash for ${splashDealt} damage.`);
-              if (splashTarget.hp <= 0) {
-                logCombat(`${splashTarget.name} eliminated by splash damage.`);
-                state.alienKills = (state.alienKills || 0) + 1;
+            // 1.0 Phase 3.2 - Determine splash effect based on weapon subtype or name
+            const weaponSubtype = attacker.equipment?.weapon?.subtype || '';
+            const weaponName = attacker.equipment?.weapon?.name || '';
+            let splashEmoji = '💥'; // Default explosion
+            let splashAnimation = 'explode';
+            let splashMessage = 'Splash damage hits adjacent targets!';
+            
+            // Weapon-specific effects (check subtype first, then name as fallback)
+            if (weaponSubtype.includes('flame') || weaponName.toLowerCase().includes('flame') || weaponName.toLowerCase().includes('incendiary')) {
+              splashEmoji = '🔥';
+              splashAnimation = 'burnSpread';
+              splashMessage = 'Flames spread to adjacent targets!';
+            } else if (weaponSubtype.includes('plasma') || weaponSubtype.includes('energy') || weaponName.toLowerCase().includes('plasma') || weaponName.toLowerCase().includes('energy')) {
+              splashEmoji = '🌟'; // Star emoji instead of lightning (used for crits)
+              splashAnimation = 'plasmaWave';
+              splashMessage = 'Energy discharge hits adjacent targets!';
+            }
+            // Note: Add more splash types here as needed
+            // Pattern: Check weapon.subtype first (reliable), then weapon.name (flexible)
+            
+            logCombat(`${splashEmoji} ${splashMessage}`, true);
+            
+            // 1.0 Phase 3.2 - Show splash effect immediately (synchronized with main damage)
+            if (typeof queueAnimation === 'function') {
+              setTimeout(() => {
+                const targetCard = getCombatantCard(target.id, true);
+                if (targetCard) {
+                  // Create splash effect
+                  const splashEffect = document.createElement('div');
+                  splashEffect.textContent = splashEmoji;
+                  splashEffect.style.position = 'absolute';
+                  splashEffect.style.fontSize = '48px';
+                  splashEffect.style.left = '50%';
+                  splashEffect.style.top = '50%';
+                  splashEffect.style.transform = 'translate(-50%, -50%)';
+                  splashEffect.style.animation = `${splashAnimation} 600ms ease-out`;
+                  splashEffect.style.pointerEvents = 'none';
+                  splashEffect.style.zIndex = '1000';
+                  targetCard.style.position = 'relative';
+                  targetCard.appendChild(splashEffect);
+                  setTimeout(() => splashEffect.remove(), 600);
+                }
+              }, 0); // Play immediately
+              
+              // Apply splash damage to each target with synchronized animations
+              for (const splashTarget of splashTargets) {
+                const splashArmor = splashTarget.armor || 0;
+                const splashDealt = Math.max(1, splashDmg - splashArmor);
+                
+                // Apply damage immediately (synchronized)
+                setTimeout(() => {
+                  splashTarget.hp -= splashDealt;
+                  
+                  // Update UI and animate
+                  renderCombatUI();
+                  const splashCard = getCombatantCard(splashTarget.id, true);
+                  if (splashCard) {
+                    if (typeof animateDamage === 'function') {
+                      animateDamage(splashCard, true);
+                    }
+                    if (typeof showStatusEffect === 'function') {
+                      showStatusEffect(splashCard, `${splashEmoji} ${splashDealt}`, '#ff6b6b');
+                    }
+                  }
+                  
+                  logCombat(`${splashTarget.name} is hit by splash for ${splashDealt} damage.`);
+                  if (splashTarget.hp <= 0) {
+                    logCombat(`${splashTarget.name} eliminated by splash damage.`);
+                    state.alienKills = (state.alienKills || 0) + 1;
+                  }
+                }, 0); // Play immediately
+              }
+              
+              // Check if all aliens died from splash (delayed check after animations)
+              setTimeout(() => {
+                const remainingAliens = currentCombat.aliens.filter(a => a.hp > 0);
+                if (remainingAliens.length === 0) {
+                  endCombat(true);
+                }
+              }, 800); // Wait for damage animations to complete
+            } else {
+              // Fallback without animations
+              for (const splashTarget of splashTargets) {
+                const splashArmor = splashTarget.armor || 0;
+                const splashDealt = Math.max(1, splashDmg - splashArmor);
+                splashTarget.hp -= splashDealt;
+                logCombat(`${splashTarget.name} is hit by splash for ${splashDealt} damage.`);
+                if (splashTarget.hp <= 0) {
+                  logCombat(`${splashTarget.name} eliminated by splash damage.`);
+                  state.alienKills = (state.alienKills || 0) + 1;
+                }
               }
             }
           }
@@ -556,6 +739,17 @@ let currentCombat = null; // { context, idx, partyIds, aliens, turn, aimed, log,
 function openCombatOverlay() {
   const overlay = document.getElementById('combatOverlay');
   overlay.style.display = 'flex';
+  
+  // 1.0 Phase 3.2 - Clear enemy turn flag when reopening combat (fixes retreat bug)
+  if (currentCombat) {
+    currentCombat._enemyTurnActive = false;
+  }
+  
+  // 1.0 Phase 3.2 - Clear animation queue to prevent stuck buttons
+  if (typeof clearAnimationQueue === 'function') {
+    clearAnimationQueue();
+  }
+  
   renderCombatUI();
 }
 
@@ -745,11 +939,16 @@ function interactiveEncounterAtTile(idx) {
   // 0.9.0 - Clear cooldowns at start of combat
   explorer._burstCooldown = 0;
   
+  // Determine enemy type for log message
+  const isHostile = t.aliens.some(a => a.type === 'hostile_human');
+  const enemyLabel = isHostile ? 'Hostile Survivor(s)' : 'Alien(s)';
+  const enemyLabelLower = isHostile ? 'hostile survivor(s)' : 'alien(s)';
+  
   logCombat('=== ENGAGEMENT START ===');
-  logCombat(`${currentCombat.partyIds.length} Survivor vs ${t.aliens.length} Alien(s)`);
+  logCombat(`${currentCombat.partyIds.length} Survivor vs ${t.aliens.length} ${enemyLabel}`);
   logCombat(`— Turn ${currentCombat.turn} —`);
   logCombat('— Your Turn —');
-  appendLog(`Engagement: ${currentCombat.partyIds.length} survivor vs ${t.aliens.length} alien(s).`);
+  appendLog(`Engagement: ${currentCombat.partyIds.length} survivor vs ${t.aliens.length} ${enemyLabelLower}.`);
   openCombatOverlay();
 }
 
@@ -791,6 +990,54 @@ function interactiveRaidCombat(aliens, guards, turretCount = 0) {
   openCombatOverlay();
 }
 
+// Generic starter used by missions and other systems to begin an interactive combat
+// partyParam: array of survivor objects or survivor ids
+// aliensParam: array of alien objects
+// contextParam: either a string ('field'|'base') or an object { type: 'mission', ... }
+function startInteractiveCombat(partyParam, aliensParam, contextParam = 'field') {
+  if (!partyParam || !Array.isArray(partyParam) || partyParam.length === 0) {
+    console.error('startInteractiveCombat: invalid party:', partyParam);
+    return;
+  }
+
+  // Normalize party ids
+  const partyIds = partyParam.map(p => (typeof p === 'object' && p !== null) ? (p.id) : p);
+
+  // Patch aliens for backward compatibility
+  let aliens = (aliensParam || []).map(patchAlienData).filter(Boolean);
+  if (aliens.length === 0) {
+    console.error('startInteractiveCombat: no aliens provided');
+    return;
+  }
+
+  // Clear cooldowns for party members
+  partyIds.forEach(id => {
+    const s = state.survivors.find(x => x.id === id);
+    if (s) s._burstCooldown = 0;
+  });
+
+  // Build currentCombat object
+  currentCombat = {
+    context: contextParam,
+    idx: (contextParam && contextParam.idx !== undefined) ? contextParam.idx : null,
+    partyIds: partyIds,
+    aliens: aliens,
+    turn: 1,
+    aimed: {},
+    guarding: {},
+    log: [],
+    activePartyIdx: 0,
+    selectedTargetId: (aliens && aliens.find(a => a.hp > 0) ? aliens.find(a => a.hp > 0).id : null)
+  };
+
+  logCombat('=== ENGAGEMENT START ===');
+  logCombat(`${currentCombat.partyIds.length} Survivor(s) vs ${currentCombat.aliens.length} Alien(s)`);
+  logCombat(`— Turn ${currentCombat.turn} —`);
+  logCombat('— Your Turn —');
+  appendLog(`Engagement: ${currentCombat.partyIds.length} survivor(s) vs ${currentCombat.aliens.length} alien(s).`);
+  openCombatOverlay();
+}
+
 function logCombat(msg, alsoAppend = false) {
   if (!currentCombat) return;
 
@@ -820,6 +1067,59 @@ function logCombat(msg, alsoAppend = false) {
 // 0.9.0 - Generate passive effect displays for aliens (like survivor equipment effects)
 function getAlienPassiveEffects(alien, alienColor) {
   const effects = [];
+  
+  // 1.0 - For hostile_human, show equipment passive effects (like survivors)
+  if (alien.type === 'hostile_human' && alien.equipment) {
+    // Weapon effects
+    if (alien.equipment.weapon && alien.equipment.weapon.effects) {
+      alien.equipment.weapon.effects.forEach(eff => {
+        const [type, value] = eff.split(':');
+        const weapColor = RARITY_COLORS[alien.equipment.weapon.rarity] || alienColor;
+        
+        if (type === 'burn') {
+          effects.push({ text: `Burn ${value}%`, color: weapColor, tooltip: `${value}% chance to inflict burn (2 damage/turn for 3 turns)` });
+        } else if (type === 'stun') {
+          effects.push({ text: `Stun ${value}%`, color: weapColor, tooltip: `${value}% chance to stun target (skip next turn)` });
+        } else if (type === 'armorPierce') {
+          effects.push({ text: `Pierce ${value}%`, color: weapColor, tooltip: `Ignores ${value}% of target's armor` });
+        } else if (type === 'phase') {
+          effects.push({ text: `Phase ${value}%`, color: weapColor, tooltip: `${value}% chance to phase through armor entirely` });
+        } else if (type === 'splash') {
+          effects.push({ text: `Splash ${value}%`, color: weapColor, tooltip: `Deals ${value}% damage to all enemies` });
+        } else if (type === 'burst') {
+          effects.push({ text: `Burst ×${value}`, color: weapColor, tooltip: `Fires ${value} shots in burst mode` });
+        } else if (type === 'crit') {
+          // Already shown in stats, skip
+        } else if (type === 'accuracy') {
+          // Already shown in stats, skip
+        }
+      });
+    }
+    
+    // Armor effects
+    if (alien.equipment.armor && alien.equipment.armor.effects) {
+      alien.equipment.armor.effects.forEach(eff => {
+        const [type, value] = eff.split(':');
+        const armorColor = RARITY_COLORS[alien.equipment.armor.rarity] || alienColor;
+        
+        if (type === 'dodge') {
+          // Already shown in stats, skip
+        } else if (type === 'reflect') {
+          effects.push({ text: `Reflect ${value}%`, color: armorColor, tooltip: `${value}% of damage reflected back to attacker` });
+        } else if (type === 'regen') {
+          effects.push({ text: `Regen ${value}`, color: armorColor, tooltip: `Regenerates ${value} HP per turn` });
+        } else if (type === 'hpBonus') {
+          effects.push({ text: `HP +${value}`, color: armorColor, tooltip: `Increases maximum HP by ${value}` });
+        } else if (type === 'immunity') {
+          effects.push({ text: `Immune: ${value}`, color: armorColor, tooltip: `Immune to ${value} effects` });
+        } else if (type === 'retreat') {
+          // Retreat bonus, skip for display
+        } else if (type === 'exploration') {
+          // Not relevant in combat
+        }
+      });
+    }
+  }
   
   // Base special ability effects (use alien's rarity color)
   if (alien.special === 'dodge') {
@@ -939,6 +1239,23 @@ function calculateAlienDamage(alien, aliens) {
   let minDmg = attackMin;
   let maxDmg = attackMax;
   const sources = [];
+  
+  // 1.0 - For hostile_human, add level and class bonuses to damage sources
+  if (alien.type === 'hostile_human') {
+    // Level bonus
+    const levelBonus = (alien.level - 1) * (BALANCE.LEVEL_ATTACK_BONUS || 0.02);
+    if (levelBonus > 0) {
+      sources.push(`Level ${alien.level} (+${Math.round(levelBonus * 100)}%)`);
+    }
+    
+    // Class bonus
+    if (alien.classBonuses && alien.classBonuses.combat) {
+      const classBonus = (alien.classBonuses.combat - 1) * 100;
+      if (classBonus > 0) {
+        sources.push(`${alien.class} (+${Math.round(classBonus)}%)`);
+      }
+    }
+  }
   
   // Matriarch aura: All aliens gain +1 attack
   const matriarchs = aliveAliens.filter(al => hasModifier(al, 'matriarch'));
@@ -1240,9 +1557,65 @@ function calculateAlienStats(alien, aliens) {
   const damageCalc = calculateAlienDamage(alien, aliens);
   
   // ARMOR/DEFENSE calculation
-  const baseArmor = alien.armor || 0;
+  // For hostile_human, defense comes from equipment.armor.defense
+  // For regular aliens, it's stored in alien.armor
+  let baseArmor = 0;
   const armorSources = [];
-  if (baseArmor > 0) armorSources.push(`Base (${baseArmor})`);
+  
+  if (alien.type === 'hostile_human') {
+    baseArmor = alien.defense || 0;
+    if (baseArmor > 0) armorSources.push(`Armor (${baseArmor})`);
+  } else {
+    baseArmor = alien.armor || 0;
+    if (baseArmor > 0) armorSources.push(`Base (${baseArmor})`);
+  }
+  
+  // ACCURACY calculation (for hostile_human only)
+  let baseAccuracy = 0;
+  const accuracySources = [];
+  if (alien.type === 'hostile_human') {
+    baseAccuracy = BALANCE.COMBAT_HIT_CHANCE || 0.75;
+    accuracySources.push(`Base (${Math.round(baseAccuracy * 100)}%)`);
+    
+    // Check for accuracy bonuses from equipment effects
+    if (alien.equipment && alien.equipment.weapon && alien.equipment.weapon.effects) {
+      alien.equipment.weapon.effects.forEach(effect => {
+        if (effect.startsWith('accuracy:')) {
+          const bonus = parseInt(effect.split(':')[1]) / 100;
+          baseAccuracy += bonus;
+          accuracySources.push(`${alien.equipment.weapon.name} (+${Math.round(bonus * 100)}%)`);
+        }
+      });
+    }
+  }
+  
+  // CRIT calculation (for hostile_human only)
+  let baseCrit = 0;
+  const critSources = [];
+  if (alien.type === 'hostile_human') {
+    baseCrit = BALANCE.COMBAT_CRIT_CHANCE || 0.12;
+    critSources.push(`Base (${Math.round(baseCrit * 100)}%)`);
+    
+    // Check for crit bonuses from equipment effects
+    if (alien.equipment && alien.equipment.weapon && alien.equipment.weapon.effects) {
+      alien.equipment.weapon.effects.forEach(effect => {
+        if (effect.startsWith('crit:')) {
+          const bonus = parseInt(effect.split(':')[1]) / 100;
+          baseCrit += bonus;
+          critSources.push(`${alien.equipment.weapon.name} (+${Math.round(bonus * 100)}%)`);
+        }
+      });
+    }
+    if (alien.equipment && alien.equipment.armor && alien.equipment.armor.effects) {
+      alien.equipment.armor.effects.forEach(effect => {
+        if (effect.startsWith('crit:')) {
+          const bonus = parseInt(effect.split(':')[1]) / 100;
+          baseCrit += bonus;
+          critSources.push(`${alien.equipment.armor.name} (+${Math.round(bonus * 100)}%)`);
+        }
+      });
+    }
+  }
   
   // DODGE calculation
   let baseDodge = 0;
@@ -1260,8 +1633,19 @@ function calculateAlienStats(alien, aliens) {
     dodgeSources.push('Swift (+30%)');
   }
   if (hasModifier(alien, 'alpha')) {
-    baseDodge += 0.50;
-    dodgeSources.push('Alpha (+50%)');
+    baseDodge += 0.25;
+    dodgeSources.push('Alpha (+25%)');
+  }
+  
+  // For hostile_human, check equipment effects
+  if (alien.type === 'hostile_human' && alien.equipment && alien.equipment.armor && alien.equipment.armor.effects) {
+    alien.equipment.armor.effects.forEach(effect => {
+      if (effect.startsWith('dodge:')) {
+        const bonus = parseInt(effect.split(':')[1]) / 100;
+        baseDodge += bonus;
+        dodgeSources.push(`${alien.equipment.armor.name} (+${Math.round(bonus * 100)}%)`);
+      }
+    });
   }
   
   const totalDodge = baseDodge;
@@ -1335,6 +1719,8 @@ function calculateAlienStats(alien, aliens) {
   return {
     damage: damageCalc,
     armor: { value: baseArmor, sources: armorSources },
+    accuracy: { value: baseAccuracy, percent: Math.round(baseAccuracy * 100), sources: accuracySources },
+    crit: { value: baseCrit, percent: Math.round(baseCrit * 100), sources: critSources },
     dodge: { value: totalDodge, percent: Math.round(totalDodge * 100), sources: dodgeSources },
     phase: { value: totalPhase, percent: Math.round(totalPhase * 100), sources: phaseSources },
     regen: { min: totalRegenMin, max: totalRegenMax, display: regenDisplay, sources: regenSources },
@@ -1343,11 +1729,27 @@ function calculateAlienStats(alien, aliens) {
 }
 
 function selectTarget(alienId) {
+  console.log('selectTarget called with:', alienId, 'type:', typeof alienId);
   if (!currentCombat) return;
-  const alien = currentCombat.aliens.find(a => a.id === alienId);
+  // Handle both string IDs (aliens) and numeric IDs (hostile survivors)
+  const alien = currentCombat.aliens.find(a => {
+    // Try direct comparison first
+    if (a.id === alienId) return true;
+    // If alienId is a string number, try numeric comparison
+    if (typeof alienId === 'string' && !isNaN(alienId)) {
+      return a.id === Number(alienId);
+    }
+    // If a.id is a number, try string comparison
+    if (typeof a.id === 'number') {
+      return String(a.id) === alienId;
+    }
+    return false;
+  });
+  console.log('Found alien:', alien, 'All aliens:', currentCombat.aliens.map(a => ({ id: a.id, name: a.name, type: a.type })));
   // Only allow targeting living aliens
   if (alien && alien.hp > 0) {
-    currentCombat.selectedTargetId = alienId;
+    // Store the ID in the same format as the alien object
+    currentCombat.selectedTargetId = alien.id;
     renderCombatUI();
   }
 }
@@ -1427,7 +1829,7 @@ function renderCombatUI() {
     }
     
     // Build stats display - show dodge only if > 0
-    let statsDisplay = `<span title="${damageTooltip}">⚔️ ${stats.damage.display}</span> • <span title="${accuracyTooltip}">🎯 ${stats.accuracy.percent}%</span> • <span title="${defenseTooltip}">🛡️ ${stats.defense.value}</span> • <span title="${critTooltip}">💥 ${stats.crit.percent}%</span>`;
+  let statsDisplay = `<span title="${damageTooltip}">⚔️ ${stats.damage.display}</span> • <span title="${accuracyTooltip}">🎯 ${stats.accuracy.percent}%</span> • <span title="${defenseTooltip}">🛡️ ${stats.defense.value}</span> • <span title="${critTooltip}">💢 ${stats.crit.percent}%</span>`;
     
     if (stats.dodge.value > 0) {
       let dodgeTooltip = `Dodge Chance`;
@@ -1466,7 +1868,8 @@ function renderCombatUI() {
       }
     }
     
-    return `<div class="card-like" ${activeClass}><strong>${s.name}${isActive ? ' ⬅' : ''}</strong><div class="small" title="${hpTooltip}">HP ${s.hp}/${effectiveMaxHp}</div>${downedStatus}<div class="small" style="margin-top:4px">${weap} • ${armor}</div>${classHtml}${abilitiesHtml}${statsHtml}${statusEffects}</div>`;
+    // 1.0 Phase 3.2 - Add data-survivor-id for animations
+    return `<div class="card-like" ${activeClass} data-survivor-id="${s.id}"><strong>${s.name}${isActive ? ' ⬅' : ''}</strong><div class="small" title="${hpTooltip}">HP ${s.hp}/${effectiveMaxHp}</div>${downedStatus}<div class="small" style="margin-top:4px">${weap} • ${armor}</div>${classHtml}${abilitiesHtml}${statsHtml}${statusEffects}</div>`;
   }).join('');
 
   const turretHtml = (currentCombat.turrets && currentCombat.turrets > 0)
@@ -1476,7 +1879,8 @@ function renderCombatUI() {
   const alienHtml = aliens.map(a => {
     
     const alive = a.hp > 0;
-      const isTarget = alive && a.id === currentCombat.selectedTargetId;
+      // 1.0 Phase 3.2 - Hide targeting outline during enemy turn
+      const isTarget = alive && a.id === currentCombat.selectedTargetId && !currentCombat._enemyTurnActive;
       const targetClass = isTarget ? 'targeted-enemy' : '';
     const clickableClass = alive ? 'clickable' : '';
     
@@ -1563,6 +1967,27 @@ function renderCombatUI() {
     // Build stats display - start with damage and armor
     let statsDisplay = `<span title="${alienDamageTooltip}">⚔️ ${stats.damage.display}</span> • <span title="${alienArmorTooltip}">🛡️ ${stats.armor.value}</span>`;
     
+    // For hostile_human, add accuracy and crit (like survivors)
+    if (a.type === 'hostile_human') {
+      if (stats.accuracy && stats.accuracy.value > 0) {
+        let accuracyTooltip = `Hit Chance`;
+        if (stats.accuracy.sources.length > 0) {
+          accuracyTooltip += `:\n• ${stats.accuracy.sources.join('\n• ')}`;
+          accuracyTooltip += `\n\nTotal: ${stats.accuracy.percent}%`;
+        }
+        statsDisplay += ` • <span title="${accuracyTooltip}">🎯 ${stats.accuracy.percent}%</span>`;
+      }
+      
+      if (stats.crit && stats.crit.value > 0) {
+        let critTooltip = `Critical Hit Chance (×1.6 damage)`;
+        if (stats.crit.sources.length > 0) {
+          critTooltip += `:\n• ${stats.crit.sources.join('\n• ')}`;
+          critTooltip += `\n\nTotal: ${stats.crit.percent}%`;
+        }
+  statsDisplay += ` • <span title="${critTooltip}">💢 ${stats.crit.percent}%</span>`;
+      }
+    }
+    
     // Add dodge if present
     if (stats.dodge.value > 0) {
       let dodgeTooltip = `Dodge Chance`;
@@ -1605,16 +2030,53 @@ function renderCombatUI() {
     
     const statsHtml = `<div class="small" style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1)">${statsDisplay}</div>`;
     
+    // 1.0 - Show class and abilities for hostile survivors
+    let classAbilitiesHtml = '';
+    if (a.type === 'hostile_human') {
+      // Show class with tooltip
+      const classInfo = SURVIVOR_CLASSES.find(c => c.id === a.class);
+      const className = classInfo ? classInfo.name : (a.class || 'Unknown');
+      const classDesc = classInfo ? classInfo.desc : '';
+      classAbilitiesHtml += `<div class="small" style="color:var(--class-common);margin-top:4px" title="${classDesc}">${className}</div>`;
+      
+      // Show abilities with rarity colors and tooltips
+      if (a.abilities && a.abilities.length > 0) {
+        const abilityDetails = a.abilities.map(abilityId => {
+          // Find the ability definition
+          for (const classKey in SPECIAL_ABILITIES) {
+            const found = SPECIAL_ABILITIES[classKey].find(ab => ab.id === abilityId);
+            if (found) {
+              return `<span style="color: ${found.color}" title="${found.effect}">${found.name}</span>`;
+            }
+          }
+          return abilityId;
+        });
+        classAbilitiesHtml += `<div class="small" style="margin-top:4px">${abilityDetails.join(' • ')}</div>`;
+      }
+    }
+    
+    // 1.0 - Show equipment for hostile survivors
+    let equipmentHtml = '';
+    if (a.type === 'hostile_human' && a.equipment) {
+      const weapColor = a.equipment.weapon?.rarity ? (RARITY_COLORS[a.equipment.weapon.rarity] || '#ffffff') : '#ffffff';
+      const armorColor = a.equipment.armor?.rarity ? (RARITY_COLORS[a.equipment.armor.rarity] || '#ffffff') : '#ffffff';
+      const weapTooltip = a.equipment.weapon ? getItemTooltip(a.equipment.weapon) : '';
+      const armorTooltip = a.equipment.armor ? getItemTooltip(a.equipment.armor) : '';
+      const weap = a.equipment.weapon ? `<span style="color:${weapColor}" title="${weapTooltip}">${a.equipment.weapon.name}</span>` : 'Unarmed';
+      const armor = a.equipment.armor ? `<span style="color:${armorColor}" title="${armorTooltip}">${a.equipment.armor.name}</span>` : 'No Armor';
+      equipmentHtml = `<div class="small" style="margin-top:4px">${weap} • ${armor}</div>`;
+    }
+    
     // 0.9.0 - Show passive effects below stats (like survivor equipment effects)
     const passiveEffects = getAlienPassiveEffects(a, alienColor);
     
     // 0.9.0 - Show temporary combat status effects at the bottom (pass aliens array for dynamic calculations)
     const tempStatusEffects = getStatusEffectsDisplay(a, true, alienColor, aliens);
     
-    // 0.9.0 - Use the same rarity color for the alien name
-    const nameColor = alienColor;
+    // Override color for unique mission enemies based on their rank
+    const nameColor = a.rank && rarityColors[a.rank] ? rarityColors[a.rank] : alienColor;
     
-    return `<div class="card-like ${alive ? '' : 'small'} ${targetClass} ${clickableClass}" data-alien-id="${a.id}"><strong style="color: ${nameColor}">${a.name}</strong><div class="small">HP ${Math.max(0,a.hp)}/${a.maxHp}</div>${modifiersHtml}${statsHtml}${passiveEffects}${tempStatusEffects}</div>`;
+    return `<div class="card-like ${alive ? '' : 'small'} ${targetClass} ${clickableClass}" data-alien-id="${a.id}"><strong style="color: ${nameColor}">${a.name}</strong><div class="small">HP ${Math.max(0,a.hp)}/${a.maxHp}</div>${modifiersHtml}${classAbilitiesHtml}${equipmentHtml}${statsHtml}${passiveEffects}${tempStatusEffects}</div>`;
   }).join('');
 
   const combatLogHtml = currentCombat.log.map(l => `<div class="small" style="padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">${l}</div>`).join('');
@@ -1652,17 +2114,82 @@ function renderCombatUI() {
       if (targetCard) {
         const hasAttr = targetCard.hasAttribute('data-alien-id');
         const attrValue = targetCard.getAttribute('data-alien-id');
+        console.log('Clicked alien card:', { attrValue, hasAttr, targetCard });
         if (attrValue) {
           selectTarget(attrValue);
         }
       } else {
         // No target card found on click
+        console.log('No alien card found on click');
       }
     });
   }
 
   // 0.9.0 - Render adaptive action buttons based on weapon type
   renderAdaptiveActions(activeSurvivor);
+  
+  // 1.0 Phase 3.3 - Re-apply persistent status animations after DOM recreation
+  reapplyStatusAnimations();
+}
+
+// 1.0 Phase 3.3 - Re-apply all persistent status effects to cards after renderCombatUI()
+function reapplyStatusAnimations() {
+  if (!currentCombat) return;
+  
+  // Re-apply status effects to survivors
+  const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
+  party.forEach(s => {
+    const card = getCombatantCard(s.id, false);
+    if (!card) return;
+    
+    // Apply burning status
+    if (s._burnQueue && s._burnQueue.length > 0) {
+      if (typeof applyStatusAnimation === 'function') {
+        applyStatusAnimation(card, 'burning', true);
+      }
+    }
+    
+    // Apply poisoned status
+    if (s._poisonQueue && s._poisonQueue.length > 0) {
+      if (typeof applyStatusAnimation === 'function') {
+        applyStatusAnimation(card, 'poisoned', true);
+      }
+    }
+    
+    // Apply stunned status
+    if (s._stunned && s._stunned > 0) {
+      if (typeof applyStatusAnimation === 'function') {
+        applyStatusAnimation(card, 'stunned', true);
+      }
+    }
+  });
+  
+  // Re-apply status effects to aliens
+  currentCombat.aliens.forEach(a => {
+    const card = getCombatantCard(a.id, true);
+    if (!card) return;
+    
+    // Apply burning status
+    if (a._burnQueue && a._burnQueue.length > 0) {
+      if (typeof applyStatusAnimation === 'function') {
+        applyStatusAnimation(card, 'burning', true);
+      }
+    }
+    
+    // Apply poisoned status
+    if (a._poisonQueue && a._poisonQueue.length > 0) {
+      if (typeof applyStatusAnimation === 'function') {
+        applyStatusAnimation(card, 'poisoned', true);
+      }
+    }
+    
+    // Apply stunned status
+    if (a._stunned && a._stunned > 0) {
+      if (typeof applyStatusAnimation === 'function') {
+        applyStatusAnimation(card, 'stunned', true);
+      }
+    }
+  });
 }
 
 // 0.9.0 - Render combat action buttons based on active survivor's weapon
@@ -1844,8 +2371,13 @@ function renderAdaptiveActions(survivor) {
   
   // Render buttons
   actionsDiv.innerHTML = actions.map(a => {
-    const disabledAttr = a.disabled ? ' disabled' : '';
-    const disabledClass = a.disabled ? ' disabled-btn' : '';
+    // 1.0 Phase 3.2 - Disable all buttons during enemy turn or animations
+    const isEnemyTurnActive = currentCombat && currentCombat._enemyTurnActive;
+    const isAnimating = typeof window.isAnimating === 'function' && window.isAnimating();
+    const disabledDuringEnemyTurn = isEnemyTurnActive || isAnimating;
+    
+    const disabledAttr = (a.disabled || disabledDuringEnemyTurn) ? ' disabled' : '';
+    const disabledClass = (a.disabled || disabledDuringEnemyTurn) ? ' disabled-btn' : '';
     return `<button id="${a.id}" class="${a.class}${disabledClass}" style="${a.style || ''}" title="${a.tooltip}" onclick="${a.onclick}"${disabledAttr}>${a.label}</button>`;
   }).join('');
 }
@@ -1931,6 +2463,17 @@ function getActiveSurvivor() {
 }
 
 function advanceToNextSurvivor() {
+  // 1.0 Phase 3.2 - Process queued animations before advancing turn, no artificial delay
+  if (typeof processAnimationQueue === 'function') {
+    processAnimationQueue(() => {
+      advanceToNextSurvivorImmediate();
+    });
+  } else {
+    advanceToNextSurvivorImmediate();
+  }
+}
+
+function advanceToNextSurvivorImmediate() {
   const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
   const prevSurvivor = party[currentCombat.activePartyIdx];
 
@@ -1966,13 +2509,25 @@ function advanceToNextSurvivor() {
         }
       });
       
+      // 1.0 Phase 3.2 - Set enemy turn flag BEFORE rendering UI to prevent button re-enable
+      currentCombat._enemyTurnActive = true;
+      
       renderCombatUI(); // Update UI before turret phase
       
       // Log turn transition BEFORE enemy phase starts
       logCombat('— Enemy Turn —');
       
-      turretPhase();
-      enemyTurn();
+      // 1.0 Phase 3.2 - FIX: Process animation queue before starting turret/enemy phase
+      // This prevents turn from ending prematurely if last survivor's action is still animating
+      if (typeof processAnimationQueue === 'function') {
+        processAnimationQueue(() => {
+          turretPhase();
+          enemyTurn();
+        });
+      } else {
+        turretPhase();
+        enemyTurn();
+      }
       return;
     }
     // Loop until we find a survivor who is alive and hasn't retreated, or we've checked everyone
@@ -2028,19 +2583,55 @@ function turretAttack(idx, action, tState) {
     const hit = Math.random() < hitChance;
     if (!hit) {
       logCombat(`Auto-Turret #${idx + 1} missed.`);
-      renderCombatUI(); // Update UI after miss
+      
+      // 1.0 Phase 3.2 - Queue turret miss animation
+      renderCombatUI();
+      if (typeof queueAnimation === 'function') {
+        queueAnimation(() => {
+          const targetCard = getCombatantCard(target.id, true);
+          if (typeof showStatusEffect === 'function') {
+            showStatusEffect(targetCard, 'MISS!', 'var(--muted)');
+          }
+        }, 400);
+      }
       continue;
     }
     
     // Check alien special defenses
     if (target.special === 'dodge' && Math.random() < 0.25) {
       logCombat(`${target.name} evades auto-turret fire!`);
-      renderCombatUI(); // Update UI after dodge
+      
+      // 1.0 Phase 3.2 - Queue turret dodge animation
+      renderCombatUI();
+      if (typeof queueAnimation === 'function') {
+        queueAnimation(() => {
+          const targetCard = getCombatantCard(target.id, true);
+          if (typeof animateDodge === 'function') {
+            animateDodge(targetCard);
+          }
+          if (typeof showStatusEffect === 'function') {
+            showStatusEffect(targetCard, 'DODGE!', 'var(--accent)');
+          }
+        }, 500);
+      }
       continue;
     }
     if (target.special === 'phase' && Math.random() < 0.40) {
       logCombat(`${target.name} phases through turret fire!`);
-      renderCombatUI(); // Update UI after phase
+      
+      // 1.0 Phase 3.2 - Queue turret phase animation
+      renderCombatUI();
+      if (typeof queueAnimation === 'function') {
+        queueAnimation(() => {
+          const targetCard = getCombatantCard(target.id, true);
+          if (typeof animateDodge === 'function') {
+            animateDodge(targetCard);
+          }
+          if (typeof showStatusEffect === 'function') {
+            showStatusEffect(targetCard, '👻 PHASE', 'var(--accent)');
+          }
+        }, 600);
+      }
       continue;
     }
     
@@ -2065,23 +2656,64 @@ function turretAttack(idx, action, tState) {
       logCombat(`${target.name}'s armor deflects turret fire!`);
     }
     
-    target.hp -= dealt;
+    const pendingDamage = dealt;
     logCombat(`Auto-Turret #${idx + 1} hits ${target.name} for ${dealt}.`);
-    renderCombatUI(); // Update UI after damage
     
-    if (target.hp <= 0) {
+    // 1.0 Phase 3.2 - Queue turret damage animation, apply damage INSIDE (NO initial renderCombatUI to prevent cheat window)
+    if (typeof queueAnimation === 'function') {
+      queueAnimation(() => {
+        // Apply damage during animation
+        target.hp -= pendingDamage;
+        
+        // Update UI with new HP FIRST
+        renderCombatUI();
+        
+        // THEN get fresh card and animate
+        const targetCard = getCombatantCard(target.id, true);
+        if (typeof animateDamage === 'function') {
+          animateDamage(targetCard, false);
+        }
+        if (typeof showStatusEffect === 'function') {
+          showStatusEffect(targetCard, `-${pendingDamage}`, '#ff6b6b');
+        }
+      }, 500);
+    } else {
+      // Fallback
+      target.hp -= pendingDamage;
+      renderCombatUI();
+    }
+    
+    if (target.hp - pendingDamage <= 0) {
       logCombat(`${target.name} neutralized by automated fire.`);
       state.alienKills = (state.alienKills || 0) + 1;
       
-      // Auto-select next available target
-      const nextTarget = currentCombat.aliens.find(a => a.hp > 0);
-      if (nextTarget) {
-        currentCombat.selectedTargetId = nextTarget.id;
+      // 1.0 Phase 3.2 - Queue death animation before switching target
+      if (typeof queueAnimation === 'function') {
+        queueAnimation(() => {
+          const targetCard = getCombatantCard(target.id, true);
+          if (typeof animateDeath === 'function') {
+            animateDeath(targetCard);
+          }
+          
+          // Auto-select next available target AFTER death animation
+          const nextTarget = currentCombat.aliens.find(a => a.hp > 0);
+          if (nextTarget) {
+            currentCombat.selectedTargetId = nextTarget.id;
+          } else {
+            currentCombat.selectedTargetId = null;
+          }
+          renderCombatUI();
+        }, 600);
       } else {
-        currentCombat.selectedTargetId = null;
+        // Fallback if no animation queue
+        const nextTarget = currentCombat.aliens.find(a => a.hp > 0);
+        if (nextTarget) {
+          currentCombat.selectedTargetId = nextTarget.id;
+        } else {
+          currentCombat.selectedTargetId = null;
+        }
+        renderCombatUI();
       }
-      
-      renderCombatUI(); // Update UI after kill
     }
   }
 }
@@ -2138,12 +2770,26 @@ function playerShoot(action = 'shoot', burstShots = null) {
   if (action === 'burst') {
     if (weaponType === 'melee') {
       logCombat(`${s.name} winds up for a powerful melee attack!`);
+      
+      // 1.0 Phase 3.2 - Queue power attack animation ONCE before the damage loop
+      if (typeof queueAnimation === 'function' && typeof animatePowerAttack === 'function') {
+        queueAnimation(() => {
+          const attackerCard = getCombatantCard(s.id, false);
+          animatePowerAttack(attackerCard);
+        }, 700); // Match the delay used for power attack
+      }
     } else {
       logCombat(`${s.name} opens fire with a burst attack!`);
     }
   }
+  
+  // 1.0 Phase 3.2 - Track if we've queued a killing blow (HP updates are async in animations)
+  let killingBlowQueued = false;
+  let totalPendingDamage = 0; // Track cumulative damage across all shots
+  
   for (let i = 0; i < shots; i++) {
-    if (target.hp <= 0) {
+    // Check both actual HP and if we've already queued a killing blow
+    if (target.hp <= 0 || killingBlowQueued) {
       if (action === 'burst' && weaponType !== 'melee') {
         logCombat(`Target eliminated, ending burst fire.`);
       }
@@ -2156,6 +2802,15 @@ function playerShoot(action = 'shoot', burstShots = null) {
     if (ammoMultiplier > 0) {
       if (state.resources.ammo <= 0) {
         logCombat(`${s.name} is out of ammo!`, true);
+        
+        // 1.0 Phase 3.2 - Show out of ammo animation
+        renderCombatUI();
+        if (typeof queueAnimation === 'function' && typeof showStatusEffect === 'function') {
+          queueAnimation(() => {
+            const attackerCard = getCombatantCard(s.id, false);
+            showStatusEffect(attackerCard, '⚠️ OUT OF AMMO', 'var(--danger)');
+          }, 400);
+        }
         break;
       }
       // Apply weapon-specific ammo consumption rate
@@ -2164,11 +2819,39 @@ function playerShoot(action = 'shoot', burstShots = null) {
     }
     
     const hit = rollHitChance(s) && !(action === 'aim' && i>0);
+    
     if (hit) {
       // Check alien special defenses before applying damage
       if (target.special === 'dodge' && Math.random() < 0.25) {
         logCombat(`${target.name} dodges the attack!`, true);
-        renderCombatUI(); // Update UI after dodge
+        
+        // 1.0 Phase 3.2 - Render UI first
+        renderCombatUI();
+        
+        // Queue attack animation THEN dodge reaction
+        if (typeof queueAnimation === 'function') {
+          const weaponType = s.equipment?.weapon?.weaponType || 'unarmed';
+          
+          // Skip animation for melee power attacks (already animated)
+          if (!(action === 'burst' && weaponType === 'melee')) {
+            queueAnimation(() => {
+              const attackerCard = getCombatantCard(s.id, false);
+              if (typeof animateShoot === 'function') {
+                animateShoot(attackerCard, weaponType, false);
+              }
+            }, weaponType === 'melee' ? 500 : 400);
+          }
+          
+          queueAnimation(() => {
+            const targetCard = getCombatantCard(target.id, true);
+            if (typeof animateDodge === 'function') {
+              animateDodge(targetCard);
+            }
+            if (typeof showStatusEffect === 'function') {
+              showStatusEffect(targetCard, 'DODGE!', 'var(--accent)');
+            }
+          }, 500);
+        }
         continue;
       }
       
@@ -2182,6 +2865,38 @@ function playerShoot(action = 'shoot', burstShots = null) {
       
       if (phaseChance > 0 && Math.random() < phaseChance) {
         logCombat(`${target.name} phases out of reality!`, true);
+        
+        // 1.0 Phase 3.2 - Render UI first
+        renderCombatUI();
+        
+        // Queue attack animation THEN phase reaction
+        if (typeof queueAnimation === 'function') {
+          const weaponType = s.equipment?.weapon?.weaponType || 'unarmed';
+          
+          // Skip animation for melee power attacks (already animated)
+          if (!(action === 'burst' && weaponType === 'melee')) {
+            queueAnimation(() => {
+              const attackerCard = getCombatantCard(s.id, false);
+              if (typeof animateShoot === 'function') {
+                animateShoot(attackerCard, weaponType, false);
+              }
+            }, weaponType === 'melee' ? 500 : 400);
+          }
+          
+          queueAnimation(() => {
+            const targetCard = getCombatantCard(target.id, true);
+            if (typeof animateDodge === 'function') {
+              animateDodge(targetCard);
+            }
+            if (typeof showStatusEffect === 'function') {
+              showStatusEffect(targetCard, '👻 PHASE', 'var(--accent)');
+            }
+            if (typeof applyStatusAnimation === 'function') {
+              applyStatusAnimation(targetCard, 'phased', true);
+              setTimeout(() => applyStatusAnimation(targetCard, 'phased', false), 2000);
+            }
+          }, 600);
+        }
         
         // 0.8.0 - Mark as just phased for Wraith modifier
         target._justPhased = true;
@@ -2234,10 +2949,23 @@ function playerShoot(action = 'shoot', burstShots = null) {
       
       // 0.9.0 - Apply alien armor (reduced by attacker's armor pierce)
       let alienArmor = target.armor || 0;
+      let armorPierced = false;
       if (s._currentArmorPierce) {
         const piercePercent = s._currentArmorPierce / 100; // Convert to decimal
         alienArmor = Math.floor(alienArmor * (1 - piercePercent));
         logCombat(`🎯 Armor piercing! (${alienArmor} effective armor after ${s._currentArmorPierce}% reduction)`, true);
+        armorPierced = true;
+        
+        // 1.0 Phase 3.2 - Queue armor pierce visual
+        if (typeof queueAnimation === 'function') {
+          queueAnimation(() => {
+            const targetCard = getCombatantCard(target.id, true);
+            if (targetCard && typeof showStatusEffect === 'function') {
+              showStatusEffect(targetCard, '🎯 PIERCE!', '#ffd700');
+            }
+          }, 300);
+        }
+        
         s._currentArmorPierce = null; // Clear after this attack
       }
       dealt = Math.max(1, dealt - alienArmor); // Armor reduces damage, min 1
@@ -2253,24 +2981,85 @@ function playerShoot(action = 'shoot', burstShots = null) {
       if (dealt < dmg) {
           logCombat(`${target.name} blocked ${dmg - dealt} damage.`);
       }
-      target.hp -= dealt;
+      
+      // 1.0 Phase 3.2 - Don't apply damage yet, store it for animation
+      const pendingDamage = dealt;
+      totalPendingDamage += dealt; // Add to cumulative damage
+      const targetWillDie = (target.hp - totalPendingDamage) <= 0; // Check against cumulative damage
+      
       logCombat(`${s.name} hits ${target.name} for ${dealt} damage.` + (overkill > 0 ? ` (${overkill} overkill)` : ``), true);
       
-      // Apply weapon effects (Moved before death check for splash on kill)
-      if (weapon && weapon.effects && weapon.effects.length > 0 && target.hp > 0) {
-        applyWeaponEffectsInteractive(weapon, target, s, dealt);
+      // 1.0 Phase 3.2 - Queue individual shot animations for burst (NO initial renderCombatUI to prevent cheat window)
+      if (typeof queueAnimation === 'function') {
+  const wasCrit = dmg > computeSurvivorDamage(s) * 1.3;
+  const damageText = wasCrit ? `💢 ${dealt}` : `-${dealt}`; // 💢 for crits
+  const damageColor = wasCrit ? '#ffd700' : '#ff6b6b'; // Gold for crits
+        
+        // For burst fire, queue a muzzle flash for THIS shot
+        if (action === 'burst' && weaponType !== 'melee') {
+          queueAnimation(() => {
+            const attackerCard = getCombatantCard(s.id, false);
+            if (typeof animateShoot === 'function') {
+              animateShoot(attackerCard, weaponType, false); // Single flash per shot
+            }
+          }, 300);
+        }
+        // For regular attacks (not burst, or already animated power attack)
+        else if (action !== 'burst') {
+          queueAnimation(() => {
+            const attackerCard = getCombatantCard(s.id, false);
+            if (typeof animateShoot === 'function') {
+              animateShoot(attackerCard, weaponType, false);
+            }
+          }, weaponType === 'melee' ? 500 : 400);
+        }
+        
+        // 1.0 Phase 3.2 - Apply damage INSIDE damage animation, then update UI
+        queueAnimation(() => {
+          // Apply damage NOW
+          target.hp -= pendingDamage;
+          
+          // Apply weapon effects after HP is reduced
+          if (weapon && weapon.effects && weapon.effects.length > 0 && target.hp > 0) {
+            applyWeaponEffectsInteractive(weapon, target, s, pendingDamage);
+          }
+          
+          // Update UI with new HP FIRST
+          renderCombatUI();
+          
+          // THEN get card from fresh DOM and animate
+          const targetCard = getCombatantCard(target.id, true);
+          if (typeof animateDamage === 'function') {
+            animateDamage(targetCard, wasCrit);
+          }
+          if (typeof showStatusEffect === 'function') {
+            showStatusEffect(targetCard, damageText, damageColor);
+          }
+        }, 400);
+      } else {
+        // Fallback if no animations
+        target.hp -= pendingDamage;
+        if (weapon && weapon.effects && weapon.effects.length > 0 && target.hp > 0) {
+          applyWeaponEffectsInteractive(weapon, target, s, pendingDamage);
+        }
+        renderCombatUI();
       }
       
-      renderCombatUI(); // Update UI after damage
-      
-      if (target.hp <= 0) {
+      if (targetWillDie) {
         logCombat(`${target.name} eliminated!`, true);
         state.alienKills = (state.alienKills || 0) + 1;
         state.threat += BALANCE.THREAT_GAIN_PER_ALIEN_KILL || 0;
         
-  // 0.9.0 - Morale gain for killing alien
+        // 0.9.0 - Morale gain for killing alien
         s.morale = Math.min(100, (s.morale || 0) + BALANCE.MORALE_GAIN_ALIEN_KILL);
-        renderCombatUI();
+        
+        // 1.0 Phase 3.2 - Queue death animation (UI already updated above)
+        if (typeof queueAnimation === 'function' && typeof animateDeath === 'function') {
+          queueAnimation(() => {
+            const targetCard = getCombatantCard(target.id, true);
+            animateDeath(targetCard);
+          }, 800);
+        }
         
         // 0.9.0 - Relentless: Stalkers with this modifier attack twice if an ally dies
         const relentlessStalkers = currentCombat.aliens.filter(al => 
@@ -2377,11 +3166,38 @@ function playerShoot(action = 'shoot', burstShots = null) {
           state.resources.tech += 1;
           appendLog(`${s.name} extracts alien tech.`);
         }
+        
+        // 1.0 Phase 3.2 - Set flag so burst loop stops immediately (HP update is async)
+        killingBlowQueued = true;
         break; // Stop burst fire on this target
       }
     } else {
       logCombat(`${s.name} missed.`, true);
-      renderCombatUI(); // Update UI after miss
+      
+      // 1.0 Phase 3.2 - Render UI first
+      renderCombatUI();
+      
+      // Queue attack animation THEN miss reaction
+      if (typeof queueAnimation === 'function') {
+        const weaponType = s.equipment?.weapon?.weaponType || 'unarmed';
+        
+        queueAnimation(() => {
+          const attackerCard = getCombatantCard(s.id, false);
+          if (typeof animateShoot === 'function') {
+            animateShoot(attackerCard, weaponType, false);
+          }
+        }, weaponType === 'melee' ? 500 : 400);
+        
+        queueAnimation(() => {
+          const targetCard = getCombatantCard(target.id, true);
+          if (typeof animateMiss === 'function') {
+            animateMiss(null, targetCard);
+          }
+          if (typeof showStatusEffect === 'function') {
+            showStatusEffect(targetCard, 'MISS!', 'var(--muted)');
+          }
+        }, 400);
+      }
     }
   }
 
@@ -2436,8 +3252,21 @@ function playerAim() {
   const s = getActiveSurvivor();
   if (!s) return;
   currentCombat.aimed[s.id] = true;
-  logCombat(`${s.name} takes careful aim...`, true);
-  renderCombatUI(); // Update UI after aim
+  const aimBonus = Math.round((BALANCE.COMBAT_ACTIONS.Aim.accuracyBonus || 0.25) * 100);
+  logCombat(`🎯 ${s.name} takes careful aim (+${aimBonus}% hit chance next shot)!`, true);
+  
+  // 1.0 Phase 3.2 - Show aim animation with status effect
+  renderCombatUI();
+  if (typeof queueAnimation === 'function' && typeof animateAim === 'function') {
+    queueAnimation(() => {
+      const card = getCombatantCard(s.id, false);
+      animateAim(card);
+      if (typeof showStatusEffect === 'function') {
+        showStatusEffect(card, `🎯 AIM +${aimBonus}%`, 'var(--accent)');
+      }
+    }, 600);
+  }
+  
   advanceToNextSurvivor();
 }
 
@@ -2446,8 +3275,23 @@ function playerGuard() {
   const s = getActiveSurvivor();
   if (!s) return;
   currentCombat.guarding[s.id] = true;
-  logCombat(`${s.name} braces for impact.`, true);
-  renderCombatUI(); // Update UI after guard
+  const guardBonus = BALANCE.COMBAT_ACTIONS.Guard.defenseBonus || 3;
+  logCombat(`🛡️ ${s.name} braces for impact (+${guardBonus} defense this turn)!`, true);
+  
+  // 1.0 Phase 3.2 - Show guard animation with status effect
+  renderCombatUI();
+  if (typeof queueAnimation === 'function') {
+    queueAnimation(() => {
+      const card = getCombatantCard(s.id, false);
+      if (typeof animateGuard === 'function') {
+        animateGuard(card);
+      }
+      if (typeof showStatusEffect === 'function') {
+        showStatusEffect(card, `🛡️ GUARD +${guardBonus}`, 'var(--accent)');
+      }
+    }, 600);
+  }
+  
   advanceToNextSurvivor();
 }
 
@@ -2582,7 +3426,7 @@ function playerUseConsumable(consumableKey) {
     return;
   }
   
-  // Apply consumable effect based on type
+  // Apply consumable effect based on type (each type has its own animation)
   let effectApplied = false;
   
   // HEALING ITEMS
@@ -2605,6 +3449,23 @@ function playerUseConsumable(consumableKey) {
     s.hp = Math.min(effectiveMaxHp, s.hp + heal);
     logCombat(`${s.name} uses ${item.name} and heals ${heal} HP.`, true);
     
+    // 1.0 Phase 3.4 - FIX: Use a simple timeout for self-use items, not the full queue.
+    // The animation queue is for multi-step sequences (e.g., throw, then hit).
+    // For a simple self-use glow, a single delayed render is more reliable.
+    if (typeof animateConsumable === 'function') {
+      const userCard = getCombatantCard(s.id, false);
+      animateConsumable(userCard, 'heal');
+      showStatusEffect(userCard, `+${heal}`, '#4ade80');
+      
+      setTimeout(() => {
+        renderCombatUI();
+        advanceToNextSurvivor();
+      }, 1200); // Match animation duration
+    } else {
+      renderCombatUI();
+      advanceToNextSurvivor();
+    }
+    
     // Medic Adrenaline Shot ability
     if (hasAbility(s, 'adrenaline')) {
       s._adrenalineBonus = (s._adrenalineBonus || 0) + 2;
@@ -2620,6 +3481,21 @@ function playerUseConsumable(consumableKey) {
     s._stimpackRetreat = effect.retreatBonus;
     s._stimpackTurns = effect.duration;
     logCombat(`${s.name} uses ${item.name}! +${Math.round(effect.evasionBonus*100)}% dodge, +${Math.round(effect.retreatBonus*100)}% retreat for ${effect.duration} turns.`, true);
+    
+    // 1.0 Phase 3.4 - FIX: Use a simple timeout for self-use items
+    if (typeof animateConsumable === 'function') {
+      const userCard = getCombatantCard(s.id, false);
+      animateConsumable(userCard, 'stimpack');
+      showStatusEffect(userCard, '💉 STIMPACK!', '#10b981');
+      
+      setTimeout(() => {
+        renderCombatUI();
+        advanceToNextSurvivor();
+      }, 1200);
+    } else {
+      renderCombatUI();
+      advanceToNextSurvivor();
+    }
     effectApplied = true;
   }
   
@@ -2631,10 +3507,40 @@ function playerUseConsumable(consumableKey) {
     if (weapon && weapon.durability < weapon.maxDurability) {
       weapon.durability = Math.min(weapon.maxDurability, weapon.durability + effect.durabilityRestore);
       logCombat(`${s.name} repairs ${weapon.name} (+${effect.durabilityRestore} durability).`, true);
+      
+      // 1.0 Phase 3.4 - FIX: Use a simple timeout for self-use items
+      if (typeof animateConsumable === 'function') {
+        const userCard = getCombatantCard(s.id, false);
+        animateConsumable(userCard, 'repair');
+        showStatusEffect(userCard, '🔧 REPAIRED!', 'var(--accent)');
+        
+        setTimeout(() => {
+          renderCombatUI();
+          advanceToNextSurvivor();
+        }, 1200);
+      } else {
+        renderCombatUI();
+        advanceToNextSurvivor();
+      }
       effectApplied = true;
     } else if (armor && armor.durability < armor.maxDurability) {
       armor.durability = Math.min(armor.maxDurability, armor.durability + effect.durabilityRestore);
       logCombat(`${s.name} repairs ${armor.name} (+${effect.durabilityRestore} durability).`, true);
+      
+      // 1.0 Phase 3.4 - FIX: Use a simple timeout for self-use items
+      if (typeof animateConsumable === 'function') {
+        const userCard = getCombatantCard(s.id, false);
+        animateConsumable(userCard, 'repair');
+        showStatusEffect(userCard, '🔧 REPAIRED!', 'var(--accent)');
+        
+        setTimeout(() => {
+          renderCombatUI();
+          advanceToNextSurvivor();
+        }, 1200);
+      } else {
+        renderCombatUI();
+        advanceToNextSurvivor();
+      }
       effectApplied = true;
     } else {
       logCombat('No damaged equipment to repair.', true);
@@ -2650,10 +3556,25 @@ function playerUseConsumable(consumableKey) {
     s.maxHp = Math.max(1, s.maxHp - maxHpLoss); // Reduce max HP
     s.hp = Math.min(s.hp, s.maxHp); // Clamp current HP to new max
     logCombat(`${s.name} uses ${item.name}! +${Math.round(effect.damageBonus * 100)}% damage for ${effect.duration} turns (-${maxHpLoss} max HP).`, true);
+    
+    // 1.0 Phase 3.4 - FIX: Use a simple timeout for self-use items
+    if (typeof animateConsumable === 'function') {
+      const userCard = getCombatantCard(s.id, false);
+      animateConsumable(userCard, 'drug');
+      showStatusEffect(userCard, '💊 OVERDRIVE!', '#ff8c00');
+      
+      setTimeout(() => {
+        renderCombatUI();
+        advanceToNextSurvivor();
+      }, 1200);
+    } else {
+      renderCombatUI();
+      advanceToNextSurvivor();
+    }
     effectApplied = true;
   }
   
-  // STUN GRENADE - Stun random enemy
+  // STUN GRENADE - Stun selected target
   if (effect.stunChance) {
     const aliens = currentCombat.aliens.filter(a => a.hp > 0 && !a.downed);
     if (aliens.length === 0) {
@@ -2661,12 +3582,72 @@ function playerUseConsumable(consumableKey) {
       return;
     }
     
-    const target = aliens[Math.floor(Math.random() * aliens.length)];
-    if (Math.random() < effect.stunChance) {
+    // 1.0 Phase 3.2 FIX: Use player's selected target instead of random
+    let target = aliens.find(a => a.id === currentCombat.selectedTargetId);
+    if (!target || target.hp <= 0 || target.downed) {
+      target = aliens[0]; // Fallback to first alive enemy
+    }
+    
+    const stunSuccess = Math.random() < effect.stunChance;
+    
+    if (stunSuccess) {
       target._stunned = effect.duration || 2;
       logCombat(`${s.name} throws ${item.name} at ${target.name}! Stunned for ${target._stunned} turns!`, true);
     } else {
       logCombat(`${s.name} throws ${item.name}, but ${target.name} resists!`, true);
+    }
+    
+    // 1.0 Phase 3.2 - Always show throw animations (even on resist)
+    // FIX: Don't call renderCombatUI() before animations - it destroys the DOM elements we're about to animate!
+    if (typeof queueAnimation === 'function') {
+      queueAnimation(() => {
+        const userCard = getCombatantCard(s.id, false);
+        if (typeof animateConsumable === 'function') {
+          animateConsumable(userCard, 'stun'); // Rainbow glow for stun grenade
+        }
+      }, 400);
+      
+      queueAnimation(() => {
+        const userCard = getCombatantCard(s.id, false);
+        if (typeof animateThrow === 'function') {
+          animateThrow(userCard); // Throw animation
+        }
+      }, 500);
+      
+      // Only apply stun effect if it succeeded
+      if (stunSuccess) {
+        queueAnimation(() => {
+          const targetCard = getCombatantCard(target.id, true);
+          if (typeof applyStatusAnimation === 'function') {
+            applyStatusAnimation(targetCard, 'stunned', true);
+            setTimeout(() => applyStatusAnimation(targetCard, 'stunned', false), 1800);
+          }
+          if (typeof showStatusEffect === 'function') {
+            showStatusEffect(targetCard, '⚡ STUNNED!', 'var(--danger)');
+          }
+        }, 700);
+      } else {
+        // Show resist message
+        queueAnimation(() => {
+          const targetCard = getCombatantCard(target.id, true);
+          if (typeof showStatusEffect === 'function') {
+            showStatusEffect(targetCard, '🛡️ RESISTED', '#808080');
+          }
+        }, 700);
+      }
+      
+      // Render UI AFTER all animations queued
+      queueAnimation(() => {
+        renderCombatUI();
+      }, 1500); // Extended to 1500ms to ensure all animations complete
+      
+      // After queue is done, advance turn
+      processAnimationQueue(() => {
+        advanceToNextSurvivor();
+      });
+    } else {
+      renderCombatUI();
+      advanceToNextSurvivor();
     }
     effectApplied = true;
   }
@@ -2676,6 +3657,22 @@ function playerUseConsumable(consumableKey) {
     s.maxHp += effect.permanentHP;
     s.hp += effect.permanentHP;
     logCombat(`${s.name} uses ${item.name}! Max HP permanently increased by ${effect.permanentHP}!`, true);
+    
+    // 1.0 Phase 3.4 - FIX: Use a simple timeout for self-use items
+    if (typeof animateConsumable === 'function') {
+      const userCard = getCombatantCard(s.id, false);
+      animateConsumable(userCard, 'nanite');
+      animateHeal(userCard);
+      showStatusEffect(userCard, `+${effect.permanentHP} MAX HP`, '#10b981');
+      
+      setTimeout(() => {
+        renderCombatUI();
+        advanceToNextSurvivor();
+      }, 1200);
+    } else {
+      renderCombatUI();
+      advanceToNextSurvivor();
+    }
     effectApplied = true;
   }
   
@@ -2707,6 +3704,40 @@ function playerUseConsumable(consumableKey) {
     target.hp = reviveHP;
     target.downed = false;
     logCombat(`${s.name} uses ${item.name} on ${target.name}! Revived at ${reviveHP} HP.`, true);
+    
+    // 1.0 Phase 3.2 - Queue revival kit animation (bright cyan glow)
+    // FIX: Don't call renderCombatUI() before animations!
+    if (typeof queueAnimation === 'function') {
+      queueAnimation(() => {
+        const userCard = getCombatantCard(s.id, false);
+        if (typeof animateConsumable === 'function') {
+          animateConsumable(userCard, 'revival'); // Bright cyan glow
+        }
+      }, 400);
+      
+      queueAnimation(() => {
+        const targetCard = getCombatantCard(target.id, false);
+        if (typeof animateRevive === 'function') {
+          animateRevive(targetCard);
+        }
+        if (typeof showStatusEffect === 'function') {
+          showStatusEffect(targetCard, `⚡ REVIVED +${reviveHP}`, '#06b6d4');
+        }
+      }, 600);
+      
+      queueAnimation(() => {
+        renderCombatUI();
+      }, 800);
+      
+      // After queue is done, advance turn
+      processAnimationQueue(() => {
+        advanceToNextSurvivor();
+      });
+    } else {
+      renderCombatUI();
+      advanceToNextSurvivor();
+    }
+    
     effectApplied = true;
   }
   
@@ -2722,6 +3753,39 @@ function playerUseConsumable(consumableKey) {
     target.hp = 0;
     target.downed = true;
     logCombat(`${s.name} uses ${item.name} on ${target.name}! System overload - eliminated!`, true);
+    
+    // 1.0 Phase 3.2 - Queue system override animation (red/electric glow)
+    // FIX: Don't call renderCombatUI() before animations!
+    if (typeof queueAnimation === 'function') {
+      queueAnimation(() => {
+        const userCard = getCombatantCard(s.id, false);
+        if (typeof animateConsumable === 'function') {
+          animateConsumable(userCard, 'override'); // Red electric glow
+        }
+      }, 400);
+      
+      queueAnimation(() => {
+        const targetCard = getCombatantCard(target.id, true);
+        if (typeof showStatusEffect === 'function') {
+          showStatusEffect(targetCard, '⚡ OVERLOAD!', '#ef4444');
+        }
+        if (typeof animateDeath === 'function') {
+          animateDeath(targetCard);
+        }
+      }, 600);
+      
+      queueAnimation(() => {
+        renderCombatUI();
+      }, 800);
+      
+      // After queue is done, advance turn
+      processAnimationQueue(() => {
+        advanceToNextSurvivor();
+      });
+    } else {
+      renderCombatUI();
+      advanceToNextSurvivor();
+    }
     effectApplied = true;
   }
   
@@ -2729,14 +3793,30 @@ function playerUseConsumable(consumableKey) {
   if (effect.dodgeNext) {
     s._stealthField = true;
     logCombat(`${s.name} activates ${item.name}! Next attack will be dodged.`, true);
+    
+    // 1.0 Phase 3.4 - FIX: Use a simple timeout for self-use items
+    if (typeof animateConsumable === 'function') {
+      const userCard = getCombatantCard(s.id, false);
+      animateConsumable(userCard, 'stealth');
+      showStatusEffect(userCard, '🌫️ STEALTH!', '#9c27b0');
+      
+      setTimeout(() => {
+        renderCombatUI();
+        advanceToNextSurvivor();
+      }, 1200);
+    } else {
+      renderCombatUI();
+      advanceToNextSurvivor();
+    }
     effectApplied = true;
   }
   
   // Consume the item if effect was applied
   if (effectApplied) {
     state.inventory.splice(idx, 1);
-    renderCombatUI();
-    advanceToNextSurvivor();
+    // For items using the new simple timeout, we must NOT advance the turn here.
+    // For items using the animation queue, this call is necessary.
+    // The logic inside each item block now handles when to advance the turn.
   }
 }
 
@@ -2791,7 +3871,21 @@ function playerRevive() {
   target.downed = false;
   
   logCombat(`${s.name} revives ${target.name}! Restored to ${reviveHP} HP.`, true);
-  renderCombatUI(); // Update UI after revival
+  
+  // 1.0 Phase 3.2 - Queue revive animation with green healing number
+  if (typeof queueAnimation === 'function' && typeof animateRevive === 'function') {
+    queueAnimation(() => {
+      const targetCard = getCombatantCard(target.id, false);
+      animateRevive(targetCard);
+      if (typeof showStatusEffect === 'function') {
+        showStatusEffect(targetCard, `+${reviveHP}`, '#4ade80'); // Green healing number
+      }
+      renderCombatUI();
+    }, 1000);
+  } else {
+    renderCombatUI();
+  }
+  
   advanceToNextSurvivor();
 }
 
@@ -2881,6 +3975,20 @@ function playerRetreat() {
   if (success) {
     logCombat(`${s.name} successfully retreats!`, true);
     
+    // 1.0 Phase 3.2 - Queue retreat animation
+    renderCombatUI();
+    if (typeof queueAnimation === 'function') {
+      queueAnimation(() => {
+        const survivorCard = getCombatantCard(s.id, false);
+        if (typeof showStatusEffect === 'function') {
+          showStatusEffect(survivorCard, '🏃 RETREAT!', 'var(--muted)');
+        }
+        if (typeof animateDodge === 'function') {
+          animateDodge(survivorCard); // Use dodge animation for fleeing
+        }
+      }, 600);
+    }
+    
     // 0.9.0 - Mark survivor as retreated (per-survivor retreat)
     s._retreated = true;
     s._retreating = false; // Clear temporary flag
@@ -2909,6 +4017,30 @@ function playerRetreat() {
       // 0.9.0 - Mark tile as not cleared so it can be revisited
       if (currentCombat.idx !== null && state.tiles[currentCombat.idx]) {
         state.tiles[currentCombat.idx].cleared = false;
+        
+        // 1.0 - Sync hostile survivor HP back to tile after retreat (same as defeat)
+        if (state.tiles[currentCombat.idx].hostileSurvivors && currentCombat.aliens) {
+          console.log('Syncing HP after retreat. Aliens in combat:', currentCombat.aliens.map(a => ({ id: a.id, name: a.name, type: a.type, hp: a.hp })));
+          console.log('Hostiles on tile before sync:', state.tiles[currentCombat.idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
+          
+          currentCombat.aliens.forEach(alien => {
+            if (alien.type === 'hostile_human') {
+              const hostile = state.tiles[currentCombat.idx].hostileSurvivors.find(h => h.id === alien.id);
+              if (hostile) {
+                console.log(`Syncing ${hostile.name}: ${hostile.hp} → ${alien.hp}`);
+                hostile.hp = alien.hp;
+                hostile.maxHp = alien.maxHp;
+              }
+            }
+          });
+          
+          console.log('Hostiles on tile after sync:', state.tiles[currentCombat.idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
+          
+          // Remove dead hostiles from tile
+          state.tiles[currentCombat.idx].hostileSurvivors = state.tiles[currentCombat.idx].hostileSurvivors.filter(h => h.hp > 0);
+          
+          console.log('Hostiles on tile after filtering dead:', state.tiles[currentCombat.idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
+        }
       }
       
       // Clear retreated flags before closing
@@ -2916,6 +4048,13 @@ function playerRetreat() {
         if (p._retreated) delete p._retreated;
         if (p._retreating) delete p._retreating;
       });
+      
+      // Handle mission retreat callback (support context as object or string)
+      if (currentCombat.context && (currentCombat.context === 'mission' || currentCombat.context.type === 'mission')) {
+        if (typeof currentCombat.context.onRetreat === 'function') {
+          currentCombat.context.onRetreat();
+        }
+      }
       
       updateUI();
       closeCombatOverlay();
@@ -2933,13 +4072,23 @@ function playerRetreat() {
 
 function enemyTurn() {
   if (!currentCombat) return;
-  const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
-  const aliveAliens = currentCombat.aliens.filter(a => a.hp > 0);
-  // 0.9.0 - Filter out retreated survivors when checking alive party
-  const aliveParty = party.filter(p => p.hp > 0 && !p._retreated);
-  if (aliveAliens.length === 0) return endCombat(true);
-  if (aliveParty.length === 0) return endCombat(false);
+  
+  // 1.0 Phase 3.2 - Brief 200ms delay before enemy turn starts for visual clarity
+  setTimeout(() => {
+    renderCombatUI(); // Update UI to show enemy turn active
+    
+    const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
+    const aliveAliens = currentCombat.aliens.filter(a => a.hp > 0);
+    // 0.9.0 - Filter out retreated survivors when checking alive party
+    const aliveParty = party.filter(p => p.hp > 0 && !p._retreated);
+    if (aliveAliens.length === 0) return endCombat(true);
+    if (aliveParty.length === 0) return endCombat(false);
+  
+    enemyTurnContinue(party, aliveAliens, aliveParty);
+  }, 200);
+}
 
+function enemyTurnContinue(party, aliveAliens, aliveParty) {
   // 0.9.0 - Clear temporary status effects and update consumable durations at start of enemy turn
   aliveParty.forEach(p => {
     p._toxicDebuff = false;
@@ -2970,84 +4119,362 @@ function enemyTurn() {
   });
   
   renderCombatUI(); // Update UI at start of enemy turn
-  
-  // 0.8.0 - Medic Miracle Worker: passive heal 1 HP/turn to all allies
-  const miracleWorkers = aliveParty.filter(p => hasAbility(p, 'miracle'));
-  if (miracleWorkers.length > 0) {
-    aliveParty.forEach(p => {
-      if (p.hp > 0 && p.hp < p.maxHp) {
-        p.hp = Math.min(p.maxHp, p.hp + miracleWorkers.length);
+
+  // Clear hostile guard flags at start of enemy turn (guard lasted through the previous player turn)
+  if (currentCombat && currentCombat.aliens) {
+    for (const al of currentCombat.aliens) {
+      if (al._guardActive) {
+        delete al._guardActive;
+        if (currentCombat && currentCombat.guarding) {
+          delete currentCombat.guarding[al.id];
+        }
       }
-    });
-    logCombat(`Miracle Worker provides healing to the team.`);
-    renderCombatUI(); // Update UI after healing
+    }
   }
   
+  // NOTE: Survivor armor regen and Miracle Worker heals are applied AFTER DOTs
+  
   // Apply poison damage and decrement duration (queue-based)
-  for (const p of aliveParty) {
+  // Use indexed loop so we can stagger per-entity animations and avoid collisions
+  for (let i = 0; i < aliveParty.length; i++) {
+    const p = aliveParty[i];
     if (p._poisonQueue && p._poisonQueue.length > 0) {
       const poisonDmg = p._poisonQueue.length * 2; // 2 damage per stack
-      p.hp = Math.max(0, p.hp - poisonDmg);
-      logCombat(`${p.name} takes ${poisonDmg} poison damage (${p._poisonQueue.length} stacks).`);
-      
-      // Decrement each stack's duration and remove expired ones
-      p._poisonQueue = p._poisonQueue.map(turns => turns - 1).filter(turns => turns > 0);
-      p._poisonStacks = p._poisonQueue.length;
-      
-      if (p._poisonQueue.length === 0) {
-        logCombat(`${p.name}'s poison wears off.`);
-      }
-      
-      renderCombatUI(); // Update UI after poison damage
-      if (p.hp <= 0) {
-        logCombat(`${p.name} succumbs to poison.`);
+      // Apply via animation queue to ensure UI order
+      if (typeof queueAnimation === 'function') {
+        // Stagger each survivor's poison by 600ms per entity to avoid overlap
+        queueAnimation(() => {
+          p.hp = Math.max(0, p.hp - poisonDmg);
+          logCombat(`${p.name} takes ${poisonDmg} poison damage (${p._poisonQueue.length} stacks).`);
+
+          // Decrement each stack's duration and remove expired ones
+          p._poisonQueue = p._poisonQueue.map(turns => turns - 1).filter(turns => turns > 0);
+          p._poisonStacks = p._poisonQueue.length;
+          if (p._poisonQueue.length === 0) {
+            logCombat(`${p.name}'s poison wears off.`);
+          }
+
+          const survivorCard = getCombatantCard(p.id, false);
+          // Add/refresh poisoned status animation
+          if (survivorCard && typeof applyStatusAnimation === 'function') {
+            applyStatusAnimation(survivorCard, 'poisoned', p._poisonQueue.length > 0);
+          }
+
+          renderCombatUI(); // Update UI after poison damage
+
+          // Show poison damage animation
+          const freshSurvivorCard = getCombatantCard(p.id, false);
+          if (freshSurvivorCard && typeof animateDamage === 'function') {
+            animateDamage(freshSurvivorCard, false);
+          }
+          if (freshSurvivorCard && typeof showStatusEffect === 'function') {
+            showStatusEffect(freshSurvivorCard, `☠️ ${poisonDmg}`, '#9d4edd');
+          }
+
+          if (p.hp <= 0) {
+            logCombat(`${p.name} succumbs to poison.`);
+          }
+          
+          // Check if all aliens died from poison
+          const remainingAliensAfterPoison = currentCombat.aliens.filter(a => a.hp > 0);
+          if (remainingAliensAfterPoison.length === 0) {
+            // Queue the victory immediately after this animation finishes
+            queueAnimation(() => {
+              endCombat(true);
+            }, 100);
+          }
+        }, 600 * i); // 600ms per entity
+      } else {
+        p.hp = Math.max(0, p.hp - poisonDmg);
+        logCombat(`${p.name} takes ${poisonDmg} poison damage (${p._poisonQueue.length} stacks).`);
+        p._poisonQueue = p._poisonQueue.map(turns => turns - 1).filter(turns => turns > 0);
+        p._poisonStacks = p._poisonQueue.length;
+        if (p._poisonQueue.length === 0) logCombat(`${p.name}'s poison wears off.`);
+        renderCombatUI();
+        const survivorCard = getCombatantCard(p.id, false);
+        if (survivorCard && typeof animateDamage === 'function') animateDamage(survivorCard, false);
+        if (survivorCard && typeof showStatusEffect === 'function') showStatusEffect(survivorCard, `☠️ ${poisonDmg}`, '#9d4edd');
+        if (p.hp <= 0) logCombat(`${p.name} succumbs to poison.`);
       }
     }
   }
   
   // Apply burn damage to survivors and decrement duration (queue-based)
-  for (const p of aliveParty) {
+  for (let i = 0; i < aliveParty.length; i++) {
+    const p = aliveParty[i];
     if (p._burnQueue && p._burnQueue.length > 0) {
       const burnDmg = p._burnQueue.length * 2; // 2 damage per stack
-      p.hp = Math.max(0, p.hp - burnDmg);
-      logCombat(`🔥 ${p.name} takes ${burnDmg} burn damage (${p._burnQueue.length} stacks).`);
-      
-      // Decrement each stack's duration and remove expired ones
-      p._burnQueue = p._burnQueue.map(turns => turns - 1).filter(turns => turns > 0);
-      p._burnStacks = p._burnQueue.length;
-      
-      if (p._burnQueue.length === 0) {
-        logCombat(`${p.name}'s burn extinguishes.`);
-      }
-      
-      renderCombatUI(); // Update UI after burn damage
-      if (p.hp <= 0) {
-        logCombat(`${p.name} is consumed by flames.`);
+      if (typeof queueAnimation === 'function') {
+        // Stagger survivor burn by 600ms per entity to avoid overlap
+        queueAnimation(() => {
+          p.hp = Math.max(0, p.hp - burnDmg);
+          logCombat(`🔥 ${p.name} takes ${burnDmg} burn damage (${p._burnQueue.length} stacks).`);
+
+          // Decrement each stack's duration and remove expired ones
+          p._burnQueue = p._burnQueue.map(turns => turns - 1).filter(turns => turns > 0);
+          p._burnStacks = p._burnQueue.length;
+          if (p._burnQueue.length === 0) {
+            logCombat(`${p.name}'s burn extinguishes.`);
+          }
+
+          const survivorCard = getCombatantCard(p.id, false);
+          // Add/refresh burning status animation
+          if (survivorCard && typeof applyStatusAnimation === 'function') {
+            applyStatusAnimation(survivorCard, 'burning', p._burnQueue.length > 0);
+          }
+
+          renderCombatUI(); // Update UI after burn damage
+
+          // 1.0 Phase 3.2 - Show burn damage animation
+          const freshSurvivorCard = getCombatantCard(p.id, false);
+          if (freshSurvivorCard && typeof animateDamage === 'function') {
+            animateDamage(freshSurvivorCard, false);
+          }
+          if (freshSurvivorCard && typeof showStatusEffect === 'function') {
+            showStatusEffect(freshSurvivorCard, `🔥 ${burnDmg}`, '#ff6b6b');
+          }
+
+          if (p.hp <= 0) {
+            logCombat(`${p.name} is consumed by flames.`);
+          }
+          
+          // Check if all aliens died from burn
+          const remainingAliensAfterBurn = currentCombat.aliens.filter(a => a.hp > 0);
+          if (remainingAliensAfterBurn.length === 0) {
+            // Queue the victory immediately after this animation finishes
+            queueAnimation(() => {
+              endCombat(true);
+            }, 100);
+          }
+        }, 600 * i); // 600ms per entity
+      } else {
+        p.hp = Math.max(0, p.hp - burnDmg);
+        logCombat(`🔥 ${p.name} takes ${burnDmg} burn damage (${p._burnQueue.length} stacks).`);
+        p._burnQueue = p._burnQueue.map(turns => turns - 1).filter(turns => turns > 0);
+        p._burnStacks = p._burnQueue.length;
+        const survivorCard = getCombatantCard(p.id, false);
+        if (survivorCard && typeof applyStatusAnimation === 'function') applyStatusAnimation(survivorCard, 'burning', p._burnQueue.length > 0);
+        renderCombatUI();
+        const freshSurvivorCard = getCombatantCard(p.id, false);
+        if (freshSurvivorCard && typeof animateDamage === 'function') animateDamage(freshSurvivorCard, false);
+        if (freshSurvivorCard && typeof showStatusEffect === 'function') showStatusEffect(freshSurvivorCard, `🔥 ${burnDmg}`, '#ff6b6b');
+        if (p.hp <= 0) logCombat(`${p.name} is consumed by flames.`);
       }
     }
   }
   
   // Apply burn damage to aliens and decrement duration (queue-based)
-  for (const a of aliveAliens) {
+  for (let i = 0; i < aliveAliens.length; i++) {
+    const a = aliveAliens[i];
     if (a._burnQueue && a._burnQueue.length > 0) {
       const burnDmg = a._burnQueue.length * 2; // 2 damage per stack
-      a.hp = Math.max(0, a.hp - burnDmg);
-      logCombat(`🔥 ${a.name} takes ${burnDmg} burn damage (${a._burnQueue.length} stacks).`);
-      
-      // Decrement each stack's duration and remove expired ones
-      a._burnQueue = a._burnQueue.map(turns => turns - 1).filter(turns => turns > 0);
-      a._burnStacks = a._burnQueue.length;
-      
-      if (a._burnQueue.length === 0) {
-        logCombat(`${a.name}'s burn extinguishes.`);
-      }
-      
-      renderCombatUI(); // Update UI after burn damage
-      if (a.hp <= 0) {
-        a.downed = true;
-        logCombat(`${a.name} is consumed by flames.`);
+      if (typeof queueAnimation === 'function') {
+        // Stagger alien burn by 600ms per entity to avoid overlap
+        queueAnimation(() => {
+          a.hp = Math.max(0, a.hp - burnDmg);
+          logCombat(`🔥 ${a.name} takes ${burnDmg} burn damage (${a._burnQueue.length} stacks).`);
+
+          // Decrement each stack's duration and remove expired ones
+          a._burnQueue = a._burnQueue.map(turns => turns - 1).filter(turns => turns > 0);
+          a._burnStacks = a._burnQueue.length;
+
+          const alienCard = getCombatantCard(a.id, true);
+          // Add/refresh burning status animation
+          if (alienCard && typeof applyStatusAnimation === 'function') {
+            applyStatusAnimation(alienCard, 'burning', a._burnQueue.length > 0);
+          }
+
+          if (a._burnQueue.length === 0) {
+            logCombat(`${a.name}'s burn extinguishes.`);
+          }
+
+          renderCombatUI(); // Update UI after burn damage
+
+          // 1.0 Phase 3.2 - Show burn damage animation
+          const freshAlienCard = getCombatantCard(a.id, true);
+          if (freshAlienCard && typeof animateDamage === 'function') {
+            animateDamage(freshAlienCard, false);
+          }
+          if (freshAlienCard && typeof showStatusEffect === 'function') {
+            showStatusEffect(freshAlienCard, `🔥 ${burnDmg}`, '#ff6b6b');
+          }
+
+          if (a.hp <= 0) {
+            a.downed = true;
+            logCombat(`${a.name} is consumed by flames.`);
+          }
+          
+          // Check if all aliens died from burn
+          const remainingAliensAfterBurn = currentCombat.aliens.filter(al => al.hp > 0);
+          if (remainingAliensAfterBurn.length === 0) {
+            queueAnimation(() => {
+              endCombat(true);
+            }, 100);
+          }
+        }, 600 * i); // 600ms per entity
+      } else {
+        a.hp = Math.max(0, a.hp - burnDmg);
+        logCombat(`🔥 ${a.name} takes ${burnDmg} burn damage (${a._burnQueue.length} stacks).`);
+        a._burnQueue = a._burnQueue.map(turns => turns - 1).filter(turns => turns > 0);
+        a._burnStacks = a._burnQueue.length;
+        const alienCard = getCombatantCard(a.id, true);
+        if (alienCard && typeof applyStatusAnimation === 'function') applyStatusAnimation(alienCard, 'burning', a._burnQueue.length > 0);
+        if (a._burnQueue.length === 0) logCombat(`${a.name}'s burn extinguishes.`);
+        renderCombatUI();
+        const freshAlienCard = getCombatantCard(a.id, true);
+        if (freshAlienCard && typeof animateDamage === 'function') animateDamage(freshAlienCard, false);
+        if (freshAlienCard && typeof showStatusEffect === 'function') showStatusEffect(freshAlienCard, `🔥 ${burnDmg}`, '#ff6b6b');
+        if (a.hp <= 0) { a.downed = true; logCombat(`${a.name} is consumed by flames.`); }
       }
     }
+  }
+
+  // Apply poison damage to aliens and decrement duration (queue-based)
+  for (let i = 0; i < aliveAliens.length; i++) {
+    const a = aliveAliens[i];
+    if (a._poisonQueue && a._poisonQueue.length > 0) {
+      const poisonDmg = a._poisonQueue.length * 2; // 2 damage per stack
+      if (typeof queueAnimation === 'function') {
+        // Stagger alien poison by 600ms per entity to avoid overlap
+        queueAnimation(() => {
+          a.hp = Math.max(0, a.hp - poisonDmg);
+          logCombat(`☠️ ${a.name} takes ${poisonDmg} poison damage (${a._poisonQueue.length} stacks).`);
+
+          // Decrement each stack's duration and remove expired ones
+          a._poisonQueue = a._poisonQueue.map(turns => turns - 1).filter(turns => turns > 0);
+          a._poisonStacks = a._poisonQueue.length;
+
+          const alienCard = getCombatantCard(a.id, true);
+          // Add/refresh poisoned status animation
+          if (alienCard && typeof applyStatusAnimation === 'function') {
+            applyStatusAnimation(alienCard, 'poisoned', a._poisonQueue.length > 0);
+          }
+
+          if (a._poisonQueue.length === 0) {
+            logCombat(`${a.name}'s poison wears off.`);
+          }
+
+          renderCombatUI(); // Update UI after poison damage
+
+          // Show poison damage animation
+          const freshAlienCard = getCombatantCard(a.id, true);
+          if (freshAlienCard && typeof animateDamage === 'function') {
+            animateDamage(freshAlienCard, false);
+          }
+          if (freshAlienCard && typeof showStatusEffect === 'function') {
+            showStatusEffect(freshAlienCard, `☠️ ${poisonDmg}`, '#9d4edd');
+          }
+
+          if (a.hp <= 0) {
+            a.downed = true;
+            logCombat(`${a.name} succumbs to poison.`);
+          }
+          
+          // Check if all aliens died from poison
+          const remainingAliensAfterPoison = currentCombat.aliens.filter(al => al.hp > 0);
+          if (remainingAliensAfterPoison.length === 0) {
+            queueAnimation(() => {
+              endCombat(true);
+            }, 100);
+          }
+        }, 600 * i); // 600ms per entity
+      } else {
+        a.hp = Math.max(0, a.hp - poisonDmg);
+        logCombat(`☠️ ${a.name} takes ${poisonDmg} poison damage (${a._poisonQueue.length} stacks).`);
+
+        // Decrement each stack's duration and remove expired ones
+        a._poisonQueue = a._poisonQueue.map(turns => turns - 1).filter(turns => turns > 0);
+        a._poisonStacks = a._poisonQueue.length;
+
+        if (a._poisonQueue.length === 0) {
+          logCombat(`${a.name}'s poison wears off.`);
+        }
+
+        renderCombatUI(); // Update UI after poison damage
+
+        // Show poison damage animation
+        const alienCard = getCombatantCard(a.id, true);
+        if (alienCard && typeof animateDamage === 'function') {
+          animateDamage(alienCard, false);
+        }
+        if (alienCard && typeof showStatusEffect === 'function') {
+          showStatusEffect(alienCard, `☠️ ${poisonDmg}`, '#9d4edd');
+        }
+
+        if (a.hp <= 0) {
+          a.downed = true;
+          logCombat(`${a.name} succumbs to poison.`);
+        }
+      }
+    }
+  }
+  
+  // Check if all aliens died from burn/poison
+  const remainingAliens = currentCombat.aliens.filter(a => a.hp > 0);
+  if (remainingAliens.length === 0) {
+    return endCombat(true);
+  }
+
+  // Insert a short visual pause to separate DOT popups from regen/heal popups
+  if (typeof queueAnimation === 'function') {
+    queueAnimation(() => {}, 200);
+  }
+
+  // 1.0 Phase 3.2 - Now apply survivor armor regen at start of turn (AFTER DOT)
+  const regenQueue = [];
+  aliveParty.forEach(p => {
+    if (p.equipment?.armor) {
+      const armorEffects = getArmorPassiveBonuses(p.equipment.armor);
+      if (armorEffects.regenAmount > 0 && p.hp > 0 && p.hp < p.maxHp) {
+        const healAmount = Math.min(p.maxHp - p.hp, armorEffects.regenAmount);
+        regenQueue.push({ survivor: p, amount: healAmount });
+      }
+    }
+  });
+  
+  if (regenQueue.length > 0 && typeof queueAnimation === 'function') {
+    for (const {survivor, amount} of regenQueue) {
+      queueAnimation(() => {
+        survivor.hp = Math.min(survivor.maxHp, survivor.hp + amount);
+        renderCombatUI();
+        
+        const survivorCard = getCombatantCard(survivor.id, false);
+        if (survivorCard && typeof showStatusEffect === 'function') {
+          showStatusEffect(survivorCard, `+${amount}`, '#4ade80'); // Green healing number
+        }
+        logCombat(`${survivor.name} regenerates ${amount} HP.`);
+      }, 400);
+    }
+  }
+  
+  // 0.8.0 - Medic Miracle Worker: passive heal 1 HP/turn to all allies (AFTER DOT)
+  const miracleWorkers = aliveParty.filter(p => hasAbility(p, 'miracle'));
+  if (miracleWorkers.length > 0) {
+    // 1.0 Phase 3.2 - Queue heal animations with green numbers
+    if (typeof queueAnimation === 'function') {
+      aliveParty.forEach(p => {
+        if (p.hp > 0 && p.hp < p.maxHp) {
+          queueAnimation(() => {
+            p.hp = Math.min(p.maxHp, p.hp + miracleWorkers.length);
+            renderCombatUI();
+            
+            const survivorCard = getCombatantCard(p.id, false);
+            if (survivorCard && typeof showStatusEffect === 'function') {
+              showStatusEffect(survivorCard, `+${miracleWorkers.length}`, '#4ade80'); // Green healing number
+            }
+          }, 400);
+        }
+      });
+    } else {
+      // Fallback without animation
+      aliveParty.forEach(p => {
+        if (p.hp > 0 && p.hp < p.maxHp) {
+          p.hp = Math.min(p.maxHp, p.hp + miracleWorkers.length);
+        }
+      });
+    }
+    logCombat(`Miracle Worker provides healing to the team.`);
+    renderCombatUI(); // Update UI after healing
   }
   
   // Regeneration phase (brood special)
@@ -3057,6 +4484,12 @@ function enemyTurn() {
       a.hp = Math.min(a.maxHp, a.hp + healAmount);
       logCombat(`${a.name} regenerates ${healAmount} HP!`);
       renderCombatUI(); // Update UI after regeneration
+      
+      // 1.0 Phase 3.2 - Show regen animation with green healing number
+      const alienCard = getCombatantCard(a.id, true);
+      if (alienCard && typeof showStatusEffect === 'function') {
+        showStatusEffect(alienCard, `+${healAmount}`, '#4ade80');
+      }
     }
   }
   
@@ -3074,6 +4507,47 @@ function enemyTurn() {
     }
   }
   
+  // 1.0 - Swarm: Infested spawn drones when killed
+  const deadInfested = currentCombat.aliens.filter(a => 
+    a.hp <= 0 && 
+    !a._swarmSpawned && 
+    (a.type === 'infested' || a.special === 'swarm')
+  );
+  for (const corpse of deadInfested) {
+    corpse._swarmSpawned = true; // Prevent multiple spawns
+    
+    let spawnChance = 0.40; // 40% base chance
+    let spawnCount = [1, 2]; // 1-2 drones
+    
+    // Check for modifiers that affect spawn
+    if (hasModifier(corpse, 'hivenode')) {
+      spawnChance = 1.0; // Guaranteed
+      spawnCount = [2, 3]; // 2-3 drones
+    } else if (hasModifier(corpse, 'swarming')) {
+      spawnChance = 0.60; // +20% chance
+    }
+    
+    // Boss enemies have fixed spawn counts
+    if (corpse.rank === 'boss') {
+      spawnChance = 1.0;
+      spawnCount = [2, 3];
+    }
+    
+    if (Math.random() < spawnChance) {
+      const numSpawn = spawnCount[0] + Math.floor(Math.random() * (spawnCount[1] - spawnCount[0] + 1));
+      logCombat(`💀 Larvae burst from ${corpse.name}'s corpse! ${numSpawn} Drones spawn!`, true);
+      
+      for (let i = 0; i < numSpawn; i++) {
+        const newDrone = createAlien('drone');
+        if (newDrone) {
+          currentCombat.aliens.push(newDrone);
+        }
+      }
+      
+      renderCombatUI(); // Update UI after spawning
+    }
+  }
+  
   for (const a of aliveAliens) {
     // 0.9.0 - Skip stunned aliens (numeric duration)
     if (a._stunned && a._stunned > 0) {
@@ -3085,6 +4559,245 @@ function enemyTurn() {
       }
       renderCombatUI();
       continue;
+    }
+    
+    // 1.0 - Hostile Survivor AI: Tactical actions (Aim, Guard)
+    if (a.type === 'hostile_human') {
+      // Use Guard if low HP (below 30%) and not already guarding
+      if (a.hp < a.maxHp * 0.3 && !a._guardActive && !currentCombat.guarding?.[a.id] && Math.random() < 0.6) {
+        a._guardActive = true;
+        // Mirror into currentCombat.guarding so defense calc (which checks currentCombat.guarding) picks this up
+        if (currentCombat) {
+          currentCombat.guarding = currentCombat.guarding || {};
+          currentCombat.guarding[a.id] = true;
+        }
+        const guardBonus = BALANCE.COMBAT_ACTIONS.Guard.defenseBonus || 3;
+        logCombat(`🛡️ ${a.name} braces for impact (+${guardBonus} defense this turn)!`, true);
+        
+        // 1.0 Phase 3.2 - Show guard animation
+        renderCombatUI();
+        if (typeof queueAnimation === 'function' && typeof animateGuard === 'function') {
+          queueAnimation(() => {
+            const guardCard = getCombatantCard(a.id, true);
+            animateGuard(guardCard);
+            if (typeof showStatusEffect === 'function') {
+              showStatusEffect(guardCard, `🛡️ GUARD +${guardBonus}`, 'var(--accent)');
+            }
+          }, 600);
+        }
+        continue; // Guard instead of attacking
+      }
+      
+      // Use Aim if not aimed and randomly (30% chance)
+      if (!a._aimedShot && !currentCombat.aimed?.[a.id] && Math.random() < 0.3) {
+        a._aimedShot = true;
+        // Mirror into currentCombat.aimed so UI/defense code that checks currentCombat.aimed sees it
+        if (currentCombat) {
+          currentCombat.aimed = currentCombat.aimed || {};
+          currentCombat.aimed[a.id] = true;
+        }
+        const aimBonus = Math.round((BALANCE.COMBAT_ACTIONS.Aim.accuracyBonus || 0.25) * 100);
+        logCombat(`🎯 ${a.name} takes careful aim (+${aimBonus}% hit chance next shot)!`, true);
+        
+        // 1.0 Phase 3.2 - Show aim animation
+        renderCombatUI();
+        if (typeof queueAnimation === 'function' && typeof animateAim === 'function') {
+          queueAnimation(() => {
+            const aimCard = getCombatantCard(a.id, true);
+            animateAim(aimCard);
+            if (typeof showStatusEffect === 'function') {
+              showStatusEffect(aimCard, `🎯 AIM +${aimBonus}%`, 'var(--accent)');
+            }
+          }, 600);
+        }
+        continue; // Aim instead of attacking
+      }
+      
+      // 1.0 Phase 3.2 - Hostile survivors can use Burst (ranged) or Power Attack (melee)
+      // 25% chance to use special attack if not on cooldown
+      if (!a._specialCooldown && Math.random() < 0.25) {
+        const weaponType = a.equipment?.weapon?.weaponType || 'unarmed';
+        if (weaponType === 'ranged') {
+          // Use Burst attack
+          a._hostileBurst = true;
+          a._specialCooldown = 3; // 3 turn cooldown
+          logCombat(`${a.name} fires a devastating burst!`, true);
+        } else if (weaponType === 'melee') {
+          // Use Power Attack
+          a._hostilePowerAttack = true;
+          a._specialCooldown = 3; // 3 turn cooldown
+          logCombat(`${a.name} winds up a powerful strike!`, true);
+        }
+      }
+      
+      // Decrement cooldown
+      if (a._specialCooldown && a._specialCooldown > 0) {
+        a._specialCooldown--;
+      }
+    }
+    
+    // 1.0 - Hostile Survivor AI: Use consumables intelligently
+    if (a.type === 'hostile_human' && a.inventory && a.inventory.length > 0) {
+      // Use Medkit if HP below 50%
+      if (a.hp < a.maxHp * 0.5) {
+        const medkitIdx = a.inventory.findIndex(item => item.type === 'medkit');
+        if (medkitIdx >= 0) {
+          const healAmount = rand(15, 25);
+          a.hp = Math.min(a.maxHp, a.hp + healAmount);
+          a.inventory.splice(medkitIdx, 1);
+          logCombat(`⚕️ ${a.name} uses a Medkit and heals ${healAmount} HP!`, true);
+          
+          // 1.0 Phase 3.2 - Queue medkit animation
+          // FIX: Don't call renderCombatUI() during animations!
+          if (typeof queueAnimation === 'function') {
+            queueAnimation(() => {
+              const card = getCombatantCard(a.id, true);
+              if (typeof animateConsumable === 'function') {
+                animateConsumable(card, 'heal');
+              }
+              if (typeof animateHeal === 'function') {
+                animateHeal(card);
+              }
+              if (typeof showStatusEffect === 'function') {
+                showStatusEffect(card, `⚕️ +${healAmount} HP`, '#4ade80');
+              }
+            }, 400);
+            queueAnimation(() => {
+              renderCombatUI();
+            }, 1500); // Wait for 1.2s animation + 300ms buffer
+          } else {
+            renderCombatUI();
+          }
+          continue; // End turn after using medkit
+        }
+      }
+      
+      // Use Stimpack if HP below 70% and not already active
+      if (a.hp < a.maxHp * 0.7 && !a._stimpackTurns) {
+        const stimpackIdx = a.inventory.findIndex(item => item.type === 'stimpack');
+        if (stimpackIdx >= 0) {
+          a._stimpackTurns = 3;
+          a._stimpackEvasion = 0.30; // 30% as decimal
+          a._stimpackRetreat = 0.40; // 40% as decimal
+          a.inventory.splice(stimpackIdx, 1);
+          logCombat(`💉 ${a.name} uses a Stimpack (+30% evasion, 3 turns)!`, true);
+          
+          // 1.0 Phase 3.2 - Queue stimpack animation
+          // FIX: Don't call renderCombatUI() during animations!
+          if (typeof queueAnimation === 'function') {
+            queueAnimation(() => {
+              const card = getCombatantCard(a.id, true);
+              if (typeof animateConsumable === 'function') {
+                animateConsumable(card, 'stimpack');
+              }
+              if (typeof applyStatusAnimation === 'function') {
+                applyStatusAnimation(card, 'buffed', true);
+              }
+              if (typeof showStatusEffect === 'function') {
+                showStatusEffect(card, '💉 STIMPACK +30%', 'var(--accent)');
+              }
+              setTimeout(() => {
+                if (typeof applyStatusAnimation === 'function') {
+                  applyStatusAnimation(card, 'buffed', false);
+                }
+              }, 3000);
+            }, 400);
+            queueAnimation(() => {
+              renderCombatUI();
+            }, 1500); // Wait for 1.2s animation + 300ms buffer
+          } else {
+            renderCombatUI();
+          }
+          continue; // End turn after using stimpack
+        }
+      }
+      
+      // Use Stun Grenade tactically - target highest damage survivor
+      const stunGrenadeIdx = a.inventory.findIndex(item => item.type === 'stun_grenade');
+      if (stunGrenadeIdx >= 0 && Math.random() < 0.4) { // 40% chance to use each turn
+        const currentAliveParty = party.filter(p => p.hp > 0 && !p.downed && !p._retreated && (!p._stunned || p._stunned === 0));
+        if (currentAliveParty.length > 0) {
+          // Find strongest survivor by weapon damage
+          const strongestTarget = currentAliveParty.reduce((max, p) => {
+            const pDmg = p.equipment?.weapon?.damage?.[1] || 0;
+            const maxDmg = max.equipment?.weapon?.damage?.[1] || 0;
+            return pDmg > maxDmg ? p : max;
+          }, currentAliveParty[0]);
+          
+          if (strongestTarget && !strongestTarget._stunned) {
+            strongestTarget._stunned = 2;
+            a.inventory.splice(stunGrenadeIdx, 1);
+            logCombat(`💥 ${a.name} throws a Stun Grenade at ${strongestTarget.name}! Stunned for 2 turns!`, true);
+            
+            // 1.0 Phase 3.2 - Queue stun grenade throw + impact animations
+            // FIX: Don't call renderCombatUI() during animations - wait until after!
+            if (typeof queueAnimation === 'function') {
+              // Consumable glow on user
+              queueAnimation(() => {
+                const attackerCard = getCombatantCard(a.id, true);
+                if (typeof animateConsumable === 'function') {
+                  animateConsumable(attackerCard, 'stun');
+                }
+              }, 300);
+              
+              // Throw animation
+              queueAnimation(() => {
+                const attackerCard = getCombatantCard(a.id, true);
+                if (typeof animateThrow === 'function') {
+                  animateThrow(attackerCard);
+                }
+              }, 500);
+              
+              // Impact + stun effect
+              queueAnimation(() => {
+                const targetCard = getCombatantCard(strongestTarget.id, false);
+                if (typeof applyStatusAnimation === 'function') {
+                  applyStatusAnimation(targetCard, 'stunned', true);
+                }
+                if (typeof showStatusEffect === 'function') {
+                  showStatusEffect(targetCard, '💥⚡ STUNNED!', 'var(--danger)');
+                }
+                setTimeout(() => {
+                  if (typeof applyStatusAnimation === 'function') {
+                    applyStatusAnimation(targetCard, 'stunned', false);
+                  }
+                }, 1800);
+              }, 700);
+              
+              // Render UI AFTER all animations complete
+              queueAnimation(() => {
+                renderCombatUI();
+              }, 900);
+            } else {
+              renderCombatUI();
+            }
+            continue; // End turn after using stun grenade
+          }
+        }
+      }
+    }
+    
+    // 1.0 Phase 3.2 - Apply alien regeneration (Brood Mother special)
+    if (a.special === 'regeneration' && a.hp > 0 && a.hp < a.maxHp) {
+      const regenAmount = rand(2, 4);
+      const actualHeal = Math.min(a.maxHp - a.hp, regenAmount);
+      
+      if (typeof queueAnimation === 'function') {
+        queueAnimation(() => {
+          a.hp = Math.min(a.maxHp, a.hp + actualHeal);
+          renderCombatUI();
+          
+          const alienCard = getCombatantCard(a.id, true);
+          if (alienCard && typeof showStatusEffect === 'function') {
+            showStatusEffect(alienCard, `+${actualHeal}`, '#4ade80'); // Green healing number
+          }
+          logCombat(`${a.name} regenerates ${actualHeal} HP.`);
+        }, 500);
+      } else {
+        a.hp = Math.min(a.maxHp, a.hp + actualHeal);
+        logCombat(`${a.name} regenerates ${actualHeal} HP.`);
+        renderCombatUI();
+      }
     }
     
     // 0.9.0 - Check for phase effect (destabilized)
@@ -3131,17 +4844,56 @@ function enemyTurn() {
     }
     
     for (let strike = 0; strike < attackCount; strike++) {
-      // Pick a random survivor to attack
-      // 0.9.0 - Exclude retreated survivors from targeting
+      // 1.0 - Advanced AI: Smart targeting based on alien type
       const targetsAvailable = party.filter(p => p.hp > 0 && !p.downed && !p._retreated);
       if (targetsAvailable.length === 0) {
         return endCombat(false);
       }
       
-      let targ = targetsAvailable[rand(0, targetsAvailable.length - 1)];
+      // Use smart targeting (same function as combat.js)
+      // 1.0 - Hostile survivors also use smart targeting (focus low HP)
+      let targ;
+      if (a.type === 'hostile_human') {
+        // Hostile survivors always focus fire on lowest HP% target
+        targ = targetsAvailable.reduce((min, p) => {
+          const pHpPercent = p.hp / p.maxHp;
+          const minHpPercent = min.hp / min.maxHp;
+          return pHpPercent < minHpPercent ? p : min;
+        }, targetsAvailable[0]);
+      } else {
+        targ = selectAlienTargetInteractive(a, targetsAvailable);
+      }
       if (!targ || targ.hp <= 0) break;
       
-      let aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
+      // 1.0 Phase 3.2 - Handle hostile survivor burst/power attacks
+      let burstShots = 1;
+      let damageMultiplier = 1;
+      
+      if (a.type === 'hostile_human') {
+        if (a._hostileBurst) {
+          // Burst: 2-4 shots with bonus damage
+          const weapon = a.equipment?.weapon;
+          if (weapon && weapon.burstShots) {
+            burstShots = weapon.burstShots;
+          } else {
+            burstShots = rand(2, 4);
+          }
+          damageMultiplier = 1.1; // 10% bonus per shot
+          a._hostileBurst = false; // Consume flag
+        } else if (a._hostilePowerAttack) {
+          // Power Attack: 1.5x damage
+          damageMultiplier = 1.5;
+          a._hostilePowerAttack = false; // Consume flag
+        }
+      }
+      
+      // Calculate damage using attackRange if available, otherwise use attack ± 1
+      let aDmg;
+      if (a.attackRange && Array.isArray(a.attackRange)) {
+        aDmg = rand(a.attackRange[0], a.attackRange[1]);
+      } else {
+        aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
+      }
       
       // Apply aura bonuses
       aDmg += matriarchBonus + packLeaderBonus;
@@ -3245,7 +4997,27 @@ function enemyTurn() {
       if (actualTarget._stealthField) {
         actualTarget._stealthField = false; // Consume effect
         logCombat(`${actualTarget.name}'s Stealth Field activates - attack dodged!`, true);
+        
+        // 1.0 Phase 3.2 - Queue attack animation THEN dodge reaction
         renderCombatUI();
+        if (typeof queueAnimation === 'function') {
+          queueAnimation(() => {
+            const attackerCard = getCombatantCard(a.id, true);
+            if (typeof animateShoot === 'function') {
+              animateShoot(attackerCard, 'melee', false);
+            }
+          }, 500);
+          
+          queueAnimation(() => {
+            const targetCard = getCombatantCard(actualTarget.id, false);
+            if (typeof animateDodge === 'function') {
+              animateDodge(targetCard);
+            }
+            if (typeof showStatusEffect === 'function') {
+              showStatusEffect(targetCard, '🌫️ STEALTH!', 'var(--accent)');
+            }
+          }, 500);
+        }
         continue; // Skip this attack entirely
       }
       
@@ -3275,10 +5047,74 @@ function enemyTurn() {
         totalDodgeChance += actualTarget._stimpackEvasion;
       }
       
+      // Consume aimed shot flag (accuracy bonus already applied in rollHitChance)
+      if (a._aimedShot) {
+        a._aimedShot = false;
+        if (currentCombat && currentCombat.aimed) currentCombat.aimed[a.id] = false;
+        logCombat(`${a.name} fires a focused shot!`, true);
+      }
+
       // Apply dodge check
       if (totalDodgeChance > 0 && Math.random() < totalDodgeChance) {
         logCombat(`${actualTarget.name} dodges the attack!`, true);
+        
+        // 1.0 Phase 3.2 - Queue attack animation THEN dodge reaction
         renderCombatUI();
+        if (typeof queueAnimation === 'function') {
+          queueAnimation(() => {
+            const attackerCard = getCombatantCard(a.id, true);
+            if (typeof animateShoot === 'function') {
+              animateShoot(attackerCard, 'melee', false);
+            }
+          }, 500);
+          
+          queueAnimation(() => {
+            const targetCard = getCombatantCard(actualTarget.id, false);
+            if (typeof animateDodge === 'function') {
+              animateDodge(targetCard);
+            }
+            if (typeof showStatusEffect === 'function') {
+              showStatusEffect(targetCard, 'DODGE!', 'var(--accent)');
+            }
+          }, 500);
+        }
+        continue; // Skip this attack
+      }
+      
+      // 1.0 - Phase check from armor (Spectre Armor)
+      let phaseChance = 0;
+      if (actualTarget.equipment && actualTarget.equipment.armor && actualTarget.equipment.armor.effects) {
+        const phaseEffect = actualTarget.equipment.armor.effects.find(e => e.startsWith('phase:'));
+        if (phaseEffect) {
+          phaseChance = parseInt(phaseEffect.split(':')[1]) / 100;
+        }
+      }
+      
+      if (phaseChance > 0 && Math.random() < phaseChance) {
+        logCombat(`${actualTarget.name} phases through the attack!`, true);
+        
+        // Queue attack animation THEN phase reaction
+        renderCombatUI();
+        if (typeof queueAnimation === 'function') {
+          queueAnimation(() => {
+            const attackerCard = getCombatantCard(a.id, true);
+            if (typeof animateShoot === 'function') {
+              animateShoot(attackerCard, 'melee', false);
+            }
+          }, 500);
+          
+          queueAnimation(() => {
+            const targetCard = getCombatantCard(actualTarget.id, false);
+            // 1.0 - Use phase animation, not dodge animation
+            if (typeof applyStatusAnimation === 'function') {
+              applyStatusAnimation(targetCard, 'phased', true);
+              setTimeout(() => applyStatusAnimation(targetCard, 'phased', false), 2000);
+            }
+            if (typeof showStatusEffect === 'function') {
+              showStatusEffect(targetCard, '👻 PHASE', 'var(--accent)');
+            }
+          }, 600);
+        }
         continue; // Skip this attack
       }
       
@@ -3328,45 +5164,239 @@ function enemyTurn() {
         actualTarget._toxicDebuff = true;
       }
       
-      const taken = Math.max(0, aDmg - defense);
-      if (aDmg > taken) {
-          logCombat(`${actualTarget.name} blocked ${aDmg - taken} damage.`);
+      // 1.0 Phase 3.2 - Calculate damage but DON'T apply to HP yet
+      let totalDamage = 0;
+      for (let shotNum = 0; shotNum < burstShots; shotNum++) {
+        let shotDmg = Math.floor(aDmg * damageMultiplier);
+        const taken = Math.max(0, shotDmg - defense);
+        totalDamage += taken;
+        
+        if (burstShots > 1) {
+          logCombat(`Shot ${shotNum + 1}: ${taken} damage.`);
+        }
       }
-      actualTarget.hp -= taken;
-      logCombat(`${a.name} strikes ${actualTarget.name} for ${taken} damage.`);
-      renderCombatUI(); // Update UI after damage
+      
+      if (burstShots === 1) {
+        if (aDmg > totalDamage) {
+          logCombat(`${actualTarget.name} blocked ${aDmg - totalDamage} damage.`);
+        }
+        logCombat(`${a.name} strikes ${actualTarget.name} for ${totalDamage} damage.`);
+      } else {
+        logCombat(`${a.name} burst fires at ${actualTarget.name} for ${totalDamage} total damage!`);
+      }
       
       if (actualTarget !== targ) {
-        appendLog(`${a.name} hits ${actualTarget.name} for ${taken} (shielded ${targ.name}).`);
+        appendLog(`${a.name} hits ${actualTarget.name} for ${totalDamage} (shielded ${targ.name}).`);
       } else {
-        appendLog(`${a.name} strikes ${actualTarget.name} for ${taken}.`);
+        appendLog(`${a.name} strikes ${actualTarget.name} for ${totalDamage}.`);
       }
       
       // Check actual target for effects
       targ = actualTarget;
       
+      // 1.0 Phase 3.2 - Check for reflect damage (before applying damage)
+      let reflectDamage = 0;
+      if (actualTarget.equipment?.armor) {
+        const armorEffects = getArmorPassiveBonuses(actualTarget.equipment.armor);
+        if (armorEffects.reflectChance > 0 && Math.random() < armorEffects.reflectChance) {
+          reflectDamage = Math.floor(totalDamage * 0.3);
+          logCombat(`⚡ ${actualTarget.name}'s armor reflects ${reflectDamage} damage back!`, true);
+        }
+      }
+      
+      // 1.0 Phase 3.2 - Render initial UI so DOM exists
+      renderCombatUI();
+      
+      // Queue alien attack animations - apply damage INSIDE animation
+      if (typeof queueAnimation === 'function') {
+        // 1.0 Phase 3.2 - Determine weapon type for hostile survivors
+        let weaponType = 'melee'; // Default for aliens
+        let isBurst = false;
+        let isPowerAttack = false;
+        
+        if (a.type === 'hostile_human') {
+          weaponType = a.equipment?.weapon?.weaponType || 'unarmed';
+          isBurst = burstShots > 1;
+          isPowerAttack = damageMultiplier > 1 && burstShots === 1 && weaponType === 'melee';
+        }
+        
+        const perShotDmg = Math.floor(totalDamage / burstShots);
+        
+        // Handle burst fire (multiple shots)
+        if (isBurst) {
+          for (let shotNum = 0; shotNum < burstShots; shotNum++) {
+            queueAnimation(() => {
+              const attackerCard = getCombatantCard(a.id, true);
+              if (typeof animateShoot === 'function') {
+                animateShoot(attackerCard, weaponType, false);
+              }
+            }, 300);
+            
+            queueAnimation(() => {
+              // Apply THIS shot's damage
+              actualTarget.hp -= perShotDmg;
+              
+              // Update UI after each shot FIRST
+              renderCombatUI();
+              
+              // THEN get fresh card and animate
+              const targetCard = getCombatantCard(actualTarget.id, false);
+              if (typeof animateDamage === 'function') {
+                animateDamage(targetCard, false);
+              }
+              if (typeof showStatusEffect === 'function') {
+                showStatusEffect(targetCard, `-${perShotDmg}`, '#ff6b6b');
+              }
+            }, 400);
+          }
+        }
+        // Handle power attack (melee)
+        else if (isPowerAttack) {
+          queueAnimation(() => {
+            const attackerCard = getCombatantCard(a.id, true);
+            if (typeof animatePowerAttack === 'function') {
+              animatePowerAttack(attackerCard);
+            }
+          }, 700);
+          
+          queueAnimation(() => {
+            // Apply damage
+            actualTarget.hp -= totalDamage;
+            
+            // Update UI FIRST
+            renderCombatUI();
+            
+            // THEN get fresh card and animate
+            const targetCard = getCombatantCard(actualTarget.id, false);
+            if (typeof animateDamage === 'function') {
+              animateDamage(targetCard, false);
+            }
+            if (typeof showStatusEffect === 'function') {
+              showStatusEffect(targetCard, `-${totalDamage}`, '#ff6b6b');
+            }
+          }, 400);
+        }
+        // Normal attack
+        else {
+          queueAnimation(() => {
+            const attackerCard = getCombatantCard(a.id, true);
+            if (typeof animateShoot === 'function') {
+              animateShoot(attackerCard, weaponType, false);
+            }
+          }, weaponType === 'melee' ? 500 : 400);
+          
+          queueAnimation(() => {
+            // Apply damage
+            actualTarget.hp -= totalDamage;
+            
+            // Update UI FIRST
+            renderCombatUI();
+            
+            // THEN get fresh card and animate
+            const targetCard = getCombatantCard(actualTarget.id, false);
+            if (typeof animateDamage === 'function') {
+              animateDamage(targetCard, false);
+            }
+            if (typeof showStatusEffect === 'function') {
+              showStatusEffect(targetCard, `-${totalDamage}`, '#ff6b6b');
+            }
+          }, 500);
+        }
+        
+        // 1.0 Phase 3.2 - Apply reflect damage if triggered
+        if (reflectDamage > 0) {
+          queueAnimation(() => {
+            // Show reflect effect on defender
+            const defenderCard = getCombatantCard(actualTarget.id, false);
+            if (defenderCard && typeof showStatusEffect === 'function') {
+              showStatusEffect(defenderCard, '⚡ REFLECT!', '#4a9eff');
+            }
+          }, 300);
+          
+          queueAnimation(() => {
+            // Apply reflect damage to attacker
+            a.hp -= reflectDamage;
+            
+            // Update UI
+            renderCombatUI();
+            
+            // Animate damage on attacker
+            const attackerCard = getCombatantCard(a.id, true);
+            if (attackerCard) {
+              if (typeof animateDamage === 'function') {
+                animateDamage(attackerCard, true);
+              }
+              if (typeof showStatusEffect === 'function') {
+                showStatusEffect(attackerCard, `-${reflectDamage}`, '#ff6b6b');
+              }
+            }
+            
+            if (a.hp <= 0) {
+              logCombat(`${a.name} is destroyed by reflected damage!`, true);
+            }
+          }, 500);
+        }
+      } else {
+        // Fallback if no animations
+        actualTarget.hp -= totalDamage;
+        if (reflectDamage > 0) {
+          a.hp -= reflectDamage;
+          if (a.hp <= 0) {
+            logCombat(`${a.name} is destroyed by reflected damage!`, true);
+          }
+        }
+        renderCombatUI();
+      }
+      
       // 0.9.0 - Juggernaut: 20% chance to stun on hit (Ravager)
-      if (hasModifier(a, 'juggernaut') && taken > 0 && Math.random() < 0.20 && targ.hp > 0) {
+      if (hasModifier(a, 'juggernaut') && totalDamage > 0 && Math.random() < 0.20 && targ.hp > 0) {
         if (!targ._stunned) {
           targ._stunned = 1;
           logCombat(`⚡ ${targ.name} is stunned by the devastating blow!`, true);
-          renderCombatUI(); // Update UI to show stun status
+          
+          // 1.0 Phase 3.2 - Queue stun animation
+          if (typeof queueAnimation === 'function' && typeof applyStatusAnimation === 'function') {
+            queueAnimation(() => {
+              const targetCard = getCombatantCard(targ.id, false);
+              applyStatusAnimation(targetCard, 'stunned', true);
+              if (typeof showStatusEffect === 'function') {
+                showStatusEffect(targetCard, '⚡ STUNNED!', 'var(--danger)');
+              }
+              setTimeout(() => applyStatusAnimation(targetCard, 'stunned', false), 1800);
+              renderCombatUI();
+            }, 500);
+          } else {
+            renderCombatUI();
+          }
         }
       }
       
       // 0.8.0 - Venomous: apply poison
-      if (hasModifier(a, 'venomous') && taken > 0 && targ.hp > 0) {
+      if (hasModifier(a, 'venomous') && totalDamage > 0 && targ.hp > 0) {
         // Poison: Each stack lasts 3 turns independently
         // Deal 2 damage per stack per turn
         if (!targ._poisonQueue) targ._poisonQueue = [];
         targ._poisonQueue.push(3); // Add new stack with 3 turns
         targ._poisonStacks = targ._poisonQueue.length;
         logCombat(`${targ.name} is poisoned!`);
-        renderCombatUI(); // Update UI after poison applied
+        
+        // 1.0 Phase 3.2 - Queue poison animation
+        if (typeof queueAnimation === 'function' && typeof applyStatusAnimation === 'function') {
+          queueAnimation(() => {
+            const targetCard = getCombatantCard(targ.id, false);
+            applyStatusAnimation(targetCard, 'poisoned', true);
+            if (typeof showStatusEffect === 'function') {
+              showStatusEffect(targetCard, '☠️ POISONED', '#9333ea');
+            }
+            renderCombatUI();
+          }, 500);
+        } else {
+          renderCombatUI();
+        }
       }
       
       // 0.9.0 - Plague Bringer: AOE + poison all targets (Spitter)
-      if (hasModifier(a, 'plague') && taken > 0 && targ.hp > 0) {
+      if (hasModifier(a, 'plague') && totalDamage > 0 && targ.hp > 0) {
         // Apply poison to primary target
         if (!targ._poisonQueue) targ._poisonQueue = [];
         targ._poisonQueue.push(3);
@@ -3375,7 +5405,7 @@ function enemyTurn() {
         // AOE splash to all other survivors
         const splashTargets = aliveParty.filter(p => p.hp > 0 && p !== targ);
         for (const splashTarg of splashTargets) {
-          const plagueDmg = Math.floor(taken * 0.5);
+          const plagueDmg = Math.floor(totalDamage * 0.5);
           splashTarg.hp -= plagueDmg;
           
           // Poison splash targets too
@@ -3384,7 +5414,23 @@ function enemyTurn() {
           splashTarg._poisonStacks = splashTarg._poisonQueue.length;
         }
         logCombat(`💀 ${a.name} unleashes a plague cloud! All survivors poisoned!`, true);
-        renderCombatUI();
+        
+        // 1.0 Phase 3.2 - Queue plague poison animation for ALL targets
+        if (typeof queueAnimation === 'function' && typeof applyStatusAnimation === 'function') {
+          const allPoisoned = [targ, ...splashTargets];
+          for (const poisonedTarget of allPoisoned) {
+            queueAnimation(() => {
+              const targetCard = getCombatantCard(poisonedTarget.id, false);
+              applyStatusAnimation(targetCard, 'poisoned', true);
+              if (typeof showStatusEffect === 'function') {
+                showStatusEffect(targetCard, '☠️ PLAGUE!', '#9333ea');
+              }
+            }, 500);
+          }
+          queueAnimation(() => renderCombatUI(), 100);
+        } else {
+          renderCombatUI();
+        }
       }
       
       // 0.8.0 - Caustic: splash damage
@@ -3420,6 +5466,15 @@ function enemyTurn() {
           });
           
           renderCombatUI(); // Update UI after downed
+          
+          // 1.0 Phase 3.2 - Queue death animation (UI already updated)
+          if (typeof queueAnimation === 'function' && typeof animateDeath === 'function') {
+            queueAnimation(() => {
+              const targetCard = getCombatantCard(targ.id, false);
+              animateDeath(targetCard);
+            }, 800);
+          }
+          
           if (currentCombat.context !== 'base') {
             state.raidPressure = Math.min((state.raidPressure || 0) + 0.004, 0.03);
             state.threat = clamp(state.threat + 1, 0, 100);
@@ -3449,27 +5504,84 @@ function enemyTurn() {
   // Reset to first survivor for next round
   currentCombat.activePartyIdx = 0;
   
-  // Log the start of the new player turn FIRST
+  // 1.0 Phase 3.2 - Process all queued alien attack animations, then check defeat or start player turn
+  if (typeof processAnimationQueue === 'function') {
+    processAnimationQueue(() => {
+      // All animations done, check if party survived
+      const aliveAfterAnimations = party.filter(p => p.hp > 0 && !p.downed && !p._retreated);
+      if (aliveAfterAnimations.length === 0) {
+        // Party wiped out - end combat with defeat
+        return endCombat(false);
+      }
+      
+      // Party survived - start next turn
+      startPlayerTurn(party);
+    });
+  } else {
+    // Fallback
+    setTimeout(() => {
+      const aliveAfterAnimations = party.filter(p => p.hp > 0 && !p.downed && !p._retreated);
+      if (aliveAfterAnimations.length === 0) {
+        return endCombat(false);
+      }
+      startPlayerTurn(party);
+    }, 500);
+  }
+}
+
+function startPlayerTurn(party) {
+  // 1.0 Phase 3.2 - Clear enemy turn flag
+  if (currentCombat) {
+    currentCombat._enemyTurnActive = false;
+  }
+  
+  // Log the start of the new player turn
   logCombat(`— Turn ${currentCombat.turn} —`);
   logCombat('— Your Turn —');
   
-  // Render UI to show turn markers immediately (before resetting guard status)
+  // 1.0 Phase 3.2 - Auto-select first alive alien if no target selected
+  if (!currentCombat.selectedTargetId || !currentCombat.aliens.find(a => a.id === currentCombat.selectedTargetId && a.hp > 0)) {
+    const firstAlive = currentCombat.aliens.find(a => a.hp > 0);
+    if (firstAlive) {
+      currentCombat.selectedTargetId = firstAlive.id;
+    }
+  }
+  
+  // Render UI to show turn markers
   renderCombatUI();
   
-  // 0.8.0 & 0.9.0 - Reset per-turn flags AFTER rendering
+  // Reset per-turn flags
   for (const p of party) {
     p._guardBonus = 0;
-    p._shieldUsed = false; // Reset Living Shield
+    p._shieldUsed = false;
     if (currentCombat.guarding) {
-      currentCombat.guarding[p.id] = false; // Clear guard status for next turn
+      currentCombat.guarding[p.id] = false;
     }
   }
   for (const a of currentCombat.aliens) {
-    if (a._justPhased) a._justPhased = false; // Clear wraith flag
+    if (a._justPhased) a._justPhased = false;
   }
 }
 
 function endCombat(win) {
+  // 1.0 Phase 3.2 - Wait for all animations to finish before ending combat
+  if (typeof isAnimating === 'function' && isAnimating()) {
+    if (typeof processAnimationQueue === 'function') {
+      processAnimationQueue(() => {
+        // All animations done, now end combat
+        endCombatImmediate(win);
+      });
+    } else {
+      // Fallback if sequencer not available
+      setTimeout(() => endCombatImmediate(win), 1000);
+    }
+    return;
+  }
+  
+  endCombatImmediate(win);
+}
+
+function endCombatImmediate(win) {
   const idx = currentCombat?.idx ?? null;
   const isRaid = currentCombat?.context === 'base';
   
@@ -3493,10 +5605,55 @@ function endCombat(win) {
   
   if (win) {
     logCombat('Victory! Area secured.', true);
+    
+    // 1.0 - Drop loot from defeated hostile survivors
+    if (currentCombat.aliens && currentCombat.aliens.some(a => a.type === 'hostile_human')) {
+      const hostiles = currentCombat.aliens.filter(a => a.type === 'hostile_human');
+      for (const hostile of hostiles) {
+        // Drop equipped items
+        if (hostile.equipment) {
+          if (hostile.equipment.weapon) {
+            state.inventory.push(hostile.equipment.weapon);
+            appendLog(`⚔️ Looted: ${hostile.equipment.weapon.name} (${hostile.equipment.weapon.durability}/${hostile.equipment.weapon.maxDurability})`);
+          }
+          if (hostile.equipment.armor) {
+            state.inventory.push(hostile.equipment.armor);
+            appendLog(`🛡️ Looted: ${hostile.equipment.armor.name} (${hostile.equipment.armor.durability}/${hostile.equipment.armor.maxDurability})`);
+          }
+        }
+        
+        // Drop remaining consumables from inventory
+        if (hostile.inventory && hostile.inventory.length > 0) {
+          for (const item of hostile.inventory) {
+            state.inventory.push(item);
+            appendLog(`📦 Looted: ${item.name}`);
+          }
+        }
+        
+        // Bonus scrap based on hostile rarity
+        const rarityScrap = {
+          'common': rand(10, 20),
+          'uncommon': rand(20, 35),
+          'rare': rand(35, 60),
+          'legendary': rand(60, 100)
+        };
+        const scrapAmount = rarityScrap[hostile.rarity] || 15;
+        state.resources.scrap += scrapAmount;
+        appendLog(`💰 Looted ${scrapAmount} scrap from ${hostile.name}`);
+      }
+    }
+    
     if (idx !== null && state.tiles[idx]) {
       state.tiles[idx].aliens = [];
       state.tiles[idx].type = 'empty';
       state.tiles[idx].cleared = true; // Mark as fully cleared (0.7.2)
+      // 1.0 - Clear hostile survivors from tile
+      if (state.tiles[idx].hostileSurvivors) {
+        delete state.tiles[idx].hostileSurvivors;
+      }
+      if (state.tiles[idx]._originalHostiles) {
+        delete state.tiles[idx]._originalHostiles;
+      }
     }
     // XP reward for all surviving party members (including downed who survived)
     const party = currentCombat.partyIds.map(id => state.survivors.find(s => s.id === id)).filter(Boolean);
@@ -3534,6 +5691,11 @@ function endCombat(win) {
         state.threat = clamp(state.threat - BALANCE.THREAT_REDUCE_ON_REPEL, 0, 100);
         appendLog('Raid repelled. Recovered scrap from wreckage.');
       }
+    } else if (currentCombat.context && (currentCombat.context === 'mission' || currentCombat.context.type === 'mission')) {
+      // Mission context: call mission onWin callback if present
+      if (typeof currentCombat.context.onWin === 'function') {
+        currentCombat.context.onWin();
+      }
     }
   } else {
     logCombat('Defeat.', true);
@@ -3566,15 +5728,49 @@ function endCombat(win) {
       appendLog(`The base defenses have fallen! Integrity -${integrityDamage}%.`);
       closeCombatOverlay();
       return;
+    } else if (currentCombat.context && (currentCombat.context === 'mission' || currentCombat.context.type === 'mission')) {
+      // Mission context: call mission onLoss callback if present
+      if (typeof currentCombat.context.onLoss === 'function') {
+        currentCombat.context.onLoss();
+      }
     }
     
     // For field combat, mark tile as not cleared so it can be revisited
     if (idx !== null && state.tiles[idx]) {
       state.tiles[idx].cleared = false;
+      
+      // 1.0 Phase 3.2 - Clear selected explorer to return them to base
+      state.selectedExplorerId = null;
+      
+      // 1.0 - Sync hostile survivor HP back to tile after defeat/retreat
+      if (state.tiles[idx].hostileSurvivors && currentCombat.aliens) {
+        console.log('Syncing HP after defeat/retreat. Aliens in combat:', currentCombat.aliens.map(a => ({ id: a.id, name: a.name, type: a.type, hp: a.hp })));
+        console.log('Hostiles on tile before sync:', state.tiles[idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
+        
+        currentCombat.aliens.forEach(alien => {
+          if (alien.type === 'hostile_human') {
+            const hostile = state.tiles[idx].hostileSurvivors.find(h => h.id === alien.id);
+            if (hostile) {
+              console.log(`Syncing ${hostile.name}: ${hostile.hp} → ${alien.hp}`);
+              hostile.hp = alien.hp;
+              hostile.maxHp = alien.maxHp;
+            }
+          }
+        });
+        
+        console.log('Hostiles on tile after sync:', state.tiles[idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
+        
+        // Remove dead hostiles from tile
+        state.tiles[idx].hostileSurvivors = state.tiles[idx].hostileSurvivors.filter(h => h.hp > 0);
+        
+        console.log('Hostiles on tile after filtering dead:', state.tiles[idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
+      }
     }
+    // (handled above) mission onLoss callback already invoked where appropriate
   }
-  updateUI();
+  
   closeCombatOverlay();
+  updateUI(); // 1.0 Phase 3.2 - Update UI after closing to refresh map with cleared explorer
 }
 
 function bindCombatUIEvents() {

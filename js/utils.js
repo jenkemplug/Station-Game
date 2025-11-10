@@ -1,6 +1,6 @@
 const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const el = id => document.getElementById(id);
+function el(id) { return document.getElementById(id); }
 
 function formatTime(s) {
   const hh = Math.floor(s / 3600);
