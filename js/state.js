@@ -35,6 +35,7 @@ let state = {
   baseIntegrity: 100,
   raidChance: 0, // 0.7.3 - replaces boardRisk
   lastRaidAt: 0, // 0.7.3 - cooldown tracking
+  raidCooldownMs: 0, // randomized raid cooldown window (ms) set by threat.js; 0 = use default
   alienKills: 0, // 0.7.3 - used to scale raid chance
   // 0.8.x - temporary pressure that boosts raid chance after retreats/casualties; decays over time
   raidPressure: 0,
@@ -60,6 +61,7 @@ let state = {
     progress: 0,          // 0-100%, represents repair completion
     componentsInstalled: 0, // Track component installations
     fuelCellsInstalled: 0,  // Track fuel cell installations
+    finalBossTriggered: false, // Track if final boss encounter has been triggered
     finalBossDefeated: false // Track if Alpha Queen has been beaten
   },
   gameWon: false, // 1.0 - Track win state

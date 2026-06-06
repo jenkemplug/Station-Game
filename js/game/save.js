@@ -1,6 +1,16 @@
 // Save/Load System
 // Handles game persistence, save snapshots, and offline progress
 
+// Sanitize untrusted name fields at the load/import boundary.
+// Strips < > and double-quote, collapses whitespace, and caps length so a
+// malicious save file cannot inject markup when names are later rendered.
+// NOTE: this strips characters for storage; it is NOT escapeHtml (which only
+// escapes for a single render). Render sinks should still use escapeHtml.
+function sanitizeName(v) {
+  if (v === null || v === undefined) return v;
+  return String(v).replace(/[<>"]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+}
+
 function pickLoot(qualityBonus = 0, terrain = null) {
   // qualityBonus increases chance of better loot (0.0 to 1.0+)
   // terrain = room type for sector-specific loot (1.0)
@@ -81,15 +91,24 @@ function pickLoot(qualityBonus = 0, terrain = null) {
   for (const l of adjustedTable) {
     t -= l.adjustedWeight;
     if (t <= 0) {
-      // If using sector loot, return the full loot item from LOOT_TABLE
+      // If using sector loot, resolve to the full loot item from LOOT_TABLE.
+      // SECTOR_LOOT entries are bare { type, weight, rarity } with no onPickup,
+      // so returning one directly would crash the pickup handler. If the type
+      // has no LOOT_TABLE match, fall back to a guaranteed entry instead.
       if (terrain && SECTOR_LOOT[terrain]) {
         const fullItem = LOOT_TABLE.find(li => li.type === l.type);
-        return fullItem || l;
+        if (fullItem) return fullItem;
+        console.warn(`pickLoot: SECTOR_LOOT type '${l.type}' has no LOOT_TABLE entry; falling back to junk.`);
+        return LOOT_TABLE.find(li => li.type === 'junk') || LOOT_TABLE.find(li => typeof li.onPickup === 'function');
       }
       return l;
     }
   }
-  return adjustedTable[0];
+  // Terminal fallback (the weighted loop above effectively always returns first).
+  // Never hand back a bare SECTOR_LOOT entry that lacks onPickup.
+  const fallback = adjustedTable[0];
+  if (fallback && typeof fallback.onPickup === 'function') return fallback;
+  return LOOT_TABLE.find(li => li.type === 'junk') || LOOT_TABLE.find(li => typeof li.onPickup === 'function');
 }
 
 function initTiles() {
@@ -253,7 +272,7 @@ function generateNewMap() {
 function makeSaveSnapshot() {
   // pick properties explicitly to avoid serializing methods or unexpected types
   return {
-    _version: '1.0.0', // 1.0 - Blueprint System
+    _version: VERSION, // tracks the app version (constants.js)
     startedAt: state.startedAt,
     lastTick: state.lastTick,
     secondsPlayed: state.secondsPlayed,
@@ -271,6 +290,8 @@ function makeSaveSnapshot() {
     mapSize: state.mapSize, // Deprecated but kept for compatibility
     baseTile: state.baseTile,
     explored: Array.from(state.explored || []),
+    visible: Array.from(state.visible || []),
+    seen: Array.from(state.seen || []),
     inventory: state.inventory,
     inventoryCapacity: state.inventoryCapacity,
     equipment: state.equipment,
@@ -295,6 +316,10 @@ function makeSaveSnapshot() {
     completedMissions: state.completedMissions,
     keycards: state.keycards, // 1.0 - Unlocked sectors
     successfulMissions: state.successfulMissions, // 1.0 - Successful mission completions
+    // 1.0 - Phase 2.4: Shuttle Repair & Win Condition
+    shuttleRepair: state.shuttleRepair,
+    gameWon: state.gameWon,
+    gameOver: state.gameOver,
     timeNow: Date.now()
   };
 }
@@ -354,10 +379,21 @@ function loadGame() {
         state.mapSize = parsed.mapSize || state.mapSize;
         state.baseTile = parsed.baseTile || state.baseTile;
         state.explored = Array.isArray(parsed.explored) ? new Set(parsed.explored) : new Set();
-        
+        // 1.0 - Vision system: restore visible (currently in range) and seen
+        // (previously revealed). Old saves lack seen, so default it to a copy of
+        // explored so prior structure stays visible after upgrading.
+        state.visible = new Set(Array.isArray(parsed.visible) ? parsed.visible : []);
+        state.seen = (Array.isArray(parsed.seen) && parsed.seen.length) ? new Set(parsed.seen) : new Set(state.explored);
+
         // Handle inventory migration from object to array
         if (Array.isArray(parsed.inventory)) {
-          state.inventory = parsed.inventory;
+          // Sanitize untrusted item names at the load boundary (preserve all
+          // other fields). Only rewrites name when present.
+          state.inventory = parsed.inventory.map(item =>
+            (item && typeof item === 'object' && 'name' in item)
+              ? { ...item, name: sanitizeName(item.name) }
+              : item
+          );
         } else {
           state.inventory = []; // Reset inventory for old save formats
         }
@@ -395,6 +431,18 @@ function loadGame() {
         state.lastEscalationTime = Number(parsed.lastEscalationTime) || 0;
         state.threatLocked = !!parsed.threatLocked;
 
+        // 1.0 - Phase 2.4: Restore shuttle repair progress and win/over flags
+        state.shuttleRepair = Object.assign({
+          unlocked: false,
+          progress: 0,
+          componentsInstalled: 0,
+          fuelCellsInstalled: 0,
+          finalBossTriggered: false,
+          finalBossDefeated: false
+        }, parsed.shuttleRepair || {});
+        state.gameWon = !!parsed.gameWon;
+        state.gameOver = !!parsed.gameOver;
+
         // sanitize numeric resource fields
         for (const k of ['oxygen', 'food', 'energy', 'scrap', 'tech', 'ammo']) {
           state.resources[k] = Number(state.resources[k]) || 0;
@@ -406,7 +454,7 @@ function loadGame() {
         state.survivors = state.survivors.map(s => {
           const migratedSurvivor = {
             id: Number(s.id) || 0,
-            name: s.name || 'Unknown',
+            name: sanitizeName(s.name) || 'Unknown',
             level: Number(s.level) || 1,
             xp: Number(s.xp) || 0,
             nextXp: Number(s.nextXp) || 50,
@@ -421,7 +469,10 @@ function loadGame() {
             equipment: s.equipment || { weapon: null, armor: null },
             // 0.8.0 - Migration: add class/abilities for old saves
             class: s.class || assignRandomClass(),
-            abilities: Array.isArray(s.abilities) ? s.abilities : (s.class ? rollAbilities(s.class) : [])
+            abilities: Array.isArray(s.abilities) ? s.abilities : (s.class ? rollAbilities(s.class) : []),
+            // 1.0 - Preserve mission/exploration assignments across reloads
+            onMission: !!s.onMission,
+            onExploration: !!s.onExploration
           };
           
           // 0.8.10 - Migration: roll class bonuses for existing survivors without them

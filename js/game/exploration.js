@@ -1,6 +1,21 @@
 // Exploration System
 // Handles tile exploration, scanning, and tile events
 
+// Returns the in-bounds orthogonal neighbor INDICES of a tile.
+// Unlike getAdjacentTiles (which returns {x,y,idx} objects), this returns
+// plain integer indices, as expected by the Scout Tracker branch below.
+function getNeighbors(idx) {
+  const { x, y } = getTileCoords(idx);
+  const w = state.fullMap.width;
+  const h = state.fullMap.height;
+  const neighbors = [];
+  if (y - 1 >= 0) neighbors.push(getTileIndex(x, y - 1)); // up
+  if (y + 1 < h) neighbors.push(getTileIndex(x, y + 1)); // down
+  if (x - 1 >= 0) neighbors.push(getTileIndex(x - 1, y)); // left
+  if (x + 1 < w) neighbors.push(getTileIndex(x + 1, y)); // right
+  return neighbors;
+}
+
 function revealRandomTiles(count = 1) {
   const uncovered = [];
   for (let i = 0; i < state.tiles.length; i++)
@@ -45,21 +60,23 @@ function handleTileEvent(idx) {
     
     // 1.0 - Pass terrain for sector-specific loot
     const loot = pickLoot(qualityBonus, t.terrain);
-    const message = loot.onPickup(state);
-    
+    const message = (loot && typeof loot.onPickup === 'function') ? loot.onPickup(state) : 'nothing of value';
+
     // 0.8.0 - Scavenger abilities for bonus loot
     if (explorer) {
       // Lucky Find - 15% chance for extra loot
       if (hasAbility(explorer, 'lucky') && Math.random() < 0.15) {
         const bonusLoot = pickLoot(qualityBonus, t.terrain);
-        const bonusMessage = bonusLoot.onPickup(state);
-        appendLog(`${explorer.name}'s Lucky Find triggered: ${bonusMessage}!`);
+        if (bonusLoot && typeof bonusLoot.onPickup === 'function') {
+          appendLog(`${explorer.name}'s Lucky Find triggered: ${bonusLoot.onPickup(state)}!`);
+        }
       }
       // Golden Nose - double loot rolls
       if (hasAbility(explorer, 'goldnose')) {
         const extraLoot = pickLoot(qualityBonus, t.terrain);
-        const extraMessage = extraLoot.onPickup(state);
-        appendLog(`${explorer.name}'s Golden Nose finds exceptional loot: ${extraMessage}!`);
+        if (extraLoot && typeof extraLoot.onPickup === 'function') {
+          appendLog(`${explorer.name}'s Golden Nose finds exceptional loot: ${extraLoot.onPickup(state)}!`);
+        }
       }
     }
     
@@ -110,20 +127,14 @@ function handleTileEvent(idx) {
   } else if (t.content === 'hostile') {
     // 1.0 - Hostile survivor encounter
     if (t.hostileSurvivors && t.hostileSurvivors.length > 0) {
-      console.log('Before filtering:', t.hostileSurvivors.map(h => ({ name: h.name, hp: h.hp, maxHp: h.maxHp })));
-      
       // Remove dead hostiles first
       t.hostileSurvivors = t.hostileSurvivors.filter(h => h.hp > 0);
-      
-      console.log('After filtering:', t.hostileSurvivors.map(h => ({ name: h.name, hp: h.hp, maxHp: h.maxHp })));
-      
+
       // Re-encounter: Restore alive hostiles to full HP
       t.hostileSurvivors.forEach(hostile => {
         hostile.hp = hostile.maxHp;
       });
-      
-      console.log('After healing:', t.hostileSurvivors.map(h => ({ name: h.name, hp: h.hp, maxHp: h.maxHp })));
-      
+
       if (t.hostileSurvivors.length > 0) {
         appendLog(`⚔️ Re-encountered ${t.hostileSurvivors.length} hostile survivor(s)!`);
         t.cleared = false;
@@ -214,8 +225,9 @@ function handleTileEvent(idx) {
     // Better loot chances (1.0 - with terrain bonus)
     for (let i = 0; i < BALANCE.HAZARD_LOOT_ROLLS; i++) {
       const loot = pickLoot(0, t.terrain);
-      const message = loot.onPickup(state);
-      appendLog(`${explorer.name} found ${message}`);
+      if (loot && typeof loot.onPickup === 'function') {
+        appendLog(`${explorer.name} found ${loot.onPickup(state)}`);
+      }
     }
 
     appendLog(`${explorer.name} successfully cleared the hazardous area.`);
@@ -284,14 +296,16 @@ function handleTileEvent(idx) {
       // Grant some hangar loot
       const loot1 = pickLoot(0.3, 'hangarBay');
       const loot2 = pickLoot(0.3, 'hangarBay');
-      appendLog(`🔧 ${loot1.onPickup(state)}`);
-      appendLog(`🔧 ${loot2.onPickup(state)}`);
+      if (loot1 && typeof loot1.onPickup === 'function') appendLog(`🔧 ${loot1.onPickup(state)}`);
+      if (loot2 && typeof loot2.onPickup === 'function') appendLog(`🔧 ${loot2.onPickup(state)}`);
       
       if (explorer) grantXp(explorer, BALANCE.XP_FROM_LOOT * 3); // Big XP reward
     } else {
       // Subsequent visits - can scavenge more loot
       const loot = pickLoot(0.2, 'hangarBay');
-      appendLog(`🔍 Scavenging the hangar: ${loot.onPickup(state)}`);
+      if (loot && typeof loot.onPickup === 'function') {
+        appendLog(`🔍 Scavenging the hangar: ${loot.onPickup(state)}`);
+      }
       if (explorer) grantXp(explorer, BALANCE.XP_FROM_LOOT);
     }
     

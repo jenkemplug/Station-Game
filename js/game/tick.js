@@ -529,7 +529,9 @@ function calculateOfflineProgress(elapsedSeconds) {
 
   // Clamp morale
   state.survivors.forEach(s => s.morale = clamp(s.morale, 0, 100));
-  state.baseIntegrity = clamp(state.baseIntegrity, 0, 100);
+  // base integrity clamp — keep in sync with applyTick (allow dipping to -20 so the
+  // baseIntegrity <= 0 game-over check behaves the same offline as online)
+  state.baseIntegrity = clamp(state.baseIntegrity, -20, 100);
 
   // Update total time played
   state.secondsPlayed += elapsedSeconds;

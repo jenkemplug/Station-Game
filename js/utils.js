@@ -2,6 +2,18 @@ const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function el(id) { return document.getElementById(id); }
 
+// Canonical HTML-escape helper. The ONLY definition in the codebase; all other
+// files use this for innerHTML / title="..." render sinks. Loaded early (utils.js)
+// so every later script shares it via the global scope.
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function formatTime(s) {
   const hh = Math.floor(s / 3600);
   s %= 3600;
@@ -39,9 +51,12 @@ function tryAddToInventory(item) {
 }
 
 // 0.9.0 - Wrap item name in rarity color for log messages
+// Escape the (untrusted) name so log messages built from item/survivor names
+// are XSS-safe, while keeping the intentional colored <span> markup.
 function colorItemName(name, rarity) {
-  if (!rarity || !RARITY_COLORS[rarity]) return name;
-  return `<span style="color:${RARITY_COLORS[rarity]}">${name}</span>`;
+  const safeName = escapeHtml(name);
+  if (!rarity || !RARITY_COLORS[rarity]) return safeName;
+  return `<span style="color:${RARITY_COLORS[rarity]}">${safeName}</span>`;
 }
 
 // 0.9.0 - Helper for crafting log messages with colored item names

@@ -1,6 +1,6 @@
 {
   "name": "derelict-station",
-  "version": "0.9.19a",
+  "version": "0.9.20",
   "description": "A browser-based survival/management game.",
   "main": "electron.js",
   "scripts": {

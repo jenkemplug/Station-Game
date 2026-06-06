@@ -3,6 +3,9 @@
 (function(window){
   const MissionValidator = {};
 
+  // Cap how many issues we print to the log to avoid spamming.
+  const MAX_LOGGED_ISSUES = 200;
+
   MissionValidator.validateAllMissions = function() {
     const issues = [];
     if (typeof AWAY_MISSIONS !== 'object') {
@@ -107,8 +110,8 @@
       appendLog('[Missions] Validation OK — no issues found.');
     } else {
       appendLog(`[Missions] Validation found ${issues.length} issue(s):`);
-      // Print up to 50 issues to the log to avoid spamming
-      issues.slice(0, 200).forEach(i => appendLog(`• ${i}`));
+      // Print up to MAX_LOGGED_ISSUES issues to the log to avoid spamming
+      issues.slice(0, MAX_LOGGED_ISSUES).forEach(i => appendLog(`• ${i}`));
     }
 
     return issues;

@@ -55,7 +55,17 @@ function craft(item) {
       return;
     }
   }
-  
+
+  // Item-producing recipes push a new inventory item (id from state.nextItemId);
+  // resource-only recipes (e.g. ammo) do not. Detect via the result source so a
+  // full inventory blocks the craft BEFORE materials are consumed, instead of
+  // tryAddAndLog() silently dropping the item after we already paid for it.
+  const producesItem = /nextItemId/.test(r.result.toString());
+  if (producesItem && !canAddToInventory()) {
+    appendLog('Inventory is full! Cannot craft ' + (r.name || item) + '.');
+    return;
+  }
+
   // 0.8.11 - Technician Recycler ability: 25% chance per Recycler to refund materials
   const recyclerCount = technicians.filter(t => hasAbility(t, 'recycler')).length;
   const refundChance = recyclerCount * 0.25; // 25% per Recycler, stacks
@@ -78,8 +88,11 @@ function craft(item) {
     state.resources.tech -= techCost;
   }
   
+  // Snapshot the next id so we can find the item this craft creates (if any) by
+  // id afterward, rather than assuming it is the last inventory entry.
+  const craftedIdFloor = state.nextItemId;
   r.result();
-  
+
   // 0.9.0 - Inventor: 30% chance to create Advanced Component when crafting equipment
   const engineers = state.survivors.filter(s => !s.onMission && s.class === 'engineer');
   const hasInventor = engineers.some(e => hasAbility(e, 'inventor'));
@@ -124,10 +137,12 @@ function craft(item) {
   const durabilityMult = 1 + durabilityAdd;
   
   if (durabilityMult > 1) {
-    const lastItem = state.inventory[state.inventory.length - 1];
-    if (lastItem && lastItem.durability !== undefined) {
-      lastItem.maxDurability = Math.floor(lastItem.maxDurability * durabilityMult);
-      lastItem.durability = lastItem.maxDurability;
+    // Apply the bonus to the item this craft actually created (id >= snapshot),
+    // not blindly to the last inventory slot, which could buff an unrelated item.
+    const craftedItem = state.inventory.find(i => i.id >= craftedIdFloor);
+    if (craftedItem && craftedItem.durability !== undefined) {
+      craftedItem.maxDurability = Math.floor(craftedItem.maxDurability * durabilityMult);
+      craftedItem.durability = craftedItem.maxDurability;
       appendLog('Crafted with enhanced durability!');
     }
   }

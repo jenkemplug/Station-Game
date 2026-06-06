@@ -66,8 +66,9 @@ function resolveMissionChoice(missionId, choiceIndex) {
   let isSuccess = true;
   if (choice.skillCheck) {
     // Per user request, remove class restriction and give a flat bonus to make testing easier.
-  let successChance = choice.skillCheck.difficulty + 25;
-  isSuccess = (Math.random() * 100) < successChance;
+    // Higher difficulty => lower success chance. +25 is the testing bonus.
+    let successChance = clamp(100 - choice.skillCheck.difficulty + 25, 5, 95);
+    isSuccess = (Math.random() * 100) < successChance;
   }
 
   const outcome = isSuccess ? choice.outcome.success : choice.outcome.failure;
@@ -141,14 +142,11 @@ function completeMission(missionId) {
 
   if (survivor) {
     survivor.onMission = false;
-    // If the returning survivor was the active explorer, re-select them.
-    if (state.selectedExplorerId === survivor.id) {
-      state.selectedExplorerId = survivor.id;
-    }
   }
-  
+
   // Use the stored tileIndex to clear the mission from the map.
-  if (missionState.tileIndex !== undefined) {
+  // tileIndex may be null (e.g. finalAssault) — guard against null and missing tiles.
+  if (missionState.tileIndex != null && state.tiles[missionState.tileIndex]) {
     state.tiles[missionState.tileIndex].cleared = true;
     state.tiles[missionState.tileIndex].type = 'empty'; // Or whatever is appropriate
   }
@@ -189,14 +187,11 @@ function failMission(missionId) {
 
     if (survivor) {
         survivor.onMission = false;
-        // If the returning survivor was the active explorer, re-select them.
-        if (state.selectedExplorerId === survivor.id) {
-          state.selectedExplorerId = survivor.id;
-        }
     }
     
     // Use the stored tileIndex to clear the mission from the map.
-    if (missionState.tileIndex !== undefined) {
+    // tileIndex may be null (e.g. finalAssault) — guard against null and missing tiles.
+    if (missionState.tileIndex != null && state.tiles[missionState.tileIndex]) {
       state.tiles[missionState.tileIndex].cleared = true;
       state.tiles[missionState.tileIndex].type = 'empty';
     }
@@ -237,11 +232,6 @@ function handleMissionRewardsAndDamage(outcome, survivor) {
         } else if (lootEntry && typeof lootEntry.onPickup === 'function') {
           const lootMessage = lootEntry.onPickup(state);
           appendMissionLog(`<span style="color:var(--success)">Recovered: ${lootMessage}</span>`);
-        } else if (itemName === 'tech') {
-            const techAmount = quantity || 1;
-            state.resources.tech += techAmount;
-            appendMissionLog(`<span style="color:var(--accent)">+${techAmount} Tech</span>`);
-            break; 
         } else {
           appendMissionLog(`<span style="color:var(--danger)">[ERROR] Unknown reward: ${itemName}</span>`);
         }

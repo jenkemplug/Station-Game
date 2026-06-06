@@ -215,6 +215,8 @@ let lastRenderedMapSnapshot = null;
 let lastRenderedInventorySnapshot = null;
 // 0.8.2 - Avoid rerendering workbench every tick
 let lastRenderedWorkbenchKey = null;
+// 1.0 - Avoid rebuilding shuttle-repair buttons/onclick closures every tick
+let lastRenderedShuttleKey = null;
 // 0.8.5 - Snapshots for all UI panels to prevent focus loss
 let lastRenderedResourceSnapshot = null;
 let lastRenderedSystemSnapshot = null;
@@ -229,29 +231,37 @@ let lastRenderedKeycardSnapshot = null;
 function computeMapSnapshot() {
   try {
     const parts = [state.mapSize.w, state.mapSize.h];
-    
+
     // 1.0 - Include exploration mode and explorer position
     parts.push(`${state.isExploring ? 1 : 0}:${state.explorerPos ? `${state.explorerPos.x},${state.explorerPos.y}` : 'none'}`);
-    
-    // 1.0 - Include viewport position
-    parts.push(`vp:${state.viewport.x},${state.viewport.y}`);
-    
-    // 1.0 - Include vision state (visible and seen sets)
-    parts.push(`vis:${state.visible.size}:${state.seen.size}`);
-    
+
+    // 1.0 - Include viewport position and extent (renderMap only draws the viewport)
+    parts.push(`vp:${state.viewport.x},${state.viewport.y},${state.viewport.width},${state.viewport.height}`);
+
+    // 1.0 - Include vision/exploration set sizes. These are global change-detectors:
+    // any tile entering visible/seen/explored (including just outside the viewport,
+    // which feeds the "adjacent to explored" check) flips one of these counts.
+    parts.push(`vis:${state.visible.size}:${state.seen.size}:${state.explored.size}`);
+
+    // 1.0 - Door glyphs/tooltips depend on keycards + completed missions
+    parts.push(`kc:${state.keycards.join(',')}|sm:${state.successfulMissions.join(',')}`);
+
     // 0.8.10 - Include explorer ID and bonuses in snapshot to update tooltips
     const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
-    const explorerKey = explorer 
+    const explorerKey = explorer
       ? `${explorer.id}:${explorer.classBonuses?.exploration || 1}:${hasAbility(explorer, 'pathfinder') ? 1 : 0}`
       : 'none';
     parts.push(explorerKey);
-    
-    for (let i = 0; i < state.tiles.length; i++) {
-      const t = state.tiles[i];
+
+    // PERF: only the viewport tiles are rendered, so the per-tile signature only
+    // needs those (~viewport.width*height) instead of the whole ~80x80 map.
+    for (const { idx, tile: t } of getVisibleTiles()) {
+      if (!t) continue;
       const aliensAlive = (t.aliens && t.aliens.some(a => a && a.hp > 0)) ? 1 : 0;
-      const isVisible = state.visible.has(i) ? 1 : 0;
-      const isSeen = state.seen.has(i) ? 1 : 0;
-      parts.push(`${t.terrain}:${t.content || 'none'}:${t.cleared?1:0}:${aliensAlive}:${isVisible}:${isSeen}`);
+      const isVisible = state.visible.has(idx) ? 1 : 0;
+      const isSeen = state.seen.has(idx) ? 1 : 0;
+      const isExplored = state.explored.has(idx) ? 1 : 0;
+      parts.push(`${t.terrain}:${t.content || 'none'}:${t.cleared?1:0}:${aliensAlive}:${isVisible}:${isSeen}:${isExplored}`);
     }
     return parts.join('|');
   } catch (e) {
@@ -326,7 +336,7 @@ function updateUI() {
       
       keycardList.innerHTML = state.keycards.map(keycard => {
         const displayName = sectorNames[keycard] || keycard;
-        return `<span style="padding:4px 8px;background:rgba(74,158,255,0.2);border:1px solid var(--accent);border-radius:4px;font-size:12px;">🔑 ${displayName}</span>`;
+        return `<span style="padding:4px 8px;background:rgba(74,158,255,0.2);border:1px solid var(--accent);border-radius:4px;font-size:12px;">🔑 ${escapeHtml(displayName)}</span>`;
       }).join('');
     }
   }
@@ -867,7 +877,7 @@ function renderSurvivors() {
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong style="color:var(--accent)">${s.name}</strong><div class="small" id="survivor-${s.id}-status"><span title="Level increases max HP and combat effectiveness.">Lvl ${s.level}</span> • ${s.onExploration ? '🚶 Exploring' : (s.task || 'Idle')}</div></div>
+        <div><strong style="color:var(--accent)">${escapeHtml(s.name)}</strong><div class="small" id="survivor-${s.id}-status"><span title="Level increases max HP and combat effectiveness.">Lvl ${s.level}</span> • ${s.onExploration ? '🚶 Exploring' : (s.task || 'Idle')}</div></div>
         <div class="small">HP ${s.hp}/${effectiveMaxHp}</div>
       </div>
       <div style="margin-top:6px" class="small">
@@ -878,7 +888,7 @@ function renderSurvivors() {
         const classInfo = SURVIVOR_CLASSES.find(c => c.id === s.class);
         const className = classInfo ? classInfo.name : (s.class || 'Unknown');
         const classDesc = classInfo ? classInfo.desc : '';
-        let classDisplay = `<div style="margin-top:4px; font-size: 12px;"><span style="color: var(--class-common)" title="${classDesc}">Class: ${className}</span>`;
+        let classDisplay = `<div style="margin-top:4px; font-size: 12px;"><span style="color: var(--class-common)" title="${escapeHtml(classDesc)}">Class: ${escapeHtml(className)}</span>`;
         
         if (s.abilities && s.abilities.length > 0) {
           const abilityNames = s.abilities.map(abilityId => {
@@ -889,7 +899,7 @@ function renderSurvivors() {
                 return `<span style="color: ${found.color}" title="${found.effect}">${found.name}</span>`;
               }
             }
-            return abilityId;
+            return escapeHtml(abilityId);
           });
           classDisplay += ` • ${abilityNames.join(', ')}`;
         }
@@ -1112,8 +1122,8 @@ function renderSurvivors() {
           const armorColor = s.equipment.armor?.rarity ? (RARITY_COLORS[s.equipment.armor.rarity] || '#ffffff') : '#ffffff';
           const weaponTooltip = s.equipment.weapon ? getItemTooltip(s.equipment.weapon) : '';
           const armorTooltip = s.equipment.armor ? getItemTooltip(s.equipment.armor) : '';
-          const weaponName = s.equipment.weapon?.name ? `<span style="color:${weaponColor}" title="${weaponTooltip}">${s.equipment.weapon.name}</span>` : 'None';
-          const armorName = s.equipment.armor?.name ? `<span style="color:${armorColor}" title="${armorTooltip}">${s.equipment.armor.name}</span>` : 'None';
+          const weaponName = s.equipment.weapon?.name ? `<span style="color:${weaponColor}" title="${escapeHtml(weaponTooltip)}">${escapeHtml(s.equipment.weapon.name)}</span>` : 'None';
+          const armorName = s.equipment.armor?.name ? `<span style="color:${armorColor}" title="${escapeHtml(armorTooltip)}">${escapeHtml(s.equipment.armor.name)}</span>` : 'None';
           return `${weaponName} / ${armorName}`;
         })()}
       </div>
@@ -1150,9 +1160,8 @@ function renderSurvivors() {
   });
 
   // bind controls
-  cont.querySelectorAll('select.task-select').forEach(select => {
-    select.onchange = (e) => assignTask(Number(e.target.dataset.id), e.target.value);
-  });
+  // Note: task switching is handled by the per-card arrow buttons (see above);
+  // there is no <select class="task-select"> element, so no binding is needed here.
   cont.querySelectorAll('button.dismiss').forEach(b => b.onclick = () => releaseSurvivor(Number(b.dataset.id)));
   cont.querySelectorAll('button.use-item').forEach(b => b.onclick = () => openConsumableModal(Number(b.dataset.id)));
   cont.querySelectorAll('button.equip').forEach(b => b.onclick = () => openLoadoutForSurvivor(Number(b.dataset.id)));
@@ -1204,7 +1213,7 @@ function renderConsumableModalContent() {
         return `
             <div class="inv-row">
                 <div>
-                    <span style="color:${color}" title="${tooltip}">${item.name}</span>
+                    <span style="color:${color}" title="${escapeHtml(tooltip)}">${escapeHtml(item.name)}</span>
                     <div class="small">${effect.desc}</div>
                 </div>
                 <button data-id="${item.id}" class="use-consumable">Use</button>
@@ -1214,7 +1223,7 @@ function renderConsumableModalContent() {
 
     cont.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:12px;">
-            <div class="small">Select a consumable to use on ${survivor.name}.</div>
+            <div class="small">Select a consumable to use on ${escapeHtml(survivor.name)}.</div>
             <div class="scrollable-panel" style="max-height:300px;overflow-y:auto;">
                 ${itemsHtml}
             </div>
@@ -1286,12 +1295,12 @@ function renderRepairModalContent() {
     
     const color = item.rarity ? (RARITY_COLORS[item.rarity] || '#ffffff') : '#ffffff';
     const tooltip = getItemTooltip(item);
-    const equippedByInfo = item.equippedBy ? ` <span class="small">(Equipped by ${item.equippedBy})</span>` : '';
-    
+    const equippedByInfo = item.equippedBy ? ` <span class="small">(Equipped by ${escapeHtml(item.equippedBy)})</span>` : '';
+
     return `
       <div class="inv-row repair-row">
         <div class="repair-item-name">
-          <span style="color:${color}" title="${tooltip}">${item.name}</span> (${item.durability}/${item.maxDurability})${equippedByInfo}
+          <span style="color:${color}" title="${escapeHtml(tooltip)}">${escapeHtml(item.name)}</span> (${item.durability}/${item.maxDurability})${equippedByInfo}
         </div>
         <div class="repair-item-cost">
           Cost: ${actualRepairCost} scrap
@@ -1404,8 +1413,8 @@ function renderLoadoutContent() {
   const armorColor = s.equipment.armor?.rarity ? (RARITY_COLORS[s.equipment.armor.rarity] || '#ffffff') : '#ffffff';
   const weaponTooltip = s.equipment.weapon ? getItemTooltip(s.equipment.weapon) : '';
   const armorTooltip = s.equipment.armor ? getItemTooltip(s.equipment.armor) : '';
-  const equippedWeapon = s.equipment.weapon ? `<span style="color:${weaponColor}" title="${weaponTooltip}">${s.equipment.weapon.name}</span> ${s.equipment.weapon.durability !== undefined ? `(${s.equipment.weapon.durability}/${s.equipment.weapon.maxDurability})` : ''}` : 'None';
-  const equippedArmor = s.equipment.armor ? `<span style="color:${armorColor}" title="${armorTooltip}">${s.equipment.armor.name}</span> ${s.equipment.armor.durability !== undefined ? `(${s.equipment.armor.durability}/${s.equipment.armor.maxDurability})` : ''}` : 'None';
+  const equippedWeapon = s.equipment.weapon ? `<span style="color:${weaponColor}" title="${escapeHtml(weaponTooltip)}">${escapeHtml(s.equipment.weapon.name)}</span> ${s.equipment.weapon.durability !== undefined ? `(${s.equipment.weapon.durability}/${s.equipment.weapon.maxDurability})` : ''}` : 'None';
+  const equippedArmor = s.equipment.armor ? `<span style="color:${armorColor}" title="${escapeHtml(armorTooltip)}">${escapeHtml(s.equipment.armor.name)}</span> ${s.equipment.armor.durability !== undefined ? `(${s.equipment.armor.durability}/${s.equipment.armor.maxDurability})` : ''}` : 'None';
 
   const weapons = state.inventory.filter(i => i.type === 'weapon');
   const armors = state.inventory.filter(i => i.type === 'armor');
@@ -1414,13 +1423,13 @@ function renderLoadoutContent() {
   const weaponList = weapons.map(i => {
     const color = i.rarity ? (RARITY_COLORS[i.rarity] || '#ffffff') : '#ffffff';
     const tooltip = getItemTooltip(i);
-    return `<div class="inv-row"><span><span style="color:${color}" title="${tooltip}">${i.name}</span> ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-weapon">Equip</button></div>`;
+    return `<div class="inv-row"><span><span style="color:${color}" title="${escapeHtml(tooltip)}">${escapeHtml(i.name)}</span> ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-weapon">Equip</button></div>`;
   }).join('') || '<div class="small">No weapons in inventory.</div>';
   
   const armorList = armors.map(i => {
     const color = i.rarity ? (RARITY_COLORS[i.rarity] || '#ffffff') : '#ffffff';
     const tooltip = getItemTooltip(i);
-    return `<div class="inv-row"><span><span style="color:${color}" title="${tooltip}">${i.name}</span> ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-armor">Equip</button></div>`;
+    return `<div class="inv-row"><span><span style="color:${color}" title="${escapeHtml(tooltip)}">${escapeHtml(i.name)}</span> ${i.durability !== undefined ? `(${i.durability}/${i.maxDurability})` : ''}</span><button data-id="${i.id}" class="equip-armor">Equip</button></div>`;
   }).join('') || '<div class="small">No armor in inventory.</div>';
 
   // 0.9.0 - Calculate effective max HP including armor bonuses
@@ -1430,7 +1439,7 @@ function renderLoadoutContent() {
     <div style="display:flex;flex-direction:column;gap:16px">
       <div style="display:flex;gap:16px;flex-wrap:wrap">
         <div style="flex:1;min-width:260px">
-          <div><strong>${s.name}</strong> <span class="small">Lvl ${s.level} • HP ${s.hp}/${effectiveMaxHp}</span></div>
+          <div><strong>${escapeHtml(s.name)}</strong> <span class="small">Lvl ${s.level} • HP ${s.hp}/${effectiveMaxHp}</span></div>
           <div class="small" style="margin-top:4px;color:var(--muted)">Ammo: ${state.resources.ammo}</div>
         </div>
       </div>
@@ -1593,10 +1602,11 @@ function renderMap() {
       tileEl.classList.add('explorable');
       tileEl.onclick = () => moveExplorer(x, y);
       
-      // Calculate movement cost
+      // Calculate movement cost (must match moveExplorer in exploration.js:
+      // 0.5 base corridor / 3 room, then exploration bonus, then pathfinder)
       const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
-      let cost = t.terrain === 'room' ? 10 : 8;
-      
+      let cost = t.terrain === 'room' ? 3 : 0.5;
+
       if (explorer && explorer.classBonuses && explorer.classBonuses.exploration) {
         cost = Math.floor(cost * explorer.classBonuses.exploration);
       }
@@ -1708,13 +1718,16 @@ function renderMap() {
       else if (t.content === 'hostile') content.textContent = '⚔️';
       else content.textContent = (t.content[0] || '?').toUpperCase();
     } else if (!isExplored && t.content && !t.cleared && t.terrain !== 'wall' && t.terrain !== 'void') {
-      // 1.0 - Show generic "?" ONLY for tiles adjacent to explored tiles
+      // 1.0 - Show generic "?" ONLY for tiles adjacent to explored tiles.
+      // Neighbor indices are derived directly from the row width (matches
+      // getTileIndex: y * fullMap.width + x); vertical neighbors are idx +/- width.
+      const w = state.fullMap.width;
       const isAdjacentToExplored = [
-        state.tiles[idx - 1], // left
-        state.tiles[idx + 1], // right
-        state.tiles[idx - state.mapWidth], // up
-        state.tiles[idx + state.mapWidth]  // down
-      ].some(neighbor => neighbor && state.explored.has(state.tiles.indexOf(neighbor)));
+        idx - 1,     // left
+        idx + 1,     // right
+        idx - w,     // up
+        idx + w      // down
+      ].some(neighborIdx => state.tiles[neighborIdx] && state.explored.has(neighborIdx));
       
       if (isAdjacentToExplored) {
         content.textContent = '?';
@@ -1788,7 +1801,7 @@ function renderInventory() {
     
     // 0.9.0 - Apply rarity color to item name
     const rarityColor = item.rarity ? (RARITY_COLORS[item.rarity] || '#ffffff') : '#ffffff';
-    node.innerHTML = `<span style="color:${rarityColor}">${capitalizedName}</span>${durabilityInfo}`;
+    node.innerHTML = `<span style="color:${rarityColor}">${escapeHtml(capitalizedName)}</span>${durabilityInfo}`;
     
     // 0.9.0 - Add tooltip (no help cursor icon)
     node.title = getItemTooltip(item);
@@ -1880,12 +1893,12 @@ function renderMissionModalContent() {
   let survivorSelectorHtml = '';
   if (missionState.survivorId) {
     const assigned = state.survivors.find(s => s.id === missionState.survivorId);
-    const assignedLabel = assigned ? `${assigned.name} (Lvl ${assigned.level} ${assigned.class})` : 'Assigned';
+    const assignedLabel = assigned ? `${escapeHtml(assigned.name)} (Lvl ${assigned.level} ${escapeHtml(assigned.class)})` : 'Assigned';
     survivorSelectorHtml = `<div class="small" style="margin-bottom:12px; color: var(--accent);">Assigned: <strong>${assignedLabel}</strong></div>`;
   } else {
     let survivorOptions = '<option value="">Assign Survivor</option>';
     availableSurvivorsForAssign.forEach(s => {
-      survivorOptions += `<option value="${s.id}">${s.name} (Lvl ${s.level} ${s.class})</option>`;
+      survivorOptions += `<option value="${s.id}">${escapeHtml(s.name)} (Lvl ${s.level} ${escapeHtml(s.class)})</option>`;
     });
     survivorSelectorHtml = `<select class="mission-survivor-select" data-mission-id="${missionState.missionId}" style="width:100%; margin-bottom:12px; padding:8px;">${survivorOptions}</select>`;
   }
@@ -2260,7 +2273,23 @@ function renderShuttleRepair() {
       materials: { power_core: 5, quantum_core: 2, nano_material: 3 }
     }
   ];
-  
+
+  // 1.0 - Snapshot guard: only rebuild buttons/onclick closures when something
+  // that affects affordability changed (mirrors renderWorkbench). Build a small
+  // key from progress, resources, and the counts of every material these
+  // components reference.
+  const matCounts = {};
+  for (const comp of components) {
+    for (const matType of Object.keys(comp.materials)) {
+      if (matCounts[matType] === undefined) {
+        matCounts[matType] = state.inventory.filter(item => item.type === 'component' && item.subtype === matType).length;
+      }
+    }
+  }
+  const shuttleKey = `${Math.floor(progress)}:${state.resources.scrap}:${state.resources.tech}:${JSON.stringify(matCounts)}`;
+  if (lastRenderedShuttleKey === shuttleKey) return;
+  lastRenderedShuttleKey = shuttleKey;
+
   // Render component buttons
   componentsEl.innerHTML = '';
   components.forEach(comp => {
@@ -2273,7 +2302,9 @@ function renderShuttleRepair() {
     const materialStatus = [];
     
     for (const [matType, needed] of Object.entries(comp.materials)) {
-      const available = state.inventory.filter(item => item.type === matType).length;
+      // Crafting components are stored as { type: 'component', subtype: <name> }.
+      // Match on subtype (mirrors installShuttleComponent in shuttleRepair.js).
+      const available = state.inventory.filter(item => item.type === 'component' && item.subtype === matType).length;
       const hasEnough = available >= needed;
       canAffordMaterials = canAffordMaterials && hasEnough;
       

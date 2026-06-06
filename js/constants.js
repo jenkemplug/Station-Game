@@ -9,8 +9,7 @@ const BALANCE = {
     Aim: { accuracyBonus: 0.25 },
     Burst: { dmgBonus: 0, accuracyPenalty: 0.05, ammoMult: 2, cooldown: 3 },
     PowerAttack: { dmgBonus: 8, cooldown: 2 },
-    Guard: { defenseBonus: 3 },
-    MedkitHeal: [10, 18]
+    Guard: { defenseBonus: 3 }
   },
   // 0.9.0 - Consumable effects in combat
   CONSUMABLE_EFFECTS: {
@@ -88,7 +87,6 @@ const BALANCE = {
   INTEGRITY_DAMAGE_PER_FAILED_SYSTEM: 0.05, // Damage per tick for each failed system left unrepaired
   INTEGRITY_DAMAGE_HIGH_THREAT: 0.02, // Damage per tick when threat > 75%
   INTEGRITY_DAMAGE_ON_RAID_LOSS: [3, 10], // Damage when raid defense fails (scaled by alien count)
-  INTEGRITY_DAMAGE_ON_BREACH: [1, 3], // 10% chance per alien on raid victory
   BASE_REPAIR_SCRAP_COST: 400, // Increased from 300
   BASE_REPAIR_ENERGY_COST: 150, // Increased from 100
   ENGINEER_PASSIVE_REPAIR: 0.1, // Engineers on Idle repair +0.1 integrity/tick
@@ -109,7 +107,6 @@ const BALANCE = {
   MORALE_GAIN_COMBAT_WIN: 5,
   MORALE_GAIN_RAID_WIN: 10,
   MORALE_GAIN_LEVEL_UP: 8,
-  MORALE_GAIN_EXPEDITION_SUCCESS: 6,
   MORALE_GAIN_ALIEN_KILL: 2,
   MORALE_LOSS_ALLY_DEATH: 10,
   MORALE_LOSS_ALLY_DOWNED: 5,
@@ -133,18 +130,15 @@ const BALANCE = {
   THREAT_TIERS: [0, 25, 50, 75, 100],  // 0% → 25% → 50% → 75% → 100% floors (wider gaps for longer runs)
   THREAT_GROWTH_BASE: 0.025,          // Reduced from 0.030
   THREAT_GROWTH_RAND: 0.015,          // Reduced from 0.020
-  THREAT_GROWTH_MINIMUM: 0.015,       // Threat always grows at least +1.5%/min even with max defenses
+  THREAT_GROWTH_MINIMUM: 0.015,       // Per tick: threat always grows at least +0.015/tick (~+0.9%/min) even with max defenses
   GUARD_THREAT_REDUCTION: 0.08,       // Guards slow threat, can't stop it
-  THREAT_GAIN_PER_ALIEN: [1, 2],      // Increased from [1, 2] - combat drives threat progression
+  THREAT_GAIN_PER_ALIEN: [1, 2],      // Combat drives threat progression
   THREAT_GAIN_PER_ALIEN_KILL: 1, // Threat gain for each alien kill
   THREAT_GAIN_PER_TILE: 0.005,        // Threat gain for each tile explored
-  THREAT_GAIN_ON_RETREAT: [1, 2],     // NEW: Retreating from combat adds threat
-  EXPEDITION_FAILURE_THREAT_GAIN: [4, 8], // Increased from [3, 6] - failed expeditions matter more
-  
+  THREAT_GAIN_ON_RETREAT: [1, 2],     // Retreating from combat adds threat
+
   // 0.9.0 - Rebalanced for longer runs: less passive, more action-driven
   RAID_TIERS: [0, 0.008, 0.020, 0.040, 0.065],  // 0% → 0.8% → 2% → 4% → 6.5% floors per minute (wider gaps)
-  BOARD_RISK_DIVISOR: 120,
-  BOARD_RISK_BASE_NO_TURRET: 0.05,
   // Per-minute baseline chance; reduced for slower progression
   RAID_BASE_CHANCE: 0.0012,  // Reduced from 0.0020 - much slower passive buildup
   RAID_THREAT_DIVISOR: 4000, // Increased from 3000 - threat contributes even less
@@ -156,13 +150,9 @@ const BALANCE = {
   // 0.9.0 - Exploration and combat are main drivers (reduced passive pressure)
   RAID_CHANCE_PER_TILE: 0.00015,      // Reduced from 0.00025 - less tile spam pressure
   RAID_CHANCE_PER_ALIEN_KILL: 0.0010, // Reduced from 0.0015 - combat still matters but less aggressive
-  // 0.8.9 - Expedition failure consequences
-  EXPEDITION_FAILURE_RAID_PRESSURE: 0.005,  // +0.5% temporary raid pressure on failure
   // 0.9.0 – Raid cooldown for tactical pacing
   RAID_MIN_INTERVAL_SEC: 600,  // 10 minutes (reduced from 15)
   RAID_MAX_INTERVAL_SEC: 900,  // 15 minutes (reduced from 30)
-  TURRET_POWER_PER: 15,
-  RAID_ATTACK_RANGE: [6, 28],
   THREAT_REDUCE_ON_REPEL: 4,
   INTEGRITY_DAMAGE_ON_BREACH: [3, 10],
   INTEGRITY_DAMAGE_RAID_DEFEAT: [15, 25], // Penalty for losing a defended raid
@@ -179,22 +169,7 @@ const BALANCE = {
   ESCALATION_ARMOR_PER_2_LEVELS: 1,   // +1 armor every 2 escalation levels
   ESCALATION_MODIFIER_MULT: 0.10,     // +10% special ability chance per level
   ESCALATION_RAID_COOLDOWN_REDUCTION: 30, // Raids 30s faster per escalation level
-  
-  // Expeditions
-  EXPEDITION_SUCCESS_CHANCE: 0.65,
-  EXPEDITION_COST_FOOD: 10,
-  EXPEDITION_COST_ENERGY: 15,
-  EXPEDITION_DEFAULT_DURATION: 35,
-  EXPEDITION_WEAPON_WEAR: [5, 15],
-  EXPEDITION_ARMOR_WEAR: [10, 25],
-  EXPEDITION_FAILURE_DAMAGE: [5, 15],
-  EXPEDITION_REWARDS: {
-    scrap: [10, 30],
-    tech: [1, 4]
-  },
-  XP_FROM_EXPEDITION_SUCCESS: 25,
-  XP_FROM_EXPEDITION_FAILURE: 10,
-  
+
   // XP & leveling
   XP_MULT: 0.9,
   XP_FROM_EXPLORE: 1,
@@ -304,9 +279,7 @@ const RARITY_COLORS = {
   common: '#a0a0a0',      // Gray
   uncommon: '#a78bfa',    // Purple (matches --rarity-uncommon)
   rare: '#fb923c',        // Orange
-  veryrare: '#ef4444',     // Red - Legendary
-  boss: '#22c55e',         // Green for unique mission enemies
-  special: '#06b6d4'      // Cyan for special mission enemies
+  veryrare: '#ef4444'      // Red - Legendary
 };
 
 const LOOT_TABLE = [
@@ -320,7 +293,7 @@ const LOOT_TABLE = [
   
   // Common melee weapons
   { type: 'makeshift_pipe', weight: 3.5, rarity: 'common', desc: 'Scrap metal bent into a weapon', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'makeshift_pipe', weaponType: 'melee', name: 'Makeshift Pipe', rarity: 'common', durability: 15, maxDurability: 15, damage: [2, 3] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'makeshift_pipe', weaponType: 'melee', name: 'Makeshift Pipe', rarity: 'common', durability: 15, maxDurability: 15, damage: [2, 4] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'sharpened_tool', weight: 3.5, rarity: 'common', desc: 'Station tools repurposed for combat', onPickup: (s) => { 
@@ -334,7 +307,7 @@ const LOOT_TABLE = [
   
   // Common pistols
   { type: 'scrap_pistol', weight: 3, rarity: 'common', desc: 'Barely functional firearm', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'scrap_pistol', weaponType: 'pistol', name: 'Scrap Pistol', rarity: 'common', durability: 30, maxDurability: 30, damage: [4, 5] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'scrap_pistol', weaponType: 'pistol', name: 'Scrap Pistol', rarity: 'common', durability: 30, maxDurability: 30, damage: [4, 6] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'old_revolver', weight: 2.5, rarity: 'common', desc: 'Reliable but outdated', onPickup: (s) => { 
@@ -475,15 +448,15 @@ const LOOT_TABLE = [
   
   // Uncommon melee weapons
   { type: 'combat_knife', weight: 1.6, rarity: 'uncommon', desc: 'Military-grade blade', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'combat_knife', weaponType: 'melee', name: 'Combat Knife', rarity: 'uncommon', durability: 40, maxDurability: 40, damage: [4, 7] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'combat_knife', weaponType: 'melee', name: 'Combat Knife', rarity: 'uncommon', durability: 40, maxDurability: 40, damage: [5, 8] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'stun_baton', weight: 1.5, rarity: 'uncommon', desc: 'Electrical discharge weapon', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'stun_baton', weaponType: 'melee', name: 'Stun Baton', rarity: 'uncommon', durability: 50, maxDurability: 50, damage: [5, 8], effects: ['stun:10'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'stun_baton', weaponType: 'melee', name: 'Stun Baton', rarity: 'uncommon', durability: 50, maxDurability: 50, damage: [6, 9], effects: ['stun:10'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'reinforced_bat', weight: 1.4, rarity: 'uncommon', desc: 'Metal bat with added weight', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'reinforced_bat', weaponType: 'melee', name: 'Reinforced Bat', rarity: 'uncommon', durability: 45, maxDurability: 45, damage: [6, 9] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'reinforced_bat', weaponType: 'melee', name: 'Reinforced Bat', rarity: 'uncommon', durability: 45, maxDurability: 45, damage: [7, 10] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'electro_spear', weight: 1.3, rarity: 'uncommon', desc: 'Charged polearm', onPickup: (s) => { 
@@ -493,11 +466,11 @@ const LOOT_TABLE = [
   
   // Uncommon pistols
   { type: 'laser_pistol', weight: 1.5, rarity: 'uncommon', desc: 'Energy sidearm', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'laser_pistol', weaponType: 'pistol', name: 'Laser Pistol', rarity: 'uncommon', durability: 60, maxDurability: 60, damage: [6, 9], effects: ['burn:10'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'laser_pistol', weaponType: 'pistol', name: 'Laser Pistol', rarity: 'uncommon', durability: 60, maxDurability: 60, damage: [7, 10], effects: ['burn:10'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'heavy_pistol', weight: 1.4, rarity: 'uncommon', desc: 'High-caliber stopping power', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'heavy_pistol', weaponType: 'pistol', name: 'Heavy Pistol', rarity: 'uncommon', durability: 55, maxDurability: 55, damage: [7, 10] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'heavy_pistol', weaponType: 'pistol', name: 'Heavy Pistol', rarity: 'uncommon', durability: 55, maxDurability: 55, damage: [8, 11] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'burst_pistol', weight: 1.3, rarity: 'uncommon', desc: 'Three-round burst', onPickup: (s) => { 
@@ -511,11 +484,11 @@ const LOOT_TABLE = [
   
   // Uncommon rifles
   { type: 'assault_rifle', weight: 1.2, rarity: 'uncommon', desc: 'Rapid-fire capability', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'assault_rifle', weaponType: 'rifle', name: 'Assault Rifle', rarity: 'uncommon', durability: 70, maxDurability: 70, damage: [8, 11], effects: ['burst:3'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'assault_rifle', weaponType: 'rifle', name: 'Assault Rifle', rarity: 'uncommon', durability: 70, maxDurability: 70, damage: [9, 12], effects: ['burst:3'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'scoped_rifle', weight: 1.2, rarity: 'uncommon', desc: 'Precision weapon', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'scoped_rifle', weaponType: 'rifle', name: 'Scoped Rifle', rarity: 'uncommon', durability: 75, maxDurability: 75, damage: [9, 12], effects: ['crit:15'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'scoped_rifle', weaponType: 'rifle', name: 'Scoped Rifle', rarity: 'uncommon', durability: 75, maxDurability: 75, damage: [10, 13], effects: ['crit:15'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'battle_rifle', weight: 1.1, rarity: 'uncommon', desc: 'Military-grade firearm', onPickup: (s) => { 
@@ -584,11 +557,11 @@ const LOOT_TABLE = [
   // ===== RARE TIER (11% total weight - reduced from 15%) =====
   // Rare melee weapons
   { type: 'plasma_blade', weight: 0.5, rarity: 'rare', desc: 'Superheated cutting edge', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_blade', weaponType: 'melee', name: 'Plasma Blade', rarity: 'rare', durability: 80, maxDurability: 80, damage: [8, 13], effects: ['armorPierce:15'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_blade', weaponType: 'melee', name: 'Plasma Blade', rarity: 'rare', durability: 80, maxDurability: 80, damage: [10, 15], effects: ['armorPierce:15'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'shock_maul', weight: 0.45, rarity: 'rare', desc: 'Heavy electrical weapon', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'shock_maul', weaponType: 'melee', name: 'Shock Maul', rarity: 'rare', durability: 75, maxDurability: 75, damage: [10, 13], effects: ['stun:20'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'shock_maul', weaponType: 'melee', name: 'Shock Maul', rarity: 'rare', durability: 75, maxDurability: 75, damage: [12, 16], effects: ['stun:20'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'vibro_axe', weight: 0.45, rarity: 'rare', desc: 'High-frequency cutting blade', onPickup: (s) => { 
@@ -602,11 +575,11 @@ const LOOT_TABLE = [
   
   // Rare pistols
   { type: 'plasma_pistol', weight: 0.5, rarity: 'rare', desc: 'Advanced energy weapon', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_pistol', weaponType: 'pistol', name: 'Plasma Pistol', rarity: 'rare', durability: 90, maxDurability: 90, damage: [10, 13], effects: ['burn:15', 'armorPierce:25'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_pistol', weaponType: 'pistol', name: 'Plasma Pistol', rarity: 'rare', durability: 90, maxDurability: 90, damage: [12, 16], effects: ['burn:15', 'armorPierce:25'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'smart_pistol', weight: 0.45, rarity: 'rare', desc: 'Auto-targeting system', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'smart_pistol', weaponType: 'pistol', name: 'Smart Pistol', rarity: 'rare', durability: 85, maxDurability: 85, damage: [8, 12], effects: ['accuracy:10'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'smart_pistol', weaponType: 'pistol', name: 'Smart Pistol', rarity: 'rare', durability: 85, maxDurability: 85, damage: [10, 14], effects: ['accuracy:10'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'mag_pistol', weight: 0.45, rarity: 'rare', desc: 'Magnetic accelerator sidearm', onPickup: (s) => { 
@@ -619,9 +592,9 @@ const LOOT_TABLE = [
   }},
   
   // Rare rifles
-  { type: 'pulse_rifle', weight: 0.55, rarity: 'rare', desc: 'Pulse Rifle components', onPickup: (s) => { const item = { id: s.nextItemId++, type: 'weapon', subtype: 'pulse_rifle', weaponType: 'rifle', name: 'Pulse Rifle', rarity: 'rare', durability: 100, maxDurability: 100, damage: [10, 13] }; return tryAddAndReturn(item, '', ''); } },
+  { type: 'pulse_rifle', weight: 0.55, rarity: 'rare', desc: 'Pulse Rifle components', onPickup: (s) => { const item = { id: s.nextItemId++, type: 'weapon', subtype: 'pulse_rifle', weaponType: 'rifle', name: 'Pulse Rifle', rarity: 'rare', durability: 100, maxDurability: 100, damage: [12, 16] }; return tryAddAndReturn(item, '', ''); } },
   { type: 'plasma_rifle', weight: 0.5, rarity: 'rare', desc: 'Energy-based assault weapon', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_rifle', weaponType: 'rifle', name: 'Plasma Rifle', rarity: 'rare', durability: 95, maxDurability: 95, damage: [11, 15], effects: ['burn:20'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_rifle', weaponType: 'rifle', name: 'Plasma Rifle', rarity: 'rare', durability: 95, maxDurability: 95, damage: [14, 18], effects: ['burn:20'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'laser_rifle', weight: 0.5, rarity: 'rare', desc: 'Precision beam weapon', onPickup: (s) => { 
@@ -634,9 +607,9 @@ const LOOT_TABLE = [
   }},
   
   // Rare shotguns
-  { type: 'combat_shotgun', weight: 0.5, rarity: 'rare', desc: 'Combat Shotgun components', onPickup: (s) => { const item = { id: s.nextItemId++, type: 'weapon', subtype: 'combat_shotgun', weaponType: 'shotgun', name: 'Combat Shotgun', rarity: 'rare', durability: 80, maxDurability: 80, damage: [8, 15] }; return tryAddAndReturn(item, '', ''); } },
+  { type: 'combat_shotgun', weight: 0.5, rarity: 'rare', desc: 'Combat Shotgun components', onPickup: (s) => { const item = { id: s.nextItemId++, type: 'weapon', subtype: 'combat_shotgun', weaponType: 'shotgun', name: 'Combat Shotgun', rarity: 'rare', durability: 80, maxDurability: 80, damage: [10, 18] }; return tryAddAndReturn(item, '', ''); } },
   { type: 'plasma_shotgun', weight: 0.45, rarity: 'rare', desc: 'Energy scatter weapon', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_shotgun', weaponType: 'shotgun', name: 'Plasma Shotgun', rarity: 'rare', durability: 85, maxDurability: 85, damage: [10, 17], effects: ['burn:25'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'plasma_shotgun', weaponType: 'shotgun', name: 'Plasma Shotgun', rarity: 'rare', durability: 85, maxDurability: 85, damage: [12, 20], effects: ['burn:25'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'arc_shotgun', weight: 0.45, rarity: 'rare', desc: 'Electrified buckshot', onPickup: (s) => { 
@@ -650,7 +623,7 @@ const LOOT_TABLE = [
   
   // Rare heavy weapons
   { type: 'light_machine_gun', weight: 0.45, rarity: 'rare', desc: 'Suppression weapon', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'light_machine_gun', weaponType: 'heavy', name: 'Light Machine Gun', rarity: 'rare', durability: 90, maxDurability: 90, damage: [11, 14], effects: ['burst:4'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'light_machine_gun', weaponType: 'heavy', name: 'Light Machine Gun', rarity: 'rare', durability: 90, maxDurability: 90, damage: [13, 17], effects: ['burst:4'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'grenade_launcher', weight: 0.4, rarity: 'rare', desc: 'Area effect weapon', onPickup: (s) => { 
@@ -667,9 +640,9 @@ const LOOT_TABLE = [
   }},
   
   // Rare armor
-  { type: 'heavy_armor', weight: 0.6, rarity: 'rare', desc: 'Heavy Armor plating', onPickup: (s) => { const item = { id: s.nextItemId++, type: 'armor', subtype: 'heavy_armor', name: 'Heavy Armor', rarity: 'rare', durability: 200, maxDurability: 200, defense: 5 }; return tryAddAndReturn(item, '', ''); } },
+  { type: 'heavy_armor', weight: 0.6, rarity: 'rare', desc: 'Heavy Armor plating', onPickup: (s) => { const item = { id: s.nextItemId++, type: 'armor', subtype: 'heavy_armor', name: 'Heavy Armor', rarity: 'rare', durability: 200, maxDurability: 200, defense: 6 }; return tryAddAndReturn(item, '', ''); } },
   { type: 'composite_armor', weight: 0.45, rarity: 'rare', desc: 'Advanced materials', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'armor', subtype: 'composite_armor', name: 'Composite Armor', rarity: 'rare', durability: 140, maxDurability: 140, defense: 4, effects: ['dodge:10'] }; 
+    const item = { id: s.nextItemId++, type: 'armor', subtype: 'composite_armor', name: 'Composite Armor', rarity: 'rare', durability: 140, maxDurability: 140, defense: 5, effects: ['dodge:10'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'stealth_suit', weight: 0.4, rarity: 'rare', desc: 'Covert operations gear', onPickup: (s) => { 
@@ -721,11 +694,11 @@ const LOOT_TABLE = [
   // ===== LEGENDARY TIER (2% total weight - reduced from 5%) =====
   // Legendary melee weapons
   { type: 'nano_edge_katana', weight: 0.15, rarity: 'veryrare', desc: 'Molecular-sharpened blade', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'nano_edge_katana', weaponType: 'melee', name: 'Nano-Edge Katana', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [12, 18], effects: ['crit:25', 'armorPierce:20'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'nano_edge_katana', weaponType: 'melee', name: 'Nano-Edge Katana', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [18, 25], effects: ['crit:25', 'armorPierce:20'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'venom_blade', weight: 0.14, rarity: 'veryrare', desc: 'Toxic molecular edge', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'venom_blade', weaponType: 'melee', name: 'Venom Blade', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [14, 20], effects: ['burn:40'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'venom_blade', weaponType: 'melee', name: 'Venom Blade', rarity: 'veryrare', durability: 120, maxDurability: 120, damage: [16, 23], effects: ['poison:30'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'void_reaper', weight: 0.13, rarity: 'veryrare', desc: 'Reality-cutting scythe', onPickup: (s) => { 
@@ -739,7 +712,7 @@ const LOOT_TABLE = [
   
   // Legendary pistols
   { type: 'void_pistol', weight: 0.15, rarity: 'veryrare', desc: 'Exotic tech, bypasses defenses', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'void_pistol', weaponType: 'pistol', name: 'Void Pistol', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [13, 18], effects: ['phase:20'] }; 
+    const item = { id: s.nextItemId++, type: 'weapon', subtype: 'void_pistol', weaponType: 'pistol', name: 'Void Pistol', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [18, 24], effects: ['phase:20'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'annihilator_pistol', weight: 0.14, rarity: 'veryrare', desc: 'Condensed plasma core', onPickup: (s) => { 
@@ -811,7 +784,7 @@ const LOOT_TABLE = [
   
   // Legendary armor
   { type: 'nano_weave_armor', weight: 0.15, rarity: 'veryrare', desc: 'Adaptive protection', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'armor', subtype: 'nano_weave_armor', name: 'Nano-Weave Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 5, effects: ['dodge:15', 'crit:5'] }; 
+    const item = { id: s.nextItemId++, type: 'armor', subtype: 'nano_weave_armor', name: 'Nano-Weave Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 7, effects: ['dodge:15', 'crit:5'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'titan_armor', weight: 0.13, rarity: 'veryrare', desc: 'Maximum protection', onPickup: (s) => { 
@@ -823,7 +796,7 @@ const LOOT_TABLE = [
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'regenerative_armor', weight: 0.13, rarity: 'veryrare', desc: 'Self-repairing nanites', onPickup: (s) => { 
-    const item = { id: s.nextItemId++, type: 'armor', subtype: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 5, effects: ['regen:5'] }; 
+    const item = { id: s.nextItemId++, type: 'armor', subtype: 'regenerative_armor', name: 'Regenerative Armor', rarity: 'veryrare', durability: 200, maxDurability: 200, defense: 7, effects: ['regen:5'] };
     return tryAddAndReturn(item, '', ''); 
   }},
   { type: 'spectre_armor', weight: 0.12, rarity: 'veryrare', desc: 'Alien-tech phasing armor', onPickup: (s) => { 
@@ -1160,7 +1133,7 @@ const MISSION_ENEMIES = {
     armor: 8,
     flavor: "The ancient matriarch of the hive. Her presence alone warps the air with malevolent intent.",
     special: 'multistrike',
-    specialDesc: 'Attacks three times per turn. Extremely dangerous.'
+    specialDesc: 'Attacks twice per turn. Extremely dangerous.'
   }
 };
 
@@ -1170,7 +1143,7 @@ const SECTOR_LOOT = {
   medicalBay: [
     { type: 'medkit', weight: 25, rarity: 'common' },
     { type: 'stimpack', weight: 15, rarity: 'uncommon' },
-    { type: 'nanoheal', weight: 8, rarity: 'rare' },
+    { type: 'advanced_medkit', weight: 8, rarity: 'rare' },
     { type: 'tech', weight: 12, rarity: 'uncommon' },
     { type: 'electronics', weight: 10, rarity: 'common' }
   ],
@@ -1179,7 +1152,7 @@ const SECTOR_LOOT = {
     { type: 'tech', weight: 30, rarity: 'uncommon' },
     { type: 'weaponPart', weight: 15, rarity: 'common' },
     { type: 'electronics', weight: 20, rarity: 'common' },
-    { type: 'energyCore', weight: 12, rarity: 'uncommon' },
+    { type: 'power_core', weight: 12, rarity: 'uncommon' },
     { type: 'repair_kit', weight: 18, rarity: 'uncommon' },
     { type: 'ammo', weight: 10, rarity: 'common' }
   ],
@@ -1190,7 +1163,7 @@ const SECTOR_LOOT = {
     { type: 'tactical_vest', weight: 15, rarity: 'uncommon' },
     { type: 'heavy_armor', weight: 10, rarity: 'rare' },
     { type: 'ammo', weight: 25, rarity: 'common' },
-    { type: 'armorPlating', weight: 15, rarity: 'common' },
+    { type: 'armor_plating', weight: 15, rarity: 'common' },
     { type: 'weaponPart', weight: 12, rarity: 'common' }
   ],
   
@@ -1200,17 +1173,17 @@ const SECTOR_LOOT = {
     { type: 'junk', weight: 20, rarity: 'common' },
     { type: 'scrap_vest', weight: 12, rarity: 'common' },
     { type: 'old_revolver', weight: 8, rarity: 'common' },
-    { type: 'fabricPatch', weight: 10, rarity: 'common' }
+    { type: 'scrap_vest', weight: 10, rarity: 'common' }
   ],
   
   researchLabs: [
     { type: 'tech', weight: 35, rarity: 'uncommon' },
     { type: 'laser_pistol', weight: 10, rarity: 'uncommon' },
     { type: 'plasma_rifle', weight: 6, rarity: 'rare' },
-    { type: 'shield_generator', weight: 8, rarity: 'rare' },
+    { type: 'advanced_component', weight: 8, rarity: 'rare' },
     { type: 'electronics', weight: 20, rarity: 'common' },
-    { type: 'energyCore', weight: 15, rarity: 'uncommon' },
-    { type: 'nanoheal', weight: 5, rarity: 'rare' }
+    { type: 'power_core', weight: 15, rarity: 'uncommon' },
+    { type: 'advanced_medkit', weight: 5, rarity: 'rare' }
   ],
   
   shoppingMall: [
@@ -1219,22 +1192,22 @@ const SECTOR_LOOT = {
     { type: 'ammo', weight: 18, rarity: 'common' },
     { type: 'padded_suit', weight: 12, rarity: 'common' },
     { type: 'scrap_pistol', weight: 10, rarity: 'common' },
-    { type: 'fabricPatch', weight: 15, rarity: 'common' }
+    { type: 'scrap_vest', weight: 15, rarity: 'common' }
   ],
   
   maintenanceHub: [
     { type: 'repair_kit', weight: 30, rarity: 'uncommon' },
     { type: 'weaponPart', weight: 20, rarity: 'common' },
-    { type: 'armorPlating', weight: 15, rarity: 'common' },
+    { type: 'armor_plating', weight: 15, rarity: 'common' },
     { type: 'electronics', weight: 18, rarity: 'common' },
     { type: 'crowbar', weight: 12, rarity: 'common' },
-    { type: 'energyCore', weight: 8, rarity: 'uncommon' }
+    { type: 'power_core', weight: 8, rarity: 'uncommon' }
   ],
   
   communications: [
     { type: 'electronics', weight: 35, rarity: 'common' },
     { type: 'tech', weight: 25, rarity: 'uncommon' },
-    { type: 'energyCore', weight: 15, rarity: 'uncommon' },
+    { type: 'power_core', weight: 15, rarity: 'uncommon' },
     { type: 'laser_pistol', weight: 8, rarity: 'uncommon' },
     { type: 'junk', weight: 12, rarity: 'common' }
   ],
@@ -1243,7 +1216,7 @@ const SECTOR_LOOT = {
     { type: 'foodpack', weight: 20, rarity: 'common' },
     { type: 'ammo', weight: 18, rarity: 'common' },
     { type: 'weaponPart', weight: 15, rarity: 'common' },
-    { type: 'armorPlating', weight: 15, rarity: 'common' },
+    { type: 'armor_plating', weight: 15, rarity: 'common' },
     { type: 'assault_rifle', weight: 10, rarity: 'uncommon' },
     { type: 'reinforced_plating', weight: 8, rarity: 'uncommon' },
     { type: 'heavy_armor', weight: 6, rarity: 'rare' },
@@ -1252,7 +1225,7 @@ const SECTOR_LOOT = {
   
   corporateOffices: [
     { type: 'tech', weight: 25, rarity: 'uncommon' },
-    { type: 'energyCore', weight: 18, rarity: 'uncommon' },
+    { type: 'power_core', weight: 18, rarity: 'uncommon' },
     { type: 'electronics', weight: 20, rarity: 'common' },
     { type: 'heavy_pistol', weight: 12, rarity: 'uncommon' },
     { type: 'tactical_vest', weight: 10, rarity: 'uncommon' },
@@ -1260,7 +1233,7 @@ const SECTOR_LOOT = {
   ],
   
   reactorChamber: [
-    { type: 'energyCore', weight: 35, rarity: 'uncommon' },
+    { type: 'power_core', weight: 35, rarity: 'uncommon' },
     { type: 'tech', weight: 25, rarity: 'uncommon' },
     { type: 'plasma_rifle', weight: 8, rarity: 'rare' },
     { type: 'power_core', weight: 10, rarity: 'rare' },
@@ -1279,8 +1252,8 @@ const SECTOR_LOOT = {
   
   hangarBay: [
     { type: 'weaponPart', weight: 20, rarity: 'common' },
-    { type: 'armorPlating', weight: 20, rarity: 'common' },
-    { type: 'energyCore', weight: 18, rarity: 'uncommon' },
+    { type: 'armor_plating', weight: 20, rarity: 'common' },
+    { type: 'power_core', weight: 18, rarity: 'uncommon' },
     { type: 'repair_kit', weight: 15, rarity: 'uncommon' },
     { type: 'assault_rifle', weight: 10, rarity: 'uncommon' },
     { type: 'heavy_armor', weight: 8, rarity: 'rare' },
@@ -1396,7 +1369,7 @@ const RECIPES = {
     weaponPart: 1,
     rarity: 'common',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'old_revolver', weaponType: 'pistol', name: 'Old Revolver', rarity: 'common', durability: 35, maxDurability: 35, damage: [5, 7] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'old_revolver', weaponType: 'pistol', name: 'Old Revolver', rarity: 'common', durability: 35, maxDurability: 35, damage: [5, 6] };
       tryAddAndLog(item);
     }
   },
@@ -1603,7 +1576,7 @@ const RECIPES = {
     weaponPart: 2,
     rarity: 'uncommon',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'pump_shotgun', weaponType: 'shotgun', name: 'Pump Shotgun', rarity: 'uncommon', durability: 60, maxDurability: 60, damage: [8, 14] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'pump_shotgun', weaponType: 'shotgun', name: 'Pump Shotgun', rarity: 'uncommon', durability: 60, maxDurability: 60, damage: [7, 13] };
       tryAddAndLog(item);
     }
   },
@@ -1673,7 +1646,7 @@ const RECIPES = {
     armor_plating: 2,
     rarity: 'uncommon',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'armor', subtype: 'reinforced_plating', name: 'Reinforced Plating', rarity: 'uncommon', durability: 120, maxDurability: 120, defense: 5 };
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'reinforced_plating', name: 'Reinforced Plating', rarity: 'uncommon', durability: 120, maxDurability: 120, defense: 3 };
       tryAddAndLog(item);
     }
   },
@@ -1910,7 +1883,7 @@ const RECIPES = {
     electronics: 1,
     rarity: 'rare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'grenade_launcher', weaponType: 'heavy', name: 'Grenade Launcher', rarity: 'rare', durability: 70, maxDurability: 70, damage: [18, 24], effects: ['splash:50'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'grenade_launcher', weaponType: 'heavy', name: 'Grenade Launcher', rarity: 'rare', durability: 70, maxDurability: 70, damage: [15, 20], effects: ['splash:50'] };
       tryAddAndLog(item);
     }
   },
@@ -1983,7 +1956,7 @@ const RECIPES = {
     power_core: 1,
     rarity: 'rare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'armor', subtype: 'power_armor_frame', name: 'Power Armor Frame', rarity: 'rare', durability: 180, maxDurability: 180, defense: 7, effects: ['hpBonus:10'] };
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'power_armor_frame', name: 'Power Armor Frame', rarity: 'rare', durability: 180, maxDurability: 180, defense: 6, effects: ['hpBonus:10'] };
       tryAddAndLog(item);
     }
   },
@@ -1994,7 +1967,7 @@ const RECIPES = {
     armor_plating: 1,
     rarity: 'rare',
     result: () => { 
-      const item = { id: state.nextItemId++, type: 'armor', subtype: 'hazmat_suit', name: 'Hazmat Suit', rarity: 'rare', durability: 150, maxDurability: 150, defense: 3 }; 
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'hazmat_suit', name: 'Hazmat Suit', rarity: 'rare', durability: 150, maxDurability: 150, defense: 4 };
       tryAddAndLog(item); 
     } 
   },
@@ -2129,7 +2102,7 @@ const RECIPES = {
     power_core: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'gauss_rifle', weaponType: 'rifle', name: 'Gauss Rifle', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [20, 28], effects: ['armorPierce:30'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'gauss_rifle', weaponType: 'rifle', name: 'Gauss Rifle', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [15, 21], effects: ['armorPierce:30'] };
       tryAddAndLog(item);
     }
   },
@@ -2142,7 +2115,7 @@ const RECIPES = {
     quantum_core: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'quantum_rifle', weaponType: 'rifle', name: 'Quantum Rifle', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [18, 26], effects: ['phase:25', 'accuracy:10'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'quantum_rifle', weaponType: 'rifle', name: 'Quantum Rifle', rarity: 'veryrare', durability: 140, maxDurability: 140, damage: [13, 19], effects: ['phase:25', 'accuracy:10'] };
       tryAddAndLog(item);
     }
   },
@@ -2155,7 +2128,7 @@ const RECIPES = {
     alien_artifact: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'antimatter_rifle', weaponType: 'rifle', name: 'Antimatter Rifle', rarity: 'veryrare', durability: 160, maxDurability: 160, damage: [22, 32], effects: ['armorPierce:35', 'burst:2'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'antimatter_rifle', weaponType: 'rifle', name: 'Antimatter Rifle', rarity: 'veryrare', durability: 160, maxDurability: 160, damage: [16, 23], effects: ['armorPierce:35', 'burst:2'] };
       tryAddAndLog(item);
     }
   },
@@ -2167,7 +2140,7 @@ const RECIPES = {
     advanced_component: 2,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'railgun', weaponType: 'rifle', name: 'Railgun', rarity: 'veryrare', durability: 155, maxDurability: 155, damage: [24, 34], effects: ['accuracy:15', 'crit:25'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'railgun', weaponType: 'rifle', name: 'Railgun', rarity: 'veryrare', durability: 155, maxDurability: 155, damage: [18, 25], effects: ['accuracy:15', 'crit:25'] };
       tryAddAndLog(item);
     }
   },
@@ -2182,7 +2155,7 @@ const RECIPES = {
     alien_artifact: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'disintegrator_cannon', weaponType: 'shotgun', name: 'Disintegrator Cannon', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [18, 30], effects: ['armorPierce:40'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'disintegrator_cannon', weaponType: 'shotgun', name: 'Disintegrator Cannon', rarity: 'veryrare', durability: 130, maxDurability: 130, damage: [13, 23], effects: ['armorPierce:40'] };
       tryAddAndLog(item);
     }
   },
@@ -2248,7 +2221,7 @@ const RECIPES = {
     alien_artifact: 2,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'venom_cannon', weaponType: 'heavy', name: 'Venom Cannon', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [22, 32], effects: ['poison:40', 'splash:25'] };
+      const item = { id: state.nextItemId++, type: 'weapon', subtype: 'venom_cannon', weaponType: 'heavy', name: 'Venom Cannon', rarity: 'veryrare', durability: 150, maxDurability: 150, damage: [16, 23], effects: ['poison:40', 'splash:25'] };
       tryAddAndLog(item);
     }
   },
@@ -2303,7 +2276,7 @@ const RECIPES = {
     power_core: 1,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'armor', subtype: 'titan_armor', name: 'Titan Armor', rarity: 'veryrare', durability: 280, maxDurability: 280, defense: 10, effects: ['hpBonus:15'] };
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'titan_armor', name: 'Titan Armor', rarity: 'veryrare', durability: 280, maxDurability: 280, defense: 7, effects: ['hpBonus:15'] };
       tryAddAndLog(item);
     }
   },
@@ -2316,7 +2289,7 @@ const RECIPES = {
     power_core: 2,
     rarity: 'veryrare',
     result: () => {
-      const item = { id: state.nextItemId++, type: 'armor', subtype: 'shield_suit', name: 'Shield Suit', rarity: 'veryrare', durability: 250, maxDurability: 250, defense: 9, effects: ['reflect:20'] };
+      const item = { id: state.nextItemId++, type: 'armor', subtype: 'shield_suit', name: 'Shield Suit', rarity: 'veryrare', durability: 250, maxDurability: 250, defense: 6, effects: ['reflect:20'] };
       tryAddAndLog(item);
     }
   },

@@ -163,6 +163,8 @@ function resetGame() {
   state.nextSurvivorId = 1;
   state.tiles = [];
   state.explored = new Set();
+  state.visible = new Set(); // 1.0 - Reset vision (currently in range)
+  state.seen = new Set();    // 1.0 - Reset seen (previously revealed structure)
   state.inventory = [];
   state.nextItemId = 1;
   state.inventoryCapacity = 30;
@@ -187,6 +189,20 @@ function resetGame() {
   // 0.8.10 - Reset tier floors for new game
   state.highestThreatTier = 0;
   state.highestRaidTier = 0;
+  // 0.9.0 - Reset endgame escalation system
+  state.escalationLevel = 0;
+  state.lastEscalationTime = 0;
+  state.threatLocked = false;
+  // 1.0 - Reset shuttle repair / win condition (full default)
+  state.shuttleRepair = {
+    unlocked: false,
+    progress: 0,
+    componentsInstalled: 0,
+    fuelCellsInstalled: 0,
+    finalBossTriggered: false,
+    finalBossDefeated: false
+  };
+  state.gameWon = false; // 1.0 - Reset win flag
   state.gameOver = false; // Reset game over flag
   state.activeMissions = []; // Clear active missions
   state.completedMissions = []; // Clear completed missions for a true reset
@@ -227,8 +243,8 @@ function handleImportFile(file) {
   reader.onload = () => {
     try {
       const parsed = JSON.parse(reader.result);
-      // basic validation
-      if (parsed && typeof parsed === 'object') {
+      // basic validation: must be a plain object (reject null, arrays, primitives)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         localStorage.setItem(GAME_KEY, JSON.stringify(parsed));
         appendLog('[Imported save]');
         // reload state from imported save
@@ -267,7 +283,8 @@ function triggerGameOver(message) {
   state.gameOver = true; // Mark game as over
   saveGame('action'); // Save the game over state
   clearInterval(loopHandle);
-  
+  clearInterval(autosaveHandle);
+
   // Display game over modal
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -321,6 +338,7 @@ function triggerGameOver(message) {
 
 // Initial load and startup
 let loopHandle;
+let autosaveHandle;
 loadGame();
 
 // 1.0 Phase 3.2 - Initialize resource animation tracker after game loads
@@ -385,8 +403,8 @@ if (state.gameOver) {
   if (state.survivors.length === 0) {
     // Starter survivors are free (pass random name to skip cost)
     const starterName1 = getRandomName();
-    const starterName2 = getRandomName();
     recruitSurvivor(starterName1);
+    const starterName2 = getRandomName();
     recruitSurvivor(starterName2);
     
     // Assign starter tasks
@@ -404,5 +422,5 @@ if (state.gameOver) {
   updateUI();
   bindUI();
   loopHandle = setInterval(mainLoop, 1000);
-  setInterval(() => saveGame('auto'), 15000);
+  autosaveHandle = setInterval(() => saveGame('auto'), 15000);
 }

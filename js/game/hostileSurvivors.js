@@ -9,7 +9,7 @@ function generateHostileSurvivor() {
   // 0-25% threat: mostly common, some uncommon
   // 25-50%: common/uncommon mix
   // 50-75%: uncommon/rare mix
-  // 75-100%: rare/legendary mix
+  // 75-100%: rare/veryrare mix
   let rarity = 'common';
   const rarityRoll = Math.random() * 100;
   
@@ -135,7 +135,7 @@ function generateAbilitiesForRarity(survivorClass, rarity) {
   let abilityCount = 0;
   if (rarity === 'uncommon') abilityCount = 1;
   else if (rarity === 'rare') abilityCount = 2;
-  else if (rarity === 'legendary') abilityCount = 3;
+  else if (rarity === 'veryrare') abilityCount = 3;
   
   // Pick random abilities from class pool
   const shuffled = [...classAbilities].sort(() => Math.random() - 0.5);

@@ -266,20 +266,7 @@ function equipBest(id) {
   appendLog(`${s.name} has nothing new to equip.`);
 }
 
-// Equip a specific inventory item to a survivor, auto-detecting slot
-// 0.9.0 - Helper: Calculate effective max HP including armor bonuses
-function getEffectiveMaxHp(survivor) {
-  let effectiveMax = survivor.maxHp || 20;
-  if (survivor.equipment && survivor.equipment.armor && survivor.equipment.armor.effects) {
-    for (const effect of survivor.equipment.armor.effects) {
-      if (effect.startsWith('hpBonus:')) {
-        const bonus = parseInt(effect.split(':')[1]) || 0;
-        effectiveMax += bonus;
-      }
-    }
-  }
-  return effectiveMax;
-}
+// getEffectiveMaxHp lives in js/utils.js (loaded earlier); do not redefine here.
 
 // 0.9.0 - Helper: Get armor HP bonus
 function getArmorHpBonus(armor) {

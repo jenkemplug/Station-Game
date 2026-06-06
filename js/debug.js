@@ -40,15 +40,17 @@ function debugAddItem(itemType) {
     // We suppress its normal log by temporarily replacing appendLog
     const originalAppendLog = window.appendLog;
     let itemAdded = null;
-    window.appendLog = (msg) => {
-      // Capture the item name from the log message but don't display it yet
-      itemAdded = msg;
-    };
-    
-    recipe.result();
-    
-    // Restore original appendLog
-    window.appendLog = originalAppendLog;
+    try {
+      window.appendLog = (msg) => {
+        // Capture the item name from the log message but don't display it yet
+        itemAdded = msg;
+      };
+
+      recipe.result();
+    } finally {
+      // Always restore original appendLog, even if recipe.result() throws
+      window.appendLog = originalAppendLog;
+    }
     
     // Check if item was added
     const countAfter = state.inventory.length;

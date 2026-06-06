@@ -72,23 +72,6 @@ function getRarityColor(rarity) {
   return colors[rarity] || colors.common;
 }
 
-// Helper functions for colored log text
-function colorSurvivor(name) {
-  return `<span style="color:var(--accent)">${name}</span>`;
-}
-
-function colorAlien(alien) {
-  if (!alien || !alien.name) return 'unknown';
-  const color = getRarityColor(alien.rarity);
-  return `<span style="color:${color}">${alien.name}</span>`;
-}
-
-function colorItem(item) {
-    if (!item || !item.name) return 'unknown';
-    const color = getRarityColor(item.rarity);
-    return `<span style="color:${color}">${item.name}</span>`;
-}
-
 // 0.9.0 - Calculate weapon damage for display (mimics combat.js logic)
 function calculateWeaponDamage(survivor) {
   let damage = 0;
@@ -796,6 +779,11 @@ function closeCombatOverlay() {
         delete s._stimpackTurns;
         delete s._combatDrugBonus;
         delete s._combatDrugTurns;
+        // Combat Drug temporarily reduces maxHp; restore it on combat cleanup
+        if (s._combatDrugMaxHpLoss) {
+          s.maxHp += s._combatDrugMaxHpLoss;
+          delete s._combatDrugMaxHpLoss;
+        }
         delete s._stealthField;
         delete s._retreated;
         delete s._retreating;
@@ -814,7 +802,8 @@ function patchAlienData(alien) {
     alien.id = alien.type ? `${alien.type}_${tStamp}_${rand}` : `a_${tStamp}_${rand}`;
   }
 
-  // If alien already has armor/rarity/attackRange, continue to ensure id exists but skip further patches
+  // id is already guaranteed above; if armor/rarity/attackRange are all present
+  // there is nothing left to patch.
   if (alien.armor !== undefined && alien.rarity !== undefined && alien.attackRange !== undefined) {
     return alien;
   }
@@ -834,14 +823,6 @@ function patchAlienData(alien) {
     alien.attackRange = alienType.attackRange || [alien.attack || 0, alien.attack || 0];
   }
 
-  // Ensure alien has a stable id (fix for missing ids from older or programmatically-created objects)
-  if (alien.id === undefined || alien.id === null) {
-    // Prefer using type-based id when available to improve readability in logs
-    const tStamp = Date.now();
-    const rand = Math.floor(Math.random() * 10000);
-    alien.id = alien.type ? `${alien.type}_${tStamp}_${rand}` : `a_${tStamp}_${rand}`;
-  }
-  
   return alien;
 }
 
@@ -1054,9 +1035,16 @@ function logCombat(msg, alsoAppend = false) {
       } else if (entity.class) { // Survivors have a class
         color = 'var(--accent)';
       }
-      // Use a regex with word boundaries (\b) to avoid replacing parts of words
-      const regex = new RegExp(`\\b${name}\\b`, 'g');
-      coloredMsg = coloredMsg.replace(regex, `<span style="color:${color}; font-weight: bold;">${name}</span>`);
+      try {
+        // Escape regex metacharacters in the name before building the pattern;
+        // an unescaped "(" / "[" / "*" etc. would corrupt or throw on the RegExp.
+        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Use word boundaries (\b) to avoid replacing parts of words.
+        const regex = new RegExp(`\\b${escapedName}\\b`, 'g');
+        coloredMsg = coloredMsg.replace(regex, `<span style="color:${color}; font-weight: bold;">${name}</span>`);
+      } catch (e) {
+        // Leave the message uncolored for this entity rather than breaking logging.
+      }
     }
   });
 
@@ -1495,7 +1483,9 @@ function calculateSurvivorStats(survivor, party) {
   damageDisplay = totalDisplay;
   
   // ACCURACY calculation
-  const baseAcc = 0.75;
+  // Use the same base hit chance as rollHitChance so the displayed tooltip
+  // matches the value actually rolled in combat.
+  const baseAcc = BALANCE.BASE_HIT_CHANCE;
   const levelAccBonus = (survivor.level - 1) * (BALANCE.LEVEL_ACCURACY_BONUS || 0.01);
   const classAccBonus = (survivor.classBonuses && survivor.classBonuses.accuracy) ? survivor.classBonuses.accuracy : 0;
   const weaponAccBonus = weapon?.effects?.find(e => e.startsWith('accuracy:')) 
@@ -1513,7 +1503,9 @@ function calculateSurvivorStats(survivor, party) {
   const defenseCalc = calculateSurvivorDefense(survivor, party);
   
   // CRIT calculation
-  const baseCrit = 0.12;
+  // Source the base crit chance from BALANCE so the tooltip matches the roll
+  // (totalCritChance uses BALANCE.CRIT_CHANCE).
+  const baseCrit = BALANCE.CRIT_CHANCE;
   const classCritBonus = (survivor.classBonuses && survivor.classBonuses.crit) ? survivor.classBonuses.crit : 0;
   const weaponCritBonus = weapon?.effects?.find(e => e.startsWith('crit:')) 
     ? parseFloat(weapon.effects.find(e => e.startsWith('crit:')).split(':')[1]) / 100 
@@ -1729,7 +1721,6 @@ function calculateAlienStats(alien, aliens) {
 }
 
 function selectTarget(alienId) {
-  console.log('selectTarget called with:', alienId, 'type:', typeof alienId);
   if (!currentCombat) return;
   // Handle both string IDs (aliens) and numeric IDs (hostile survivors)
   const alien = currentCombat.aliens.find(a => {
@@ -1745,7 +1736,6 @@ function selectTarget(alienId) {
     }
     return false;
   });
-  console.log('Found alien:', alien, 'All aliens:', currentCombat.aliens.map(a => ({ id: a.id, name: a.name, type: a.type })));
   // Only allow targeting living aliens
   if (alien && alien.hp > 0) {
     // Store the ID in the same format as the alien object
@@ -1766,10 +1756,10 @@ function renderCombatUI() {
     // 0.9.0 - Show equipment with rarity colors and tooltips
     const weapColor = s.equipment.weapon?.rarity ? (RARITY_COLORS[s.equipment.weapon.rarity] || '#ffffff') : '#ffffff';
     const armorColor = s.equipment.armor?.rarity ? (RARITY_COLORS[s.equipment.armor.rarity] || '#ffffff') : '#ffffff';
-    const weapTooltip = s.equipment.weapon ? getItemTooltip(s.equipment.weapon) : '';
-    const armorTooltip = s.equipment.armor ? getItemTooltip(s.equipment.armor) : '';
-    const weap = s.equipment.weapon ? `<span style="color:${weapColor}" title="${weapTooltip}">${s.equipment.weapon.name}</span>` : 'Unarmed';
-    const armor = s.equipment.armor ? `<span style="color:${armorColor}" title="${armorTooltip}">${s.equipment.armor.name}</span>` : 'No Armor';
+    const weapTooltip = s.equipment.weapon ? escapeHtml(getItemTooltip(s.equipment.weapon)) : '';
+    const armorTooltip = s.equipment.armor ? escapeHtml(getItemTooltip(s.equipment.armor)) : '';
+    const weap = s.equipment.weapon ? `<span style="color:${weapColor}" title="${weapTooltip}">${escapeHtml(s.equipment.weapon.name)}</span>` : 'Unarmed';
+    const armor = s.equipment.armor ? `<span style="color:${armorColor}" title="${armorTooltip}">${escapeHtml(s.equipment.armor.name)}</span>` : 'No Armor';
     const isActive = idx === currentCombat.activePartyIdx;
     const activeClass = isActive ? 'style="border: 2px solid var(--accent);"' : '';
     
@@ -1869,7 +1859,7 @@ function renderCombatUI() {
     }
     
     // 1.0 Phase 3.2 - Add data-survivor-id for animations
-    return `<div class="card-like" ${activeClass} data-survivor-id="${s.id}"><strong>${s.name}${isActive ? ' ⬅' : ''}</strong><div class="small" title="${hpTooltip}">HP ${s.hp}/${effectiveMaxHp}</div>${downedStatus}<div class="small" style="margin-top:4px">${weap} • ${armor}</div>${classHtml}${abilitiesHtml}${statsHtml}${statusEffects}</div>`;
+    return `<div class="card-like" ${activeClass} data-survivor-id="${s.id}"><strong>${escapeHtml(s.name)}${isActive ? ' ⬅' : ''}</strong><div class="small" title="${hpTooltip}">HP ${s.hp}/${effectiveMaxHp}</div>${downedStatus}<div class="small" style="margin-top:4px">${weap} • ${armor}</div>${classHtml}${abilitiesHtml}${statsHtml}${statusEffects}</div>`;
   }).join('');
 
   const turretHtml = (currentCombat.turrets && currentCombat.turrets > 0)
@@ -2060,10 +2050,10 @@ function renderCombatUI() {
     if (a.type === 'hostile_human' && a.equipment) {
       const weapColor = a.equipment.weapon?.rarity ? (RARITY_COLORS[a.equipment.weapon.rarity] || '#ffffff') : '#ffffff';
       const armorColor = a.equipment.armor?.rarity ? (RARITY_COLORS[a.equipment.armor.rarity] || '#ffffff') : '#ffffff';
-      const weapTooltip = a.equipment.weapon ? getItemTooltip(a.equipment.weapon) : '';
-      const armorTooltip = a.equipment.armor ? getItemTooltip(a.equipment.armor) : '';
-      const weap = a.equipment.weapon ? `<span style="color:${weapColor}" title="${weapTooltip}">${a.equipment.weapon.name}</span>` : 'Unarmed';
-      const armor = a.equipment.armor ? `<span style="color:${armorColor}" title="${armorTooltip}">${a.equipment.armor.name}</span>` : 'No Armor';
+      const weapTooltip = a.equipment.weapon ? escapeHtml(getItemTooltip(a.equipment.weapon)) : '';
+      const armorTooltip = a.equipment.armor ? escapeHtml(getItemTooltip(a.equipment.armor)) : '';
+      const weap = a.equipment.weapon ? `<span style="color:${weapColor}" title="${weapTooltip}">${escapeHtml(a.equipment.weapon.name)}</span>` : 'Unarmed';
+      const armor = a.equipment.armor ? `<span style="color:${armorColor}" title="${armorTooltip}">${escapeHtml(a.equipment.armor.name)}</span>` : 'No Armor';
       equipmentHtml = `<div class="small" style="margin-top:4px">${weap} • ${armor}</div>`;
     }
     
@@ -2076,7 +2066,7 @@ function renderCombatUI() {
     // Override color for unique mission enemies based on their rank
     const nameColor = a.rank && rarityColors[a.rank] ? rarityColors[a.rank] : alienColor;
     
-    return `<div class="card-like ${alive ? '' : 'small'} ${targetClass} ${clickableClass}" data-alien-id="${a.id}"><strong style="color: ${nameColor}">${a.name}</strong><div class="small">HP ${Math.max(0,a.hp)}/${a.maxHp}</div>${modifiersHtml}${classAbilitiesHtml}${equipmentHtml}${statsHtml}${passiveEffects}${tempStatusEffects}</div>`;
+    return `<div class="card-like ${alive ? '' : 'small'} ${targetClass} ${clickableClass}" data-alien-id="${a.id}"><strong style="color: ${nameColor}">${escapeHtml(a.name)}</strong><div class="small">HP ${Math.max(0,a.hp)}/${a.maxHp}</div>${modifiersHtml}${classAbilitiesHtml}${equipmentHtml}${statsHtml}${passiveEffects}${tempStatusEffects}</div>`;
   }).join('');
 
   const combatLogHtml = currentCombat.log.map(l => `<div class="small" style="padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">${l}</div>`).join('');
@@ -2101,26 +2091,17 @@ function renderCombatUI() {
     </div>
   `;
 
-  // Add event listeners for alien targeting using event delegation
-  const hostilesContainer = document.getElementById('hostiles-container');
-  if (hostilesContainer) {
-    // This is a re-render, so we need to make sure we don't add duplicate listeners.
-    // A simple way is to replace the node, which removes all old listeners.
-    const newContainer = hostilesContainer.cloneNode(true);
-    hostilesContainer.parentNode.replaceChild(newContainer, hostilesContainer);
-
-    newContainer.addEventListener('click', (e) => {
-      const targetCard = e.target.closest('[data-alien-id]');
+  // Alien targeting via event delegation. Bind ONCE on the stable #combatContent
+  // element (its innerHTML is replaced every render, but the element itself
+  // persists), so we neither clone the hostiles container nor re-add listeners
+  // on each render.
+  if (content && !content._combatClickBound) {
+    content._combatClickBound = true;
+    content.addEventListener('click', (e) => {
+      const targetCard = e.target.closest('#hostiles-container [data-alien-id]');
       if (targetCard) {
-        const hasAttr = targetCard.hasAttribute('data-alien-id');
         const attrValue = targetCard.getAttribute('data-alien-id');
-        console.log('Clicked alien card:', { attrValue, hasAttr, targetCard });
-        if (attrValue) {
-          selectTarget(attrValue);
-        }
-      } else {
-        // No target card found on click
-        console.log('No alien card found on click');
+        if (attrValue) selectTarget(attrValue);
       }
     });
   }
@@ -2938,10 +2919,13 @@ function playerShoot(action = 'shoot', burstShots = null) {
       
       // 0.9.0 - Unstoppable: Immune to crits (Ravager)
       const canBeCrit = !hasModifier(target, 'unstoppable');
-      
-      // crit
+
+      // crit - capture the result here so the visual below reflects the actual
+      // roll instead of re-deriving it from a fresh (random) damage computation.
+      let didCrit = false;
       if (canBeCrit && Math.random() < totalCritChance) {
         dmg = Math.floor(dmg * BALANCE.CRIT_MULT);
+        didCrit = true;
         logCombat(`${s.name} scores a CRITICAL hit on ${target.name}!`);
       }
       
@@ -2991,7 +2975,7 @@ function playerShoot(action = 'shoot', burstShots = null) {
       
       // 1.0 Phase 3.2 - Queue individual shot animations for burst (NO initial renderCombatUI to prevent cheat window)
       if (typeof queueAnimation === 'function') {
-  const wasCrit = dmg > computeSurvivorDamage(s) * 1.3;
+  const wasCrit = didCrit;
   const damageText = wasCrit ? `💢 ${dealt}` : `-${dealt}`; // 💢 for crits
   const damageColor = wasCrit ? '#ffd700' : '#ff6b6b'; // Gold for crits
         
@@ -3075,37 +3059,12 @@ function playerShoot(action = 'shoot', burstShots = null) {
         
         // 0.8.0 - Spawner: summon drone on death
         if (hasModifier(target, 'spawner')) {
-          const droneType = ALIEN_TYPES.find(at => at.id === 'drone');
-          if (droneType) {
-            const spawnedHp = rand(droneType.hpRange[0], droneType.hpRange[1]);
-            const spawnedDrone = {
-              id: `spawned_${Date.now()}`,
-              type: 'drone',
-              name: 'Spawned Drone',
-              hp: spawnedHp,
-              maxHp: spawnedHp,
-              attack: rand(droneType.attackRange[0], droneType.attackRange[1]),
-              armor: droneType.armor || 0, // 0.9.0 - Include armor value
-              rarity: droneType.rarity || 'common', // 0.9.0 - Include rarity
-              attackRange: droneType.attackRange, // 0.9.0 - Include for UI display
-              stealth: droneType.stealth,
-              flavor: droneType.flavor,
-              special: droneType.special,
-              specialDesc: droneType.specialDesc,
-              modifiers: [],
-              firstStrike: true
-            };
-            
-            // 0.9.0 - CRITICAL FIX: Apply modifier bonuses (even though spawned drones have no modifiers, this is future-proof)
-            if (typeof applyModifiersToAlienStats === 'function') {
-              applyModifiersToAlienStats(spawnedDrone);
-            }
-            
-            // 0.9.0 - Apply escalation bonuses to spawned aliens
-            if (typeof applyEscalationToAlien === 'function') {
-              applyEscalationToAlien(spawnedDrone);
-            }
-            
+          // Reuse createAlien so the spawned drone gets a unique id (the old
+          // inline `spawned_${Date.now()}` collided when several spawned in the
+          // same millisecond) plus the standard modifier/escalation handling.
+          const spawnedDrone = createAlien('drone');
+          if (spawnedDrone) {
+            spawnedDrone.name = 'Spawned Drone';
             currentCombat.aliens.push(spawnedDrone);
             logCombat(`${target.name} spawns a drone as it dies!`, true);
             renderCombatUI(); // Update UI after spawn
@@ -3142,8 +3101,10 @@ function playerShoot(action = 'shoot', burstShots = null) {
         }
 
         const loot = pickLoot(qualityBonus);
-        const lootMessage = loot.onPickup(state);
-        appendLog(`Loot dropped: ${lootMessage}`);
+        if (loot && typeof loot.onPickup === 'function') {
+          const lootMessage = loot.onPickup(state);
+          appendLog(`Loot dropped: ${lootMessage}`);
+        }
 
         // Scavenger extra roll abilities
         if (s) {
@@ -3214,10 +3175,12 @@ function playerShoot(action = 'shoot', burstShots = null) {
   if (currentCombat && currentCombat.aimed) currentCombat.aimed[s.id] = false;
   s._aimed = false;
   
-  // 0.9.0 - Apply cooldown after burst/power attack (2 turns)
+  // 0.9.0 - Apply cooldown after burst/power attack
   if (action === 'burst') {
-  // 0.9.0 - Set cooldown for burst/power attack
-  s._burstCooldown = BALANCE.COMBAT_ACTIONS.Burst.cooldown || 2;
+    // Melee uses Power Attack (its own cooldown); ranged uses Burst.
+    s._burstCooldown = (weaponType === 'melee')
+      ? (BALANCE.COMBAT_ACTIONS.PowerAttack.cooldown || 2)
+      : (BALANCE.COMBAT_ACTIONS.Burst.cooldown || 2);
   }
   
   advanceToNextSurvivor();
@@ -3351,7 +3314,7 @@ function showConsumableSelector() {
   html += '<div id="consumableModalContent">';
   
   html += '<div style="display:flex;flex-direction:column;gap:12px;">';
-  html += `<div class="small">Select a consumable for ${s.name} to use.</div>`;
+  html += `<div class="small">Select a consumable for ${escapeHtml(s.name)} to use.</div>`;
   html += '<div class="scrollable-panel" style="max-height:300px;overflow-y:auto;">';
 
   consumables.forEach(({ item, count }) => {
@@ -3364,7 +3327,7 @@ function showConsumableSelector() {
     html += `
         <div class="inv-row">
             <div>
-                <span style="color:${color}" title="${tooltip}">${item.name} x${count}</span>
+                <span style="color:${color}" title="${escapeHtml(tooltip)}">${escapeHtml(item.name)} x${count}</span>
                 <div class="small">${desc}</div>
             </div>
             <button data-key="${key}" class="use-consumable-combat">Use</button>
@@ -3553,6 +3516,11 @@ function playerUseConsumable(consumableKey) {
     s._combatDrugBonus = effect.damageBonus;
     s._combatDrugTurns = effect.duration;
     const maxHpLoss = Math.floor(s.maxHp * effect.maxHpCost);
+    // Store the actual amount deducted so it can be restored when the buff
+    // expires (or on combat cleanup); maxHp is clamped to >=1 below so the
+    // restored amount uses the real delta rather than the raw percentage.
+    const actualMaxHpLoss = s.maxHp - Math.max(1, s.maxHp - maxHpLoss);
+    s._combatDrugMaxHpLoss = (s._combatDrugMaxHpLoss || 0) + actualMaxHpLoss;
     s.maxHp = Math.max(1, s.maxHp - maxHpLoss); // Reduce max HP
     s.hp = Math.min(s.hp, s.maxHp); // Clamp current HP to new max
     logCombat(`${s.name} uses ${item.name}! +${Math.round(effect.damageBonus * 100)}% damage for ${effect.duration} turns (-${maxHpLoss} max HP).`, true);
@@ -3922,11 +3890,14 @@ function calculateRetreatChance(survivor) {
     const armor = survivor.equipment.armor;
     if (armor.effects) {
       for (const effect of armor.effects) {
-        if (effect.type === 'retreat') {
-          const retreatValue = effect.value / 100; // Convert from percentage
+        // Armor effects are strings like "retreat:15"; parse like every other
+        // effect (split on ":") rather than reading non-existent .type/.value.
+        const [effectType, valueStr] = effect.split(':');
+        if (effectType === 'retreat') {
+          const retreatValue = (parseInt(valueStr) || 0) / 100; // Convert from percentage
           total += retreatValue;
           const armorColor = RARITY_COLORS[armor.rarity] || '#a0a0a0';
-          breakdown.push({ label: armor.name, value: retreatValue, color: armorColor });
+          breakdown.push({ label: escapeHtml(armor.name), value: retreatValue, color: armorColor });
         }
       }
     }
@@ -3938,7 +3909,7 @@ function calculateRetreatChance(survivor) {
     const avgPenalty = aliens.reduce((sum, a) => sum + (BALANCE.RETREAT_ALIEN_PENALTY[a.type] || 0), 0) / aliens.length;
     if (avgPenalty !== 0) {
       total += avgPenalty;
-      const alienLabel = aliens.length === 1 ? aliens[0].name : `${aliens.length} Aliens`;
+      const alienLabel = aliens.length === 1 ? escapeHtml(aliens[0].name) : `${aliens.length} Aliens`;
       breakdown.push({ label: alienLabel, value: avgPenalty, color: avgPenalty < 0 ? 'var(--danger)' : 'var(--success)' });
     }
   }
@@ -4020,26 +3991,18 @@ function playerRetreat() {
         
         // 1.0 - Sync hostile survivor HP back to tile after retreat (same as defeat)
         if (state.tiles[currentCombat.idx].hostileSurvivors && currentCombat.aliens) {
-          console.log('Syncing HP after retreat. Aliens in combat:', currentCombat.aliens.map(a => ({ id: a.id, name: a.name, type: a.type, hp: a.hp })));
-          console.log('Hostiles on tile before sync:', state.tiles[currentCombat.idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
-          
           currentCombat.aliens.forEach(alien => {
             if (alien.type === 'hostile_human') {
               const hostile = state.tiles[currentCombat.idx].hostileSurvivors.find(h => h.id === alien.id);
               if (hostile) {
-                console.log(`Syncing ${hostile.name}: ${hostile.hp} → ${alien.hp}`);
                 hostile.hp = alien.hp;
                 hostile.maxHp = alien.maxHp;
               }
             }
           });
-          
-          console.log('Hostiles on tile after sync:', state.tiles[currentCombat.idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
-          
+
           // Remove dead hostiles from tile
           state.tiles[currentCombat.idx].hostileSurvivors = state.tiles[currentCombat.idx].hostileSurvivors.filter(h => h.hp > 0);
-          
-          console.log('Hostiles on tile after filtering dead:', state.tiles[currentCombat.idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
         }
       }
       
@@ -4113,6 +4076,11 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
       p._combatDrugTurns--;
       if (p._combatDrugTurns <= 0) {
         p._combatDrugBonus = 0;
+        // Restore the maxHp that was deducted when the drug was used
+        if (p._combatDrugMaxHpLoss) {
+          p.maxHp += p._combatDrugMaxHpLoss;
+          delete p._combatDrugMaxHpLoss;
+        }
         logCombat(`${p.name}'s Combat Drug effect wears off.`);
       }
     }
@@ -4477,22 +4445,11 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
     renderCombatUI(); // Update UI after healing
   }
   
-  // Regeneration phase (brood special)
-  for (const a of aliveAliens) {
-    if (a.special === 'regeneration') {
-      const healAmount = rand(2, 4);
-      a.hp = Math.min(a.maxHp, a.hp + healAmount);
-      logCombat(`${a.name} regenerates ${healAmount} HP!`);
-      renderCombatUI(); // Update UI after regeneration
-      
-      // 1.0 Phase 3.2 - Show regen animation with green healing number
-      const alienCard = getCombatantCard(a.id, true);
-      if (alienCard && typeof showStatusEffect === 'function') {
-        showStatusEffect(alienCard, `+${healAmount}`, '#4ade80');
-      }
-    }
-  }
-  
+  // Regeneration (brood special) is applied per-alien in the attack loop below
+  // (the queued "1.0 Phase 3.2" branch). It used to run here too, which healed
+  // regenerating aliens twice per turn; that duplicate has been removed so regen
+  // is the intended 2-4 HP/turn.
+
   // 0.8.0 - Hivemind: Queen resurrects fallen drones
   const queens = aliveAliens.filter(a => a.type === 'queen' && hasModifier(a, 'hivemind'));
   for (const queen of queens) {
@@ -4549,6 +4506,19 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
   }
   
   for (const a of aliveAliens) {
+    // aliveAliens was snapshotted before damage-over-time was applied this turn.
+    // Burn/poison DOT is applied in queued animation callbacks (see above) that
+    // run BEFORE this turn's attack callbacks, so a.hp may not be decremented yet
+    // at this synchronous point. Skip aliens that are already dead, and (for
+    // non-regenerating aliens) those whose pending DOT this turn is already lethal,
+    // so a corpse does not still get to attack.
+    if (a.hp <= 0) continue;
+    if (a.special !== 'regeneration') {
+      const pendingDot = (((a._burnQueue && a._burnQueue.length) || 0)
+                        + ((a._poisonQueue && a._poisonQueue.length) || 0)) * 2;
+      if (pendingDot > 0 && a.hp - pendingDot <= 0) continue;
+    }
+
     // 0.9.0 - Skip stunned aliens (numeric duration)
     if (a._stunned && a._stunned > 0) {
       logCombat(`${a.name} is stunned and cannot attack!`);
@@ -4617,7 +4587,9 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
       // 25% chance to use special attack if not on cooldown
       if (!a._specialCooldown && Math.random() < 0.25) {
         const weaponType = a.equipment?.weapon?.weaponType || 'unarmed';
-        if (weaponType === 'ranged') {
+        // No weapon uses the type "ranged"; the real ranged types are everything
+        // that isn't melee/unarmed (pistol, rifle, shotgun, heavy).
+        if (weaponType !== 'melee' && weaponType !== 'unarmed') {
           // Use Burst attack
           a._hostileBurst = true;
           a._specialCooldown = 3; // 3 turn cooldown
@@ -5438,7 +5410,7 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
         const splashTargets = aliveParty.filter(p => p.hp > 0 && p !== targ);
         if (splashTargets.length > 0) {
           const splashTarg = splashTargets[rand(0, splashTargets.length - 1)];
-          const splashDmg = Math.floor(taken * 0.5);
+          const splashDmg = Math.floor(totalDamage * 0.5);
           splashTarg.hp -= splashDmg;
           logCombat(`Caustic splash hits ${splashTarg.name} for ${splashDmg}!`);
           renderCombatUI(); // Update UI after splash damage
@@ -5564,6 +5536,12 @@ function startPlayerTurn(party) {
 }
 
 function endCombat(win) {
+  // One-shot guard: simultaneous DOT-triggered win checks (burn/poison callbacks)
+  // can call endCombat more than once. Bail on re-entry so we never double-fire
+  // (and never null-deref currentCombat after the first call clears it).
+  if (currentCombat && currentCombat._ending) return;
+  if (currentCombat) currentCombat._ending = true;
+
   // 1.0 Phase 3.2 - Wait for all animations to finish before ending combat
   if (typeof isAnimating === 'function' && isAnimating()) {
     if (typeof processAnimationQueue === 'function') {
@@ -5582,6 +5560,7 @@ function endCombat(win) {
 }
 
 function endCombatImmediate(win) {
+  if (!currentCombat) return;
   const idx = currentCombat?.idx ?? null;
   const isRaid = currentCombat?.context === 'base';
   
@@ -5744,26 +5723,18 @@ function endCombatImmediate(win) {
       
       // 1.0 - Sync hostile survivor HP back to tile after defeat/retreat
       if (state.tiles[idx].hostileSurvivors && currentCombat.aliens) {
-        console.log('Syncing HP after defeat/retreat. Aliens in combat:', currentCombat.aliens.map(a => ({ id: a.id, name: a.name, type: a.type, hp: a.hp })));
-        console.log('Hostiles on tile before sync:', state.tiles[idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
-        
         currentCombat.aliens.forEach(alien => {
           if (alien.type === 'hostile_human') {
             const hostile = state.tiles[idx].hostileSurvivors.find(h => h.id === alien.id);
             if (hostile) {
-              console.log(`Syncing ${hostile.name}: ${hostile.hp} → ${alien.hp}`);
               hostile.hp = alien.hp;
               hostile.maxHp = alien.maxHp;
             }
           }
         });
-        
-        console.log('Hostiles on tile after sync:', state.tiles[idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
-        
+
         // Remove dead hostiles from tile
         state.tiles[idx].hostileSurvivors = state.tiles[idx].hostileSurvivors.filter(h => h.hp > 0);
-        
-        console.log('Hostiles on tile after filtering dead:', state.tiles[idx].hostileSurvivors.map(h => ({ id: h.id, name: h.name, hp: h.hp })));
       }
     }
     // (handled above) mission onLoss callback already invoked where appropriate
@@ -5773,41 +5744,20 @@ function endCombatImmediate(win) {
   updateUI(); // 1.0 Phase 3.2 - Update UI after closing to refresh map with cleared explorer
 }
 
-function bindCombatUIEvents() {
-  // 0.9.0 - Close button removed to prevent cheating (early escape = 100% success)
-  // Players must use Retreat action or complete combat
-  
-  const shoot = document.getElementById('btnActionShoot');
-  const aim = document.getElementById('btnActionAim');
-  const burst = document.getElementById('btnActionBurst');
-  const guard = document.getElementById('btnActionGuard');
-  const useItem = document.getElementById('btnActionUseItem'); // 0.9.0
-  const revive = document.getElementById('btnActionRevive');
-  const retreat = document.getElementById('btnActionRetreat');
-  const auto = document.getElementById('btnActionAuto');
-  if (shoot) shoot.onclick = () => playerShoot('shoot');
-  if (aim) aim.onclick = () => playerAim();
-  if (burst) burst.onclick = () => playerShoot('burst');
-  if (guard) guard.onclick = () => playerGuard();
-  if (useItem) useItem.onclick = () => showConsumableSelector(); // 0.9.0
-  if (revive) revive.onclick = () => playerRevive();
-  if (retreat) retreat.onclick = () => playerRetreat();
-  if (auto) auto.onclick = () => { // fall back to auto resolver
-    const isFieldCombat = currentCombat?.context === 'field';
-    const t = currentCombat?.idx;
-    
-    if (isFieldCombat && t != null) {
-      // For field exploration, only use the explorer in auto-resolve
-      const explorer = state.survivors.find(s => s.id === currentCombat.partyIds[0]);
-      if (explorer) {
-        resolveSkirmish(currentCombat.aliens, 'field', t);
-      }
-    } else if (currentCombat.context === 'base') {
-      resolveSkirmish(currentCombat.aliens, 'base', null);
-    }
-    closeCombatOverlay();
-  };
-}
+// Auto-resolve the current interactive combat by handing it off to the
+// non-interactive skirmish resolver. Must be a real global because the
+// Auto-Resolve buttons use inline onclick="autoResolveCombat()" and are
+// rebuilt on every render (re-binding once at startup would not survive).
+function autoResolveCombat() {
+  if (!currentCombat) return;
 
-// Initialize bindings after DOM ready
-setTimeout(bindCombatUIEvents, 0);
+  const isFieldCombat = currentCombat.context === 'field';
+  const t = currentCombat.idx;
+
+  if (isFieldCombat && t != null) {
+    resolveSkirmish(currentCombat.aliens, 'field', t);
+  } else if (currentCombat.context === 'base') {
+    resolveSkirmish(currentCombat.aliens, 'base', null);
+  }
+  closeCombatOverlay();
+}

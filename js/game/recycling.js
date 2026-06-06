@@ -47,8 +47,11 @@ function recycleItem(itemId, event) {
     const scrapValue = rarityValues[item.rarity] ?? 5;
     
     showRecycleConfirmation(item, { scrap: scrapValue }, event, () => {
+      // Re-resolve by id at confirm time; the captured index can be stale.
+      const idx = state.inventory.findIndex(i => i.id === item.id);
+      if (idx === -1) return;
       state.resources.scrap += scrapValue;
-      state.inventory.splice(itemIndex, 1);
+      state.inventory.splice(idx, 1);
       const itemColor = RARITY_COLORS[item.rarity] || '#a0a0a0';
       appendLog(`♻️ Recycled <span style="color:${itemColor}">${item.name}</span> → <span style="color:var(--accent)">+${scrapValue} Scrap</span>`);
       updateUI();
@@ -74,6 +77,10 @@ function recycleItem(itemId, event) {
 
   // Show themed confirmation popup
   showRecycleConfirmation(item, refunds, event, () => {
+    // Re-resolve by id at confirm time; the captured index can be stale
+    // (and granting component refunds below mutates the inventory).
+    const idx = state.inventory.findIndex(i => i.id === item.id);
+    if (idx === -1) return;
     // Grant all refunded resources
     for (const [resource, amount] of Object.entries(refunds)) {
       // Check if this is a crafting component using lookup table
@@ -94,8 +101,8 @@ function recycleItem(itemId, event) {
         state.resources[resource] = (state.resources[resource] || 0) + amount;
       }
     }
-    state.inventory.splice(itemIndex, 1);
-    
+    state.inventory.splice(idx, 1);
+
     // 0.9.0 - Build colored notification showing all resources received with rarity colors
     const itemColor = RARITY_COLORS[item.rarity] || '#a0a0a0';
     const resourceParts = [];
@@ -312,7 +319,7 @@ function showRecycleConfirmation(item, refunds, event, onConfirm) {
     }).join('');
 
   popup.innerHTML = `
-    <div class="recycle-popup-header">Recycle ${item.name}?</div>
+    <div class="recycle-popup-header">Recycle ${escapeHtml(item.name)}?</div>
     <div class="recycle-popup-body">
       <div class="refund-label">You will receive:</div>
       ${refundLines}

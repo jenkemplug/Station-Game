@@ -63,7 +63,7 @@ function installShuttleComponent(componentType) {
   
   // Check crafting components
   for (const [compType, needed] of Object.entries(cost.components)) {
-    const available = state.inventory.filter(item => item.type === compType).length;
+    const available = state.inventory.filter(item => item.type === 'component' && item.subtype === compType).length;
     if (available < needed) {
       const displayName = compType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
       appendLog(`Not enough ${displayName}. Need ${needed}, have ${available}.`);
@@ -79,7 +79,7 @@ function installShuttleComponent(componentType) {
   for (const [compType, needed] of Object.entries(cost.components)) {
     let toRemove = needed;
     state.inventory = state.inventory.filter(item => {
-      if (item.type === compType && toRemove > 0) {
+      if (item.type === 'component' && item.subtype === compType && toRemove > 0) {
         toRemove--;
         return false;
       }
@@ -133,47 +133,51 @@ function winGame() {
   const timePlayedHours = Math.floor(state.secondsPlayed / 3600);
   const timePlayedMinutes = Math.floor((state.secondsPlayed % 3600) / 60);
   
-  // Show victory modal
-  const modal = el('missionModal');
-  const modalContent = el('missionModalContent');
-  
-  modalContent.innerHTML = `
-    <div style="text-align: center; padding: 20px;">
-      <h1 style="color: var(--success); font-size: 2.5em; margin-bottom: 20px;">🎉 VICTORY! 🎉</h1>
-      <p style="font-size: 1.3em; margin-bottom: 30px;">You have escaped the Derelict Station!</p>
-      
-      <div style="background: var(--card-gradient); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <h2 style="color: var(--accent); margin-bottom: 15px;">Mission Statistics</h2>
-        <div style="text-align: left; max-width: 400px; margin: 0 auto;">
-          <p>⏱️ <strong>Time Survived:</strong> ${timePlayedHours}h ${timePlayedMinutes}m</p>
-          <p>👥 <strong>Survivors Rescued:</strong> ${survivorCount}</p>
-          <p>🗺️ <strong>Sectors Cleared:</strong> ${sectorsCleared}/13</p>
-          <p>👾 <strong>Aliens Eliminated:</strong> ${totalAlienKills}</p>
-          <p>⚠️ <strong>Final Threat Level:</strong> ${Math.floor(state.threat)}%</p>
+  // Show victory screen using the existing mission modal elements
+  const titleEl = el('missionModalTitle');
+  if (titleEl) titleEl.textContent = '🎉 VICTORY! 🎉';
+
+  const bodyEl = el('missionModalControls') || el('missionLog');
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        <h1 style="color: var(--success); font-size: 2.5em; margin-bottom: 20px;">🎉 VICTORY! 🎉</h1>
+        <p style="font-size: 1.3em; margin-bottom: 30px;">You have escaped the Derelict Station!</p>
+
+        <div style="background: var(--card-gradient); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h2 style="color: var(--accent); margin-bottom: 15px;">Mission Statistics</h2>
+          <div style="text-align: left; max-width: 400px; margin: 0 auto;">
+            <p>⏱️ <strong>Time Survived:</strong> ${timePlayedHours}h ${timePlayedMinutes}m</p>
+            <p>👥 <strong>Survivors Rescued:</strong> ${survivorCount}</p>
+            <p>🗺️ <strong>Sectors Cleared:</strong> ${sectorsCleared}/13</p>
+            <p>👾 <strong>Aliens Eliminated:</strong> ${totalAlienKills}</p>
+            <p>⚠️ <strong>Final Threat Level:</strong> ${Math.floor(state.threat)}%</p>
+          </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <p style="color: var(--muted); font-style: italic; margin-bottom: 20px;">
+            "As the shuttle breaks atmosphere, you look back at the station—a tomb of metal and darkness.
+            But you made it. Against all odds, you survived."
+          </p>
+        </div>
+
+        <div style="margin-top: 30px;">
+          <button onclick="closeVictoryModal()" style="padding: 12px 30px; font-size: 1.1em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Continue (New Game+ Coming Soon)
+          </button>
         </div>
       </div>
-      
-      <div style="margin-top: 30px;">
-        <p style="color: var(--muted); font-style: italic; margin-bottom: 20px;">
-          "As the shuttle breaks atmosphere, you look back at the station—a tomb of metal and darkness. 
-          But you made it. Against all odds, you survived."
-        </p>
-      </div>
-      
-      <div style="margin-top: 30px;">
-        <button onclick="closeVictoryModal()" style="padding: 12px 30px; font-size: 1.1em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;">
-          Continue (New Game+ Coming Soon)
-        </button>
-      </div>
-    </div>
-  `;
-  
-  modal.style.display = 'flex';
+    `;
+  }
+
+  const modal = el('missionModal');
+  if (modal) modal.style.display = 'flex';
   saveGame('action');
 }
 
 function closeVictoryModal() {
   const modal = el('missionModal');
-  modal.style.display = 'none';
+  if (modal) modal.style.display = 'none';
   updateUI();
 }

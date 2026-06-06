@@ -83,8 +83,12 @@ function applyEscalationToAlien(alien) {
   // Apply attack bonus
   alien.attack = Math.round(alien.attack * atkMult);
   if (alien.attackRange) {
-    alien.attackRange[0] = Math.round(alien.attackRange[0] * atkMult);
-    alien.attackRange[1] = Math.round(alien.attackRange[1] * atkMult);
+    // Build a NEW array — aliens may hold a live reference to the ALIEN_TYPES
+    // constant, so mutating in place would corrupt the shared template.
+    alien.attackRange = [
+      Math.round(alien.attackRange[0] * atkMult),
+      Math.round(alien.attackRange[1] * atkMult)
+    ];
   }
   
   // Apply armor bonus
@@ -262,7 +266,7 @@ function resolveRaid() {
       attack: Math.round(rand(at.attackRange[0], at.attackRange[1]) * aMult),
       armor: at.armor || 0, // 0.9.0 - Include armor value
       rarity: at.rarity || 'common', // 0.9.0 - Include rarity
-      attackRange: [at.attackRange[0], Math.round(at.attackRange[1] * aMult)], // 0.9.0 - Scaled range for display
+      attackRange: [Math.round(at.attackRange[0] * aMult), Math.round(at.attackRange[1] * aMult)], // 0.9.0 - Scaled range for display (both ends)
       stealth: at.stealth,
       flavor: at.flavor,
       special: at.special,

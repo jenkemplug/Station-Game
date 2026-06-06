@@ -68,7 +68,7 @@ function applyModifiersToAlienStats(alien) {
 }
 
 // 0.9.0 - Apply weapon effects (burn, stun, armorPierce, etc.)
-function applyWeaponEffects(weapon, target, attacker, baseDmg) {
+function applyWeaponEffects(weapon, target, attacker, baseDmg, aliens) {
   if (!weapon.effects || weapon.effects.length === 0) return;
   
   for (const effect of weapon.effects) {
@@ -129,27 +129,9 @@ function applyWeaponEffects(weapon, target, attacker, baseDmg) {
   }
 }
 
-// 0.9.0 - Get passive bonuses from weapon effects (accuracy, crit)
-function getWeaponPassiveBonuses(weapon) {
-  const bonuses = { accuracy: 0, crit: 0 };
-  if (!weapon || !weapon.effects) return bonuses;
-  
-  for (const effect of weapon.effects) {
-    const [effectType, valueStr] = effect.split(':');
-    const value = parseInt(valueStr) || 0;
-    
-    switch (effectType) {
-      case 'accuracy':
-        bonuses.accuracy += value / 100; // Convert percent to decimal
-        break;
-      case 'crit':
-        bonuses.crit += value / 100; // Convert percent to decimal
-        break;
-    }
-  }
-  
-  return bonuses;
-}
+// 0.9.0 - getWeaponPassiveBonuses(weapon) is defined canonically in combatInteractive.js
+// (loaded later, so its declaration is the active one). The duplicate that used to live
+// here was identical and has been removed.
 
 // 0.9.0 - Apply armor effects (dodge, reflect, regen, etc.)
 function applyArmorEffects(armor, survivor) {
@@ -496,7 +478,15 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
   appendLog(`Battle begins: ${fighters.length} survivor(s) vs ${aliens.length} alien(s).`);
   
   // simplistic round-based combat
+  // Deterministic max-round cap so a 0-damage standoff can never hang the loop.
+  let roundCount = 0;
+  const MAX_SKIRMISH_ROUNDS = 200;
   while (aliens.some(a => a.hp > 0) && fighters.some(f => f.hp > 0)) {
+    if (++roundCount > MAX_SKIRMISH_ROUNDS) {
+      appendLog('The skirmish drags on without resolution and is broken off.');
+      break;
+    }
+
     // Reset per-round flags
     aliens.forEach(a => a._relentlessUsed = false);
 
@@ -511,7 +501,20 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         }
       }
     }
-    
+
+    // 0.9.0 - Apply weapon burn damage to aliens at start of round (tick + decrement)
+    for (const a of aliens) {
+      if (a._burnStacks && a._burnStacks > 0 && a.hp > 0) {
+        const burnDmg = a._burnStacks;
+        a.hp = Math.max(0, a.hp - burnDmg);
+        appendLog(`🔥 ${a.name} takes ${burnDmg} burn damage.`);
+        a._burnStacks -= 1;
+        if (a.hp <= 0) {
+          appendLog(`${a.name} is consumed by flames.`);
+        }
+      }
+    }
+
     // Alien regeneration phase (brood special)
     for (const a of aliens) {
       if (a.hp <= 0 || a.special !== 'regeneration') continue;
@@ -652,14 +655,15 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       if (blocked > 0) {
           appendLog(`${target.name} blocked ${blocked} damage.`);
       }
-      dmg = Math.max(0, dmg - (target.armor || 0));
-      
+      // Guarantee at least 1 damage after armor so 0-damage standoffs can't hang the loop
+      dmg = Math.max(1, dmg - (target.armor || 0));
+
       target.hp -= dmg;
       appendLog(`${s.name} hits ${target.name} for ${dmg} dmg.`);
       
       // 0.9.0 - Apply weapon effects
       if (weapon && weapon.effects && weapon.effects.length > 0 && target.hp > 0) {
-        applyWeaponEffects(weapon, target, s, dmg);
+        applyWeaponEffects(weapon, target, s, dmg, aliens);
       }
       
         if (target.hp <= 0) {
@@ -793,8 +797,10 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         }
 
         const loot = pickLoot(qualityBonus);
-        const lootMessage = loot.onPickup(state);
-        appendLog(`Loot dropped: ${lootMessage}`);
+        if (loot && typeof loot.onPickup === 'function') {
+          const lootMessage = loot.onPickup(state);
+          appendLog(`Loot dropped: ${lootMessage}`);
+        }
 
         // Scavenger extra roll abilities
         if (s) {
@@ -823,7 +829,14 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
     // aliens attack back
     for (const a of aliens) {
       if (a.hp <= 0) continue;
-      
+
+      // 0.9.0 - Stunned aliens skip their attack this round, then recover
+      if (a._stunned) {
+        appendLog(`⚡ ${a.name} is stunned and cannot attack!`);
+        a._stunned = false;
+        continue;
+      }
+
       // 1.0 - Hostile Survivor AI: Use consumables intelligently (auto-resolve)
       if (a.type === 'hostile_human' && a.inventory && a.inventory.length > 0) {
         // Use Medkit if HP below 50%
@@ -863,11 +876,10 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         // 1.0 - Advanced AI: Smart targeting based on alien type
         const targ = selectAlienTarget(a, fighters);
         if (!targ) break;
-        
-        const modStats = applyModifierStatEffects(a);
-        
+
+        // 0.9.0 - atkBonus is baked into a.attack at spawn (applyModifiersToAlienStats);
+        // do NOT re-add it per strike (matches the interactive engine).
         let aDmg = rand(Math.max(1, a.attack - 1), a.attack + 1);
-        aDmg += modStats.atkBonus;
 
         // AURA BONUSES
         const matriarchs = aliens.filter(al => al.hp > 0 && hasModifier(al, 'matriarch'));
@@ -1064,11 +1076,10 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       }
     }
     
-    // quick break safety
-    if (Math.random() < 0.001) break;
   }
-  
+
   // resolve aftermath: remove downed/dead survivors
+  let deathCount = 0;
   state.survivors = state.survivors.filter(s => {
     if (s.hp <= 0 || s.downed) {
       // Clear downed state if they survived the battle
@@ -1078,16 +1089,19 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
         return true; // Keep survivor
       }
       appendLog(`${s.name} was lost in combat.`);
-      
-  // 0.9.0 - Morale penalty for ally death
-      state.survivors.forEach(ally => {
-        ally.morale = Math.max(0, ally.morale - BALANCE.MORALE_LOSS_ALLY_DEATH);
-      });
-      
+      deathCount++;
       return false;
     }
     return true;
   });
+
+  // 0.9.0 - Morale penalty for ally death: applied once per death to the
+  // surviving roster only (the dead are already removed; the dying take no hit).
+  if (deathCount > 0) {
+    state.survivors.forEach(ally => {
+      ally.morale = Math.max(0, ally.morale - BALANCE.MORALE_LOSS_ALLY_DEATH * deathCount);
+    });
+  }
   
   // Check if raid failed
   if (context === 'base' && aliens.some(a => a.hp > 0)) {
