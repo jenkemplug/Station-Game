@@ -265,14 +265,14 @@ const TUTORIAL_SECTIONS = {
       <div class="tutorial-box">
         <strong>Alien Types (with Advanced AI):</strong>
         <ul>
-          <li><strong>Drone (HP 6-10, Atk 2-5):</strong> Weak but fast, 25% dodge</li>
-          <li><strong>Lurker (HP 8-14, Atk 3-6):</strong> Ambush predator, +50% damage on first strike</li>
-          <li><strong>Stalker (HP 14-22, Atk 5-9):</strong> Pack tactics, +2 damage per ally alive</li>
-          <li><strong>Spitter (HP 10-16, Atk 4-8):</strong> Ranged, ignores 50% armor (armor-piercing)</li>
-          <li><strong>Brood (HP 28-40, Atk 8-14):</strong> Regenerates 2-4 HP per turn</li>
-          <li><strong>Ravager (HP 20-30, Atk 10-16):</strong> Heavily armored, takes 50% less damage</li>
-          <li><strong>Spectre (HP 12-18, Atk 6-11):</strong> 40% phase chance (attacks miss), can counter-attack</li>
-          <li><strong>Hive Queen (HP 35-50, Atk 12-20):</strong> Attacks twice per turn, resurrects fallen drones once</li>
+          <li><strong>Drone (HP 7-12, Atk 2-6):</strong> Weak but fast, 25% dodge</li>
+          <li><strong>Lurker (HP 9-16, Atk 3-7):</strong> Ambush predator, +50% damage on first strike</li>
+          <li><strong>Stalker (HP 16-25, Atk 6-10):</strong> Pack tactics, +2 damage per ally alive</li>
+          <li><strong>Spitter (HP 12-18, Atk 5-9):</strong> Ranged, ignores 50% armor (armor-piercing)</li>
+          <li><strong>Brood (HP 32-45, Atk 9-16):</strong> Regenerates 2-4 HP per turn</li>
+          <li><strong>Ravager (HP 24-35, Atk 11-18):</strong> Heavily armored, takes 30% less damage</li>
+          <li><strong>Spectre (HP 14-21, Atk 7-13):</strong> 40% phase chance (attacks miss), can counter-attack</li>
+          <li><strong>Hive Queen (HP 40-58, Atk 10-16):</strong> Attacks twice per turn, resurrects fallen drones once</li>
         </ul>
         <p><strong>Smart Alien AI:</strong></p>
         <ul>

@@ -102,23 +102,10 @@ function flashLevelUp(survivorId) {
   }, 800);
 }
 
-/**
- * Animate loot notification in log
- * @param {string} logMessage - Message to highlight
- */
-function animateLootLog(logMessage) {
-  const logPanel = el('logPanel');
-  if (!logPanel) return;
-  
-  // Wait for log to be added, then animate last entry
-  setTimeout(() => {
-    const logEntries = logPanel.querySelectorAll('.log-entry');
-    if (logEntries.length > 0) {
-      const lastEntry = logEntries[logEntries.length - 1];
-      lastEntry.classList.add('loot-notification');
-    }
-  }, 50);
-}
+// 1.0.1 - Removed animateLootLog(): it was never called, targeted a nonexistent
+// element id ('logPanel' vs the real '#log'), and queried a '.log-entry' class
+// the log renderer never emits. Re-derive from scratch if a loot highlight is
+// ever wanted.
 
 /**
  * Highlight important button (e.g., mission ready to complete)
@@ -149,7 +136,6 @@ if (typeof module !== 'undefined' && module.exports) {
     updateResourceAnimations,
     showXPPopup,
     flashLevelUp,
-    animateLootLog,
     highlightButton,
     removeButtonHighlight
   };

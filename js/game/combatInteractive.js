@@ -609,6 +609,8 @@ function applyWeaponEffectsInteractive(weapon, target, attacker, baseDmg) {
               
               // Check if all aliens died from splash (delayed check after animations)
               setTimeout(() => {
+                // 1.0.1 - Combat can be closed (retreat/auto-resolve) inside this window
+                if (!currentCombat) return;
                 const remainingAliens = currentCombat.aliens.filter(a => a.hp > 0);
                 if (remainingAliens.length === 0) {
                   endCombat(true);
@@ -675,47 +677,9 @@ function getArmorPassiveBonuses(armor) {
   return bonuses;
 }
 
-// 0.9.0 - Apply armor effects in interactive combat
-function applyArmorEffectsInteractive(armor, survivor) {
-  if (!armor || !armor.effects || armor.effects.length === 0) return {};
-  
-  const bonuses = {
-    dodgeBonus: 0,
-    reflectChance: 0,
-    regenAmount: 0,
-    immunities: [],
-    hpBonus: 0,
-    critBonus: 0
-  };
-  
-  for (const effect of armor.effects) {
-    const [effectType, valueStr] = effect.split(':');
-    const value = parseInt(valueStr) || 0;
-    
-    switch (effectType) {
-      case 'dodge':
-        bonuses.dodgeBonus += value / 100;
-        break;
-      case 'reflect':
-        bonuses.reflectChance += value / 100;
-        break;
-      case 'regen':
-        bonuses.regenAmount += value;
-        break;
-      case 'immunity':
-        bonuses.immunities.push(valueStr);
-        break;
-      case 'hpBonus':
-        bonuses.hpBonus += value;
-        break;
-      case 'crit':
-        bonuses.critBonus += value / 100;
-        break;
-    }
-  }
-  
-  return bonuses;
-}
+// 1.0.1 - applyArmorEffectsInteractive was a byte-for-byte duplicate of
+// applyArmorEffects in combat.js and has been removed; call sites use the
+// shared function (same dedup pattern as getWeaponPassiveBonuses).
 
 let currentCombat = null; // { context, idx, partyIds, aliens, turn, aimed, log, explorerId, activePartyIdx, selectedTargetId }
 
@@ -1121,7 +1085,7 @@ function getAlienPassiveEffects(alien, alienColor) {
   } else if (alien.special === 'regeneration') {
     effects.push({ text: 'Regen 2-4', color: alienColor, tooltip: 'Heals 2-4 HP per turn' });
   } else if (alien.special === 'armored') {
-    effects.push({ text: 'Resist 50%', color: alienColor, tooltip: 'Takes 50% less damage from all attacks' });
+    effects.push({ text: 'Resist 30%', color: alienColor, tooltip: 'Takes 30% less damage from all attacks' });
   } else if (alien.special === 'phase') {
     effects.push({ text: 'Phase Shift 40%', color: alienColor, tooltip: '40% chance to phase out and avoid damage' });
   } else if (alien.special === 'multistrike') {
@@ -1566,7 +1530,7 @@ function calculateAlienStats(alien, aliens) {
   let baseAccuracy = 0;
   const accuracySources = [];
   if (alien.type === 'hostile_human') {
-    baseAccuracy = BALANCE.COMBAT_HIT_CHANCE || 0.75;
+    baseAccuracy = BALANCE.BASE_HIT_CHANCE || 0.72; // 1.0.1 - was reading a nonexistent key, showing stale 75%
     accuracySources.push(`Base (${Math.round(baseAccuracy * 100)}%)`);
     
     // Check for accuracy bonuses from equipment effects
@@ -1585,7 +1549,7 @@ function calculateAlienStats(alien, aliens) {
   let baseCrit = 0;
   const critSources = [];
   if (alien.type === 'hostile_human') {
-    baseCrit = BALANCE.COMBAT_CRIT_CHANCE || 0.12;
+    baseCrit = BALANCE.CRIT_CHANCE || 0.12; // 1.0.1 - was reading a nonexistent key
     critSources.push(`Base (${Math.round(baseCrit * 100)}%)`);
     
     // Check for crit bonuses from equipment effects
@@ -1851,7 +1815,7 @@ function renderCombatUI() {
     let effectiveMaxHp = s.maxHp || 20; // Fallback to 20 if undefined
     let hpTooltip = 'Current HP / Maximum HP';
     if (s.equipment && s.equipment.armor) {
-      const armorBonuses = applyArmorEffectsInteractive(s.equipment.armor, s);
+      const armorBonuses = applyArmorEffects(s.equipment.armor, s);
       if (armorBonuses && armorBonuses.hpBonus) {
         effectiveMaxHp += armorBonuses.hpBonus;
         hpTooltip += `\n• Base Max HP: ${s.maxHp}\n• Armor Bonus: +${armorBonuses.hpBonus}`;
@@ -1904,7 +1868,7 @@ function renderCombatUI() {
       } else if (a.special === 'regeneration') {
         detailedTooltip = 'Recovers 2-4 HP at the end of each turn';
       } else if (a.special === 'armored') {
-        detailedTooltip = 'Takes 50% less damage from all attacks';
+        detailedTooltip = 'Takes 30% less damage from all attacks';
       } else if (a.special === 'phase') {
         detailedTooltip = '40% chance to phase out of reality and avoid damage';
       } else if (a.special === 'multistrike') {
@@ -2143,8 +2107,14 @@ function reapplyStatusAnimations() {
         applyStatusAnimation(card, 'stunned', true);
       }
     }
+
+    // 1.0.1 - Re-apply death visual: renderCombatUI rebuilds cards via innerHTML,
+    // which stripped the 'combat-death' class animateDeath applied.
+    if (s.hp <= 0 || s.downed) {
+      card.classList.add('combat-death');
+    }
   });
-  
+
   // Re-apply status effects to aliens
   currentCombat.aliens.forEach(a => {
     const card = getCombatantCard(a.id, true);
@@ -2170,6 +2140,11 @@ function reapplyStatusAnimations() {
         applyStatusAnimation(card, 'stunned', true);
       }
     }
+
+    // 1.0.1 - Re-apply death visual (see survivor branch above)
+    if (a.hp <= 0) {
+      card.classList.add('combat-death');
+    }
   });
 }
 
@@ -2178,6 +2153,10 @@ function renderAdaptiveActions(survivor) {
   const actionsDiv = document.querySelector('.combat-actions');
   if (!actionsDiv || !survivor) return;
 
+  // 1.0.1 - Auto-Resolve only works for field/base combat; mission combats must
+  // resolve through their callbacks (see autoResolveCombat).
+  const canAutoResolve = currentCombat && (currentCombat.context === 'field' || currentCombat.context === 'base');
+
   // Stunned survivors can only Aim or Guard
   if (survivor._stunned && survivor._stunned > 0) {
     actionsDiv.innerHTML = `
@@ -2185,7 +2164,7 @@ function renderAdaptiveActions(survivor) {
       <div>
         <button id="btnActionAim" class="" title="Take careful aim (+${Math.round(BALANCE.COMBAT_ACTIONS.Aim.accuracyBonus * 100)}% hit chance next shot)." onclick="playerAim()">Aim</button>
         <button id="btnActionGuard" class="" title="Brace for impact (+${BALANCE.COMBAT_ACTIONS.Guard.defenseBonus} defense this turn)." onclick="playerGuard()">Guard</button>
-        <button id="btnActionAuto" class="" style="margin-left:auto;" title="Let the AI handle combat automatically." onclick="autoResolveCombat()">Auto-Resolve</button>
+        ${canAutoResolve ? '<button id="btnActionAuto" class="" style="margin-left:auto;" title="Let the AI handle combat automatically." onclick="autoResolveCombat()">Auto-Resolve</button>' : ''}
       </div>
     `;
     return;
@@ -2341,15 +2320,17 @@ function renderAdaptiveActions(survivor) {
     onclick: 'playerRetreat()'
   });
   
-  actions.push({ 
-    id: 'btnActionAuto', 
-    label: 'Auto-Resolve', 
-    class: '', 
-    style: 'margin-left:auto;', 
-    tooltip: 'Let the AI handle combat automatically.',
-    onclick: 'autoResolveCombat()'
-  });
-  
+  if (canAutoResolve) {
+    actions.push({
+      id: 'btnActionAuto',
+      label: 'Auto-Resolve',
+      class: '',
+      style: 'margin-left:auto;',
+      tooltip: 'Let the AI handle combat automatically.',
+      onclick: 'autoResolveCombat()'
+    });
+  }
+
   // Render buttons
   actionsDiv.innerHTML = actions.map(a => {
     // 1.0 Phase 3.2 - Disable all buttons during enemy turn or animations
@@ -2392,8 +2373,10 @@ function computeSurvivorDamage(s) {
   let damage = 0;
   
   // Get weapon damage
+  // 1.0.1 - Broken weapons (durability 0) deal unarmed damage, matching
+  // calculateAttackDamage() in the auto-resolve engine.
   const weapon = s.equipment.weapon;
-  if (weapon) {
+  if (weapon && weapon.durability > 0) {
     // New structure: has damage array
     if (weapon.damage && Array.isArray(weapon.damage)) {
       damage = rand(weapon.damage[0], weapon.damage[1]);
@@ -2408,19 +2391,36 @@ function computeSurvivorDamage(s) {
     // Unarmed combat
     damage = rand(BALANCE.UNARMED_DAMAGE[0], BALANCE.UNARMED_DAMAGE[1]);
   }
-  
+
   // Apply percentage-based bonuses from level, class, and abilities
   let damageMultiplier = 1.0;
-  
+
   // Level bonus: 0% at level 1, +2% per level after that
   damageMultiplier += (s.level - 1) * BALANCE.LEVEL_ATTACK_BONUS;
-  
+
   // Apply class/ability bonuses
   if (s.classBonuses && s.classBonuses.combat) {
     damageMultiplier += (s.classBonuses.combat - 1);
   }
   if (hasAbility(s, 'veteran')) {
     damageMultiplier += 0.20;
+  }
+
+  // 1.0.1 - Berserker / Last Stand / Commander were shown in the stat tooltip but
+  // never applied to the actual damage roll (auto-resolve applies them via
+  // applyAbilityDamageModifiers; interactive combat forgot them).
+  if (hasAbility(s, 'berserker') && s.hp < s.maxHp * 0.3) {
+    damageMultiplier += 0.30;
+  }
+  if (currentCombat) {
+    const party = currentCombat.partyIds.map(id => state.survivors.find(x => x.id === id)).filter(Boolean);
+    const allyCount = party.filter(f => f.hp > 0 && !f._retreated).length;
+    if (hasAbility(s, 'last') && allyCount === 1) {
+      damageMultiplier += 0.50;
+    }
+    if (party.some(f => f !== s && f.hp > 0 && hasAbility(f, 'commander'))) {
+      damageMultiplier += 0.10;
+    }
   }
 
   // Add combat drug bonus to multiplier
@@ -2632,8 +2632,9 @@ function turretAttack(idx, action, tState) {
     dealt = Math.max(1, dealt - alienArmor);
     
     // Apply armored special
+    // 1.0.1 - Canonical value is 30% (matches player-attack resist in both engines)
     if (target.special === 'armored') {
-      dealt = Math.floor(dealt * 0.5);
+      dealt = Math.floor(dealt * 0.7);
       logCombat(`${target.name}'s armor deflects turret fire!`);
     }
     
@@ -2733,9 +2734,10 @@ function playerShoot(action = 'shoot', burstShots = null) {
   }
 
   // 0.9.0 - Get weapon type for ammo consumption
+  // 1.0.1 - No weapon = unarmed: punching must not require or consume ammo
   const weapon = s.equipment && s.equipment.weapon;
-  const weaponType = weapon && weapon.weaponType ? weapon.weaponType : 'rifle'; // Default to rifle
-  const ammoMultiplier = WEAPON_TYPES[weaponType] ? WEAPON_TYPES[weaponType].ammoMult : 0.6;
+  const weaponType = weapon && weapon.weaponType ? weapon.weaponType : 'unarmed';
+  const ammoMultiplier = (WEAPON_TYPES[weaponType] && WEAPON_TYPES[weaponType].ammoMult) || 0;
   
   // ammo - melee weapons don't use ammo
   let shots = 1;
@@ -2914,7 +2916,7 @@ function playerShoot(action = 'shoot', burstShots = null) {
       // 0.9.0 - Add weapon and armor crit bonuses
       const weaponBonuses = weapon ? getWeaponPassiveBonuses(weapon) : { accuracy: 0, crit: 0 };
       const armor = s.equipment && s.equipment.armor;
-      const armorEffects = armor ? applyArmorEffectsInteractive(armor, s) : {};
+      const armorEffects = armor ? applyArmorEffects(armor, s) : {};
       const totalCritChance = BALANCE.CRIT_CHANCE + critBonus + weaponBonuses.crit + (armorEffects.critBonus || 0);
       
       // 0.9.0 - Unstoppable: Immune to crits (Ravager)
@@ -2961,7 +2963,10 @@ function playerShoot(action = 'shoot', burstShots = null) {
         logCombat(`${target.name}'s carapace absorbs damage!`);
       }
       
-      const overkill = Math.max(0, dealt - target.hp);
+      // 1.0.1 - HP updates are deferred into the animation queue, so subtract the
+      // damage already pending from earlier shots in this burst; raw target.hp
+      // understated overkill for shot 2+.
+      const overkill = Math.max(0, dealt - Math.max(0, target.hp - totalPendingDamage));
       if (dealt < dmg) {
           logCombat(`${target.name} blocked ${dmg - dealt} damage.`);
       }
@@ -3054,7 +3059,7 @@ function playerShoot(action = 'shoot', burstShots = null) {
         );
         for (const stalker of relentlessStalkers) {
           stalker._relentlessBonus = true; // Flag to grant extra attack
-          stalker._relentlessUsed = true; // Once per combat
+          stalker._relentlessUsed = true; // Once per round (reset when the round advances)
         }
         
         // 0.8.0 - Spawner: summon drone on death
@@ -3779,6 +3784,32 @@ function playerUseConsumable(consumableKey) {
     effectApplied = true;
   }
   
+  // SONIC REPULSOR - Threat reduction (1.0.1 - previously a dead button in combat:
+  // no branch matched, so the item did nothing, wasn't consumed, and the turn hung)
+  if (effect.threatReduction) {
+    const oldThreat = state.threat;
+    state.threat = Math.max(0, state.threat - effect.threatReduction);
+    // Respect threat floors (same rules as the out-of-combat path in items.js)
+    const tiers = BALANCE.THREAT_TIERS || [0];
+    const currentFloor = tiers[state.highestThreatTier || 0] || 0;
+    state.threat = Math.max(state.threat, currentFloor);
+    logCombat(`${s.name} activates ${item.name}! Station threat reduced by ${Math.round(oldThreat - state.threat)}%.`, true);
+
+    if (typeof animateConsumable === 'function') {
+      const userCard = getCombatantCard(s.id, false);
+      animateConsumable(userCard, 'stimpack');
+      showStatusEffect(userCard, '📡 REPULSOR!', '#38bdf8');
+      setTimeout(() => {
+        renderCombatUI();
+        advanceToNextSurvivor();
+      }, 1200);
+    } else {
+      renderCombatUI();
+      advanceToNextSurvivor();
+    }
+    effectApplied = true;
+  }
+
   // Consume the item if effect was applied
   if (effectApplied) {
     state.inventory.splice(idx, 1);
@@ -4611,13 +4642,18 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
     // 1.0 - Hostile Survivor AI: Use consumables intelligently
     if (a.type === 'hostile_human' && a.inventory && a.inventory.length > 0) {
       // Use Medkit if HP below 50%
+      // 1.0.1 - High-threat hostiles carry 'advanced_medkit' (see hostileSurvivors.js);
+      // the AI previously only looked for 'medkit' and never used them.
       if (a.hp < a.maxHp * 0.5) {
-        const medkitIdx = a.inventory.findIndex(item => item.type === 'medkit');
+        const medkitIdx = a.inventory.findIndex(item => item.type === 'medkit' || item.type === 'advanced_medkit');
         if (medkitIdx >= 0) {
-          const healAmount = rand(15, 25);
+          const isAdvanced = a.inventory[medkitIdx].type === 'advanced_medkit';
+          const healRange = BALANCE.CONSUMABLE_EFFECTS[isAdvanced ? 'advanced_medkit' : 'medkit'].heal;
+          const healAmount = rand(healRange[0], healRange[1]);
+          const usedName = a.inventory[medkitIdx].name;
           a.hp = Math.min(a.maxHp, a.hp + healAmount);
           a.inventory.splice(medkitIdx, 1);
-          logCombat(`⚕️ ${a.name} uses a Medkit and heals ${healAmount} HP!`, true);
+          logCombat(`⚕️ ${a.name} uses ${isAdvanced ? 'an' : 'a'} ${usedName} and heals ${healAmount} HP!`, true);
           
           // 1.0 Phase 3.2 - Queue medkit animation
           // FIX: Don't call renderCombatUI() during animations!
@@ -4684,6 +4720,31 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
         }
       }
       
+      // 1.0.1 - Use Combat Drug when wounded but fighting on (mirrors the player
+      // item: +20% damage for 3 turns). Previously generated but never used by AI.
+      if (a.hp < a.maxHp * 0.8 && !a._combatDrugTurns) {
+        const drugIdx = a.inventory.findIndex(item => item.type === 'combat_drug');
+        if (drugIdx >= 0) {
+          const drugEffect = BALANCE.CONSUMABLE_EFFECTS.combat_drug || { damageBonus: 0.20, duration: 3 };
+          a._combatDrugTurns = drugEffect.duration || 3;
+          a._combatDrugBonus = drugEffect.damageBonus || 0.20;
+          a.inventory.splice(drugIdx, 1);
+          logCombat(`💊 ${a.name} injects a Combat Drug (+${Math.round((a._combatDrugBonus) * 100)}% damage, ${a._combatDrugTurns} turns)!`, true);
+          if (typeof queueAnimation === 'function') {
+            queueAnimation(() => {
+              const card = getCombatantCard(a.id, true);
+              if (typeof showStatusEffect === 'function') {
+                showStatusEffect(card, '💊 ENRAGED', 'var(--danger)');
+              }
+            }, 400);
+            queueAnimation(() => renderCombatUI(), 800);
+          } else {
+            renderCombatUI();
+          }
+          continue; // End turn after using the drug
+        }
+      }
+
       // Use Stun Grenade tactically - target highest damage survivor
       const stunGrenadeIdx = a.inventory.findIndex(item => item.type === 'stun_grenade');
       if (stunGrenadeIdx >= 0 && Math.random() < 0.4) { // 40% chance to use each turn
@@ -4869,7 +4930,12 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
       
       // Apply aura bonuses
       aDmg += matriarchBonus + packLeaderBonus;
-      
+
+      // 1.0.1 - Hostile-survivor Combat Drug buff (+% damage while active)
+      if (a._combatDrugBonus && a._combatDrugBonus > 0) {
+        aDmg = Math.floor(aDmg * (1 + a._combatDrugBonus));
+      }
+
       // 0.8.0 - Wraith: +50% damage after phasing
       if (hasModifier(a, 'wraith') && a._justPhased) {
         aDmg = Math.floor(aDmg * 1.5);
@@ -4878,21 +4944,25 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
       }
       
       // Apply alien special attack modifiers
+      // 1.0.1 - Silent Killer / Nightmare must be checked INSIDE the ambush block:
+      // the old standalone checks ran after firstStrike was already cleared, so the
+      // two modifiers could never fire (dead code).
       if (a.special === 'ambush' && a.firstStrike) {
         aDmg = Math.floor(aDmg * 1.5);
+
+        // 0.9.0 - Silent Killer: +20% ambush damage (Lurker)
+        if (hasModifier(a, 'silent')) {
+          aDmg = Math.floor(aDmg * 1.2);
+        }
+
+        // 0.9.0 - Nightmare: Ambush ignores armor (Lurker)
+        if (hasModifier(a, 'nightmare')) {
+          a._ignoreArmorThisHit = true;
+          logCombat(`${a.name}'s nightmare strike bypasses all defenses!`, true);
+        }
+
         a.firstStrike = false;
         logCombat(`${a.name} ambushes from the shadows!`);
-      }
-      
-      // 0.9.0 - Silent Killer: +20% ambush damage (Lurker)
-      if (hasModifier(a, 'silent') && a.firstStrike) {
-        aDmg = Math.floor(aDmg * 1.2);
-      }
-      
-      // 0.9.0 - Nightmare: Ambush ignores armor (Lurker)
-      if (hasModifier(a, 'nightmare') && a.firstStrike) {
-        a._ignoreArmorThisHit = true;
-        logCombat(`${a.name}'s nightmare strike bypasses all defenses!`, true);
       }
       
       // 0.8.0 - Cunning: second ambush at 50% HP
@@ -5091,8 +5161,10 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
       }
       
       // 0.9.0 - Calculate defense for the actual target, applying guard bonus
+      // 1.0.1 - Broken armor (durability 0) grants no defense, matching
+      // calculateDefense() used by the auto-resolve engine.
       let armorDefense = 0;
-      if (actualTarget.equipment.armor) {
+      if (actualTarget.equipment.armor && actualTarget.equipment.armor.durability > 0) {
         // New structure: has defense property
         if (actualTarget.equipment.armor.defense !== undefined) {
           armorDefense = actualTarget.equipment.armor.defense;
@@ -5367,6 +5439,28 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
         }
       }
       
+      // 1.0.1 - Downed handling for survivors dropped by indirect damage
+      // (plague/caustic splash). Mirrors the direct-hit branch below: honors
+      // Lifesaver, sets the downed flag (so revival and end-of-combat cleanup
+      // see them), and applies the downed morale penalty.
+      function handleIndirectSurvivorDown(victim) {
+        if (victim.hp > 0 || victim.downed) return;
+        if (hasAbility(victim, 'lifesaver') && !victim._lifesaverUsed) {
+          victim.hp = 1;
+          victim._lifesaverUsed = true;
+          logCombat(`${victim.name}'s Lifesaver ability prevents death!`, true);
+          return;
+        }
+        victim.hp = 0;
+        victim.downed = true;
+        logCombat(`${victim.name} is down!`, true);
+        state.survivors.forEach(s => {
+          if (s.id !== victim.id && s.hp > 0) {
+            s.morale = Math.max(0, (s.morale || 0) - BALANCE.MORALE_LOSS_ALLY_DOWNED);
+          }
+        });
+      }
+
       // 0.9.0 - Plague Bringer: AOE + poison all targets (Spitter)
       if (hasModifier(a, 'plague') && totalDamage > 0 && targ.hp > 0) {
         // Apply poison to primary target
@@ -5379,11 +5473,14 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
         for (const splashTarg of splashTargets) {
           const plagueDmg = Math.floor(totalDamage * 0.5);
           splashTarg.hp -= plagueDmg;
-          
+
           // Poison splash targets too
           if (!splashTarg._poisonQueue) splashTarg._poisonQueue = [];
           splashTarg._poisonQueue.push(3);
           splashTarg._poisonStacks = splashTarg._poisonQueue.length;
+
+          // 1.0.1 - Splash kills need the same downed handling as direct hits
+          handleIndirectSurvivorDown(splashTarg);
         }
         logCombat(`💀 ${a.name} unleashes a plague cloud! All survivors poisoned!`, true);
         
@@ -5413,6 +5510,8 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
           const splashDmg = Math.floor(totalDamage * 0.5);
           splashTarg.hp -= splashDmg;
           logCombat(`Caustic splash hits ${splashTarg.name} for ${splashDmg}!`);
+          // 1.0.1 - Splash kills need the same downed handling as direct hits
+          handleIndirectSurvivorDown(splashTarg);
           renderCombatUI(); // Update UI after splash damage
         }
       }
@@ -5428,12 +5527,14 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
           // 0.8.0 - Downed state instead of instant death
           targ.hp = 0;
           targ.downed = true;
-          logCombat(`${targ.name} has died.`, true);
+          logCombat(`${targ.name} is down!`, true);
 
-          // Morale loss for all other survivors
+          // 1.0.1 - Downed is not death: apply the DOWNED penalty here (matching
+          // auto-resolve); the full DEATH penalty is applied at combat end only
+          // for survivors actually lost (see endCombatImmediate's defeat path).
           state.survivors.forEach(s => {
             if (s.id !== targ.id && s.hp > 0) {
-              s.morale = Math.max(0, (s.morale || 0) - BALANCE.MORALE_LOSS_ALLY_DEATH);
+              s.morale = Math.max(0, (s.morale || 0) - BALANCE.MORALE_LOSS_ALLY_DOWNED);
             }
           });
           
@@ -5466,7 +5567,28 @@ function enemyTurnContinue(party, aliveAliens, aliveParty) {
   }
 
   currentCombat.turn++;
-  
+
+  // 1.0.1 - Relentless is once per ROUND (parity with combat.js, which resets the
+  // flag every skirmish round); it previously never reset, firing once per fight.
+  currentCombat.aliens.forEach(al => { if (al._relentlessUsed) al._relentlessUsed = false; });
+
+  // 1.0.1 - Tick down hostile-survivor buff durations (combat drug / stimpack)
+  currentCombat.aliens.forEach(al => {
+    if (al._combatDrugTurns && al._combatDrugTurns > 0) {
+      al._combatDrugTurns--;
+      if (al._combatDrugTurns <= 0) {
+        al._combatDrugBonus = 0;
+        logCombat(`${al.name}'s combat drug wears off.`);
+      }
+    }
+    if (al._stimpackTurns && al._stimpackTurns > 0) {
+      al._stimpackTurns--;
+      if (al._stimpackTurns <= 0) {
+        al._stimpackEvasion = 0;
+      }
+    }
+  });
+
   // Check if any survivors remain alive (not downed)
   const survivorsAlive = aliveParty.filter(p => p.hp > 0 && !p.downed && !p._retreated).length;
   if (survivorsAlive === 0) {
@@ -5688,15 +5810,25 @@ function endCombatImmediate(win) {
     });
     
     // 0.8.0 - Remove downed/dead survivors from this combat
+    let deathCount = 0;
     state.survivors = state.survivors.filter(x => {
       // Only remove survivors who were actually in this combat
       const wasInCombat = combatPartyIds.includes(x.id);
       if (wasInCombat && (x.hp <= 0 || x.downed)) {
         appendLog(`${x.name} was lost in combat.`);
+        deathCount++;
         return false;
       }
       return true;
     });
+
+    // 1.0.1 - Apply the true DEATH morale penalty once per confirmed loss
+    // (mirrors combat.js's aftermath; mid-fight only the DOWNED penalty applies)
+    if (deathCount > 0) {
+      state.survivors.forEach(ally => {
+        ally.morale = Math.max(0, (ally.morale || 0) - BALANCE.MORALE_LOSS_ALLY_DEATH * deathCount);
+      });
+    }
     
     // Raid failure - apply penalties instead of game over
     if (isRaid) {
@@ -5718,9 +5850,12 @@ function endCombatImmediate(win) {
     if (idx !== null && state.tiles[idx]) {
       state.tiles[idx].cleared = false;
       
-      // 1.0 Phase 3.2 - Clear selected explorer to return them to base
-      state.selectedExplorerId = null;
-      
+      // 1.0.1 - If the exploring survivor died (removed above), end exploration
+      // and return control to base. A survivor who retreated alive stays selected
+      // and remains on the field.
+      endExplorationIfExplorerLost();
+
+
       // 1.0 - Sync hostile survivor HP back to tile after defeat/retreat
       if (state.tiles[idx].hostileSurvivors && currentCombat.aliens) {
         currentCombat.aliens.forEach(alien => {
@@ -5750,6 +5885,15 @@ function endCombatImmediate(win) {
 // rebuilt on every render (re-binding once at startup would not survive).
 function autoResolveCombat() {
   if (!currentCombat) return;
+
+  // 1.0.1 - Mission combats must resolve through their onWin/onLoss/onRetreat
+  // callbacks; auto-resolving would close the overlay without ever advancing the
+  // mission, stranding it in activeMissions. The button is hidden for missions,
+  // but guard here too in case this is reached another way.
+  if (currentCombat.context && currentCombat.context !== 'field' && currentCombat.context !== 'base') {
+    logCombat('Auto-Resolve is not available during mission encounters.', true);
+    return;
+  }
 
   const isFieldCombat = currentCombat.context === 'field';
   const t = currentCombat.idx;

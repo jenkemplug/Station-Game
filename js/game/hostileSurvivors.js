@@ -99,8 +99,11 @@ function generateClassBonuses(survivorClass) {
       break;
     case 'Scout':
       bonuses.exploration = 1 - (Math.random() * 0.10 + 0.10); // 0.80-0.90
-      bonuses.dodge = Math.random() * 0.10 + 0.15; // +15-25%
-      bonuses.retreat = Math.random() * 0.10 + 0.20; // +20-30%
+      // 1.0.1 - Multiplier convention (1.15 = +15%), matching SURVIVOR_CLASSES;
+      // every consumer computes `bonus - 1`, so raw 0.15-0.25 values would read
+      // as a -85%..-75% penalty if these are ever consulted.
+      bonuses.dodge = 1 + (Math.random() * 0.10 + 0.15); // 1.15-1.25
+      bonuses.retreat = 1 + (Math.random() * 0.10 + 0.20); // 1.20-1.30
       break;
     case 'Technician':
       bonuses.craftingCost = 1 - (Math.random() * 0.10 + 0.10); // 0.80-0.90

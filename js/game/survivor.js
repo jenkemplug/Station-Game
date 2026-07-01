@@ -98,12 +98,8 @@ function recruitSurvivor(name) {
   updateUI();
 }
 
-function getRecruitCost() {
-  const baseCost = BALANCE.BASE_RECRUIT_COST;
-  const survivorMult = Math.pow(1.5, state.survivors.length);
-  const exploredDiscount = Math.min(BALANCE.EXPLORED_DISCOUNT_MAX, state.explored.size / (state.mapSize.w * state.mapSize.h));
-  return Math.floor(baseCost * survivorMult * (1 - exploredDiscount));
-}
+// 1.0.1 - Removed getRecruitCost(): dead code from the old recruit-at-base system
+// (survivors are only found via exploration now; nothing charged this cost).
 
 function assignTask(id, newTask) {
   const s = state.survivors.find(x => x.id === id);
@@ -191,93 +187,35 @@ function releaseSurvivor(id) {
     appendLog('Cannot release your last survivor!');
     return;
   }
-  
+
   const idx = state.survivors.findIndex(x => x.id === id);
   if (idx === -1) return;
-  const name = state.survivors[idx].name;
+  const survivor = state.survivors[idx];
+
+  // 1.0.1 - Block release while the survivor is deployed: releasing the active
+  // explorer or a mission-assigned survivor left dangling references (locked
+  // exploration mode, missions pointing at a nonexistent survivor).
+  if (survivor.onMission || state.activeMissions.some(m => m.survivorId === id)) {
+    appendLog(`${survivor.name} is on a mission and cannot be released. Recall them first.`);
+    return;
+  }
+  if (survivor.onExploration || (state.isExploring && state.selectedExplorerId === id)) {
+    appendLog(`${survivor.name} is out exploring and cannot be released. Return to base first.`);
+    return;
+  }
+
+  const name = survivor.name;
   state.survivors.splice(idx, 1);
   appendLog(`${name} was released from the base.`);
   updateUI();
 }
 
-function useMedkit(id) {
-  const s = state.survivors.find(x => x.id === id);
-  if (!s) return;
-  // 0.9.0 - Updated to use new consumable structure (type: 'consumable', subtype: 'medkit')
-  // Also support old structure (type: 'medkit') for backwards compatibility
-  const medkitIndex = state.inventory.findIndex(item => 
-    item.type === 'medkit' || (item.type === 'consumable' && item.subtype === 'medkit')
-  );
-  if (medkitIndex === -1) {
-    appendLog('No medkits available.');
-    return;
-  }
-  state.inventory.splice(medkitIndex, 1);
-  
-  // 0.8.11 - Use rolled Medic class bonus for healing (additive with abilities)
-  let healAmount = 10;
-  let healBonusAdd = 0;
-  if (s.classBonuses && s.classBonuses.healing) {
-    healBonusAdd += (s.classBonuses.healing - 1);
-  }
-  if (hasAbility(s, 'triage')) healBonusAdd += 0.25; // +25% healing
-  healAmount = Math.floor(healAmount * (1 + healBonusAdd));
-  
-  // 0.9.0 - Heal up to effective max HP (including armor bonus)
-  const effectiveMaxHp = getEffectiveMaxHp(s);
-  s.hp = Math.min(effectiveMaxHp, s.hp + healAmount);
-  s.injured = false;
-  appendLog(`${s.name} treated with medkit${healAmount > 10 ? ` (healed ${healAmount})` : ''}.`);
-  updateUI();
-}
-
-function equipBest(id) {
-  const s = state.survivors.find(x => x.id === id);
-  if (!s) return;
-  
-  // 0.9.0 - Support both old and new item structure
-  // Old: type = 'rifle', 'shotgun', 'armor', 'heavyArmor', 'hazmatSuit'
-  // New: type = 'weapon' or 'armor'
-  const weaponIndex = state.inventory.findIndex(item => 
-    item.type === 'weapon' || item.type === 'rifle' || item.type === 'shotgun'
-  );
-  if (weaponIndex !== -1 && !s.equipment.weapon) {
-    const weapon = state.inventory.splice(weaponIndex, 1)[0];
-    s.equipment.weapon = weapon;
-    // 0.9.0 - Color item name by rarity
-    const coloredName = colorItemName(weapon.name, weapon.rarity);
-    appendLog(`${s.name} equipped a ${coloredName}.`);
-    updateUI();
-    return;
-  }
-  
-  const armorIndex = state.inventory.findIndex(item => 
-    item.type === 'armor' || item.type === 'heavyArmor' || item.type === 'hazmatSuit'
-  );
-  if (armorIndex !== -1 && !s.equipment.armor) {
-    const armor = state.inventory.splice(armorIndex, 1)[0];
-    s.equipment.armor = armor;
-    // 0.9.0 - Color item name by rarity
-    const coloredArmorName = colorItemName(armor.name, armor.rarity);
-    appendLog(`${s.name} equipped ${coloredArmorName}.`);
-    updateUI();
-    return;
-  }
-  appendLog(`${s.name} has nothing new to equip.`);
-}
+// 1.0.1 - Removed dead functions with no callers:
+// - useMedkit(): superseded by openConsumableModal -> useOutOfCombatConsumable
+// - equipBest(): superseded by openLoadoutForSurvivor / equipItemToSurvivor
+// - getArmorHpBonus(): duplicated logic centralized in getEffectiveMaxHp (utils.js)
 
 // getEffectiveMaxHp lives in js/utils.js (loaded earlier); do not redefine here.
-
-// 0.9.0 - Helper: Get armor HP bonus
-function getArmorHpBonus(armor) {
-  if (!armor || !armor.effects) return 0;
-  for (const effect of armor.effects) {
-    if (effect.startsWith('hpBonus:')) {
-      return parseInt(effect.split(':')[1]) || 0;
-    }
-  }
-  return 0;
-}
 
 function equipItemToSurvivor(survivorId, itemId) {
   const s = state.survivors.find(x => x.id === survivorId);

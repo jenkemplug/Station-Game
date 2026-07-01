@@ -164,7 +164,13 @@ function startMissionCombat(missionId, survivorId, combatTrigger, choice) {
     onWin: () => {
       appendLog(`The threat has been neutralized. The mission continues.`);
       const missionState = state.activeMissions.find(m => m.missionId === missionId);
-      
+      // 1.0.1 - Guard: if the mission entry vanished mid-combat, don't crash the
+      // end-of-combat callback (it would leave the overlay in a broken state).
+      if (!missionState) {
+        console.error(`Mission state missing in onWin for ${missionId}`);
+        return;
+      }
+
       const wasTriggeredByFailure = choice.outcome.failure && choice.outcome.failure.trigger === combatTrigger;
 
       if (wasTriggeredByFailure) {

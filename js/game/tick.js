@@ -170,7 +170,9 @@ function applyTick(isOffline = false) {
   if (state.resources.oxygen <= BALANCE.OXY_CRITICAL_THRESHOLD) {
     if (state.secondsPlayed % 5 === 0) appendLog('Critical: oxygen supplies near collapse.');
     state.baseIntegrity -= BALANCE.INTEGRITY_DAMAGE_OXY_CRIT;
-    state.survivors.forEach(s => s.morale -= BALANCE.MORALE_LOSS_OXY_CRIT);
+    // 1.0.1 - Clamp to 0 like the asphyxiation/starvation blocks below; morale
+    // could previously drift arbitrarily negative during a long oxygen crisis.
+    state.survivors.forEach(s => s.morale = Math.max(0, s.morale - BALANCE.MORALE_LOSS_OXY_CRIT));
   }
   
   // If oxygen fully depleted, survivors take asphyxiation damage each tick
@@ -354,9 +356,16 @@ function applyTick(isOffline = false) {
       }
       return true;
     });
+    // 1.0.1 - If the exploring survivor died this tick (starvation, asphyxiation,
+    // ...), end exploration so the base UI doesn't stay locked. Must run before
+    // updateUI, which would otherwise auto-select a replacement explorer. Skipped
+    // during an active interactive combat, whose own cleanup handles the explorer.
+    if (typeof currentCombat === 'undefined' || !currentCombat) {
+      endExplorationIfExplorerLost();
+    }
     if (state.survivors.length !== beforeCount) updateUI();
   }
-  
+
   // 0.8.4 - Game over if all survivors die
   if (state.survivors.length === 0) {
     triggerGameOver('All survivors have perished. The station is lost. Game Over.');
@@ -398,6 +407,11 @@ function applyTick(isOffline = false) {
   state.lastTick = Date.now();
 }
 
+// NOTE (1.0.1): Offline catch-up is deliberately lenient. It applies resource
+// production/consumption and morale/integrity penalties, but never HP damage,
+// deaths, desertion, raids, or system failures — the game should not kill your
+// crew while you're away. If that leniency ever changes, mirror the live-tick
+// consequence blocks above.
 function calculateOfflineProgress(elapsedSeconds) {
   // --- 1. Calculate Production Rates (per second) ---
   let prod = { oxygen: 0, food: 0, energy: 0, scrap: 0 };
@@ -495,9 +509,13 @@ function calculateOfflineProgress(elapsedSeconds) {
   const netScrap = prod.scrap * elapsedSeconds;
 
   // --- 4. Apply Penalties for Depletion ---
-  // Calculate how many seconds it would take to deplete oxygen/food
-  const secondsToDepleteOxygen = state.resources.oxygen / Math.abs(prod.oxygen - o2Consume);
-  const secondsToDepleteFood = state.resources.food / Math.abs(prod.food - foodConsume);
+  // 1.0.1 - Only meaningful when the net rate is negative; the old unconditional
+  // division produced Infinity/NaN on an exactly-balanced rate and relied on the
+  // netOxygen/netFood checks to accidentally mask it.
+  const oxyRate = prod.oxygen - o2Consume;
+  const foodRate = prod.food - foodConsume;
+  const secondsToDepleteOxygen = oxyRate < 0 ? state.resources.oxygen / Math.abs(oxyRate) : Infinity;
+  const secondsToDepleteFood = foodRate < 0 ? state.resources.food / Math.abs(foodRate) : Infinity;
 
   let offlinePenaltyMessages = [];
 
@@ -505,9 +523,10 @@ function calculateOfflineProgress(elapsedSeconds) {
     const secondsWithoutOxygen = elapsedSeconds - secondsToDepleteOxygen;
     const integrityDamage = secondsWithoutOxygen * BALANCE.INTEGRITY_DAMAGE_OXY_CRIT;
     const moraleLoss = secondsWithoutOxygen * BALANCE.MORALE_LOSS_OXY_CRIT;
-    
+
     state.baseIntegrity -= integrityDamage;
-    state.survivors.forEach(s => s.morale -= moraleLoss);
+    // 1.0.1 - Clamp to 0 (matches the food branch below)
+    state.survivors.forEach(s => s.morale = Math.max(0, s.morale - moraleLoss));
     offlinePenaltyMessages.push(`Station was without oxygen for ~${formatTime(secondsWithoutOxygen)}, causing base damage and morale loss.`);
   }
 

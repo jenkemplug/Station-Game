@@ -1,4 +1,4 @@
-const VERSION = '0.9.20';
+const VERSION = '0.10.0';
 const BASE_GAME_KEY = `derelict_station_expanded_v${VERSION}`;
 const TICK_MS = 1000;
 const MAX_LOG = 300;
@@ -57,7 +57,7 @@ const BALANCE = {
     survivor: 15,
     empty: 15
   },
-  SURVIVOR_RECRUIT_CHANCE: 0.80, // Reduced from 0.85
+  // 1.0.1 - Removed SURVIVOR_RECRUIT_CHANCE (dead: recruit-at-base system was cut)
   HAZARD_DURABILITY_LOSS: [15, 25], // Increased from [12, 20] - hazards are riskier
   HAZARD_LOOT_ROLLS: 3,
   
@@ -204,8 +204,8 @@ const BALANCE = {
   AMMO_CONSUME_CHANCE: 0.65, // Increased from 0.60 - ammo drains faster
   
   // Economy & upgrades
-  BASE_RECRUIT_COST: 18, // Increased from 15
-  EXPLORED_DISCOUNT_MAX: 0.35, // Reduced from 0.40 - less discount
+  // 1.0.1 - Removed BASE_RECRUIT_COST / EXPLORED_DISCOUNT_MAX (dead: only consumer
+  // was the removed getRecruitCost from the cut recruit-at-base system)
   REPAIR_COST_PER_POINT: 0.6, // Increased from 0.5 - repairs are more expensive
   UPGRADE_COSTS: {
     filter: { base: 55, perLevel: 28 }, // Increased from 50/25
@@ -222,9 +222,11 @@ const BALANCE = {
 
 // 1.0 - Blueprint System: Hand-Crafted Station Map
 const BLUEPRINT = {
-  // Map dimensions (138x73 hand-crafted station layout)
+  // Map dimensions (138x74 hand-crafted station layout)
+  // 1.0.1 - Height corrected to 74 to match STATION_MAP's actual row count
+  // (initTiles overwrites these from the parsed map, but the defaults should agree)
   MAP_WIDTH: 138,
-  MAP_HEIGHT: 73,
+  MAP_HEIGHT: 74,
   
   // Corridor generation parameters
   NUM_MAIN_CORRIDORS: 6,        // Number of primary hallways radiating from base

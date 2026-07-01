@@ -361,22 +361,8 @@ function repairItem(itemId) {
   }
 
   let baseCost = Math.ceil((item.maxDurability - item.durability) * BALANCE.REPAIR_COST_PER_POINT);
-  
-  // Engineer class and ability cost reduction
-  let costReduction = 0;
-  const engineers = state.survivors.filter(s => !s.onMission && s.class === 'engineer');
-  
-  engineers.forEach(eng => {
-    if (eng.classBonuses && eng.classBonuses.repair) {
-      costReduction += (1 - eng.classBonuses.repair);
-    }
-    if (hasAbility(eng, 'quickfix')) {
-      costReduction += 0.20; // Quick Fix ability
-    }
-  });
-  
-  const costMult = Math.max(0.1, 1 - costReduction);
-  const repairCost = Math.ceil(baseCost * costMult);
+
+  const repairCost = Math.ceil(baseCost * getItemRepairCostMult());
   
   if (state.resources.scrap < repairCost) {
     appendLog(`Not enough scrap to repair. Need ${repairCost}.`);
@@ -388,4 +374,22 @@ function repairItem(itemId) {
   const coloredName = colorItemName(item.name, item.rarity);
   appendLog(`${coloredName} repaired for ${repairCost} scrap.`);
   updateUI();
+}
+
+// 1.0.1 - Single source of truth for the item repair-cost multiplier, used by
+// repairItem() above AND the repair modal / Repair All button in ui.js. The two
+// call sites previously had drifting copies (different survivor filters, additive
+// vs multiplicative stacking, and only one had the 10% floor).
+function getItemRepairCostMult() {
+  let costReduction = 0;
+  const engineers = state.survivors.filter(s => !s.onMission && s.class === 'engineer');
+  engineers.forEach(eng => {
+    if (eng.classBonuses && eng.classBonuses.repair) {
+      costReduction += (1 - eng.classBonuses.repair);
+    }
+    if (hasAbility(eng, 'quickfix')) {
+      costReduction += 0.20; // Quick Fix ability
+    }
+  });
+  return Math.max(0.1, 1 - costReduction);
 }

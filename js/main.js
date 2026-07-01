@@ -11,6 +11,15 @@ function bindUI() {
   el('btnBeginExploration').onclick = beginExploration;
   el('btnReturnToBase').onclick = returnToBase;
 
+  // 1.0.1 - Reopen an active mission whose modal was closed with the ✕ button.
+  // Without this there is no way back into the mission, and movement stays
+  // blocked by activeMissions.length > 0 — a permanent soft-lock.
+  el('btnResumeMission').onclick = () => {
+    if (state.activeMissions.length > 0) {
+      openMissionModal(state.activeMissions[0].missionId);
+    }
+  };
+
   // 0.8.0 - System repair buttons
   el('btnRepairFilter').onclick = () => {
     repairSystem('filter');
@@ -211,6 +220,10 @@ function resetGame() {
   // 1.0 - Reset exploration state (fixes issue where new saves spawn with explorer on map)
   state.isExploring = false;
   state.explorerPos = null;
+  // 1.0.1 - Clear UI selections too; they were persisting dead survivor ids into
+  // the brand-new save written just below.
+  state.selectedExplorerId = null;
+  state.selectedExpeditionSurvivorId = null;
   initTiles();
   saveGame();
   location.reload();

@@ -157,8 +157,10 @@ function completeMission(missionId) {
   
   const missionToSector = {
     'med_bay_salvage': 'medicalBay',
+    'engineeringDeck': 'engineeringDeck',
+    'securityWing': 'securityWing',
     'finalAssault': 'hangarBay'
-    // TODO: Add missions 2-12 when they are created
+    // Must stay in sync with the map in exploration.js handleTileEvent
   };
   const sectorName = missionToSector[missionId];
   if (sectorName && !state.successfulMissions.includes(sectorName)) {
@@ -170,7 +172,12 @@ function completeMission(missionId) {
     state.completedMissions.push(missionId);
   }
   state.activeMissions.splice(missionIndex, 1);
-  closeMissionModal();
+  // 1.0.1 - When the final boss was just beaten, winGame() has already replaced the
+  // mission modal's content with the victory screen; closing it here would hide the
+  // victory screen in the same call stack. Leave it open for the player to dismiss.
+  if (!state.gameWon) {
+    closeMissionModal();
+  }
   updateUI();
   saveGame('action');
 }

@@ -229,8 +229,12 @@ function debugResetRaidChance() {
 }
 
 function debugRaiseRaidChance() {
-  state.raidChance = Math.min(10, state.raidChance + 1);
-  appendLog(`[DEBUG] Raid chance increased to ${state.raidChance.toFixed(2)}%`);
+  // 1.0.1 - raidChance is a FRACTION in [0, RAID_MAX_CHANCE] (0.10 = 10%/min);
+  // the old +1 per click pushed it to 100%+ per minute, two orders of magnitude
+  // outside the unit every other consumer expects.
+  const max = BALANCE.RAID_MAX_CHANCE || 0.10;
+  state.raidChance = Math.min(max, state.raidChance + 0.01);
+  appendLog(`[DEBUG] Raid chance increased to ${(state.raidChance * 100).toFixed(2)}%`);
   updateUI();
 }
 

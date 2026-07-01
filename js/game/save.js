@@ -350,7 +350,36 @@ function saveGame(type = 'action') {
 }
 
 function loadGame() {
-  const raw = localStorage.getItem(GAME_KEY);
+  let raw = localStorage.getItem(GAME_KEY);
+  // 1.0.1 - Migration: GAME_KEY embeds VERSION, so every version bump used to orphan
+  // the previous save (it stayed in localStorage under the old key but was never read,
+  // and the game silently started over). If nothing exists under the current key,
+  // adopt the most recent save from a previous version's key for this user.
+  if (!raw) {
+    try {
+      let best = null;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key || key === GAME_KEY) continue;
+        if (!key.startsWith('derelict_station_expanded_v') || !key.endsWith(`_${USER_ID}`)) continue;
+        const candidateRaw = localStorage.getItem(key);
+        if (!candidateRaw) continue;
+        try {
+          const candidate = JSON.parse(candidateRaw);
+          const ts = Number(candidate && (candidate.timeNow || candidate.lastTick)) || 0;
+          if (!best || ts > best.ts) best = { raw: candidateRaw, ts };
+        } catch (e) { /* skip corrupt candidates */ }
+      }
+      if (best) {
+        raw = best.raw;
+        // Adopt under the current key; the old key is left untouched as a backup.
+        localStorage.setItem(GAME_KEY, raw);
+        appendLog('[Migrated save from a previous game version]');
+      }
+    } catch (e) {
+      console.error('Save migration scan failed', e);
+    }
+  }
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
@@ -404,7 +433,10 @@ function loadGame() {
         state.systems = Object.assign({}, state.systems, parsed.systems || {});
         state.systemFailures = Array.isArray(parsed.systemFailures) ? parsed.systemFailures : [];
         state.threat = Number(parsed.threat) || state.threat;
-    state.baseIntegrity = Number(parsed.baseIntegrity) || state.baseIntegrity;
+    // 1.0.1 - Don't use `||`: a base legitimately saved at 0 integrity was being
+    // silently healed back to the default (100) on load.
+    state.baseIntegrity = (parsed.baseIntegrity != null && Number.isFinite(Number(parsed.baseIntegrity)))
+      ? Number(parsed.baseIntegrity) : state.baseIntegrity;
   // raidChance is derived; load if present else default 0
   state.raidChance = Number(parsed.raidChance) || 0;
   state.lastRaidAt = Number(parsed.lastRaidAt) || 0;
@@ -459,7 +491,9 @@ function loadGame() {
             xp: Number(s.xp) || 0,
             nextXp: Number(s.nextXp) || 50,
             skill: Number(s.skill) || 1,
-            hp: Number(s.hp) || 1,
+            // 1.0.1 - Preserve hp 0 (downed survivors); `|| 1` used to revive them
+            // into a permanent hp-1 downed state instead of letting the tick reap them.
+            hp: (s.hp != null && Number.isFinite(Number(s.hp))) ? Number(s.hp) : 1,
             maxHp: Number(s.maxHp) || 1,
             morale: Number(s.morale) || 0,
             role: s.role || 'Idle',

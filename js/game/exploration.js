@@ -16,23 +16,8 @@ function getNeighbors(idx) {
   return neighbors;
 }
 
-function revealRandomTiles(count = 1) {
-  const uncovered = [];
-  for (let i = 0; i < state.tiles.length; i++)
-    if (!state.tiles[i].scouted) uncovered.push(i);
-  if (uncovered.length === 0) return 0;
-  let revealed = 0;
-  for (let i = 0; i < count; i++) {
-    if (uncovered.length === 0) break;
-    const pickIdx = rand(0, uncovered.length - 1);
-    const pick = uncovered.splice(pickIdx, 1)[0];
-    state.tiles[pick].scouted = true;
-    state.explored.add(pick);
-    handleTileEvent(pick);
-    revealed++;
-  }
-  return revealed;
-}
+// 1.0.1 - Removed revealRandomTiles(): dead code with no callers (its map.js twin
+// was already removed in the previous cleanup pass).
 
 function handleTileEvent(idx) {
   const t = state.tiles[idx];
@@ -139,45 +124,8 @@ function handleTileEvent(idx) {
         appendLog(`⚔️ Re-encountered ${t.hostileSurvivors.length} hostile survivor(s)!`);
         t.cleared = false;
         
-        // Convert hostile survivors to pseudo-aliens for combat (same as spawn logic)
-        const pseudoAliens = t.hostileSurvivors.map(hostile => {
-          // Calculate attack range from hostile's weapon
-          let attackRange = [3, 6];
-          let attack = 5;
-          
-          if (hostile.equipment && hostile.equipment.weapon) {
-            const weapon = hostile.equipment.weapon;
-            if (weapon.damage && Array.isArray(weapon.damage)) {
-              let damageMultiplier = 1.0;
-              damageMultiplier += (hostile.level - 1) * (BALANCE.LEVEL_ATTACK_BONUS || 0.02);
-              if (hostile.classBonuses && hostile.classBonuses.combat) {
-                damageMultiplier += (hostile.classBonuses.combat - 1);
-              }
-              
-              const minDamage = Math.floor(weapon.damage[0] * damageMultiplier);
-              const maxDamage = Math.floor(weapon.damage[1] * damageMultiplier);
-              attackRange = [minDamage, maxDamage];
-              attack = Math.floor((minDamage + maxDamage) / 2);
-            }
-          }
-          
-          // Calculate defense from armor
-          let defense = 0;
-          if (hostile.equipment && hostile.equipment.armor) {
-            defense = hostile.equipment.armor.defense || 0;
-          }
-          
-          return {
-            ...hostile,
-            type: 'hostile_human',
-            attack,
-            attackRange,
-            defense,
-            rarity: hostile.rarity,
-            special: 'tactical',
-            modifiers: hostile.abilities || []
-          };
-        });
+        // Convert hostile survivors to pseudo-aliens for combat (shared helper)
+        const pseudoAliens = t.hostileSurvivors.map(hostileToPseudoAlien);
         
         // Start combat using existing system
         if (typeof interactiveEncounterAtTile === 'function' && state.selectedExplorerId != null) {
@@ -401,6 +349,37 @@ function returnToBase() {
   saveGame('action');
 }
 
+// 1.0.1 - Safety net: if exploration is active but the exploring survivor no
+// longer exists (killed in combat, starved, asphyxiated, ...), end exploration
+// cleanly so the base UI doesn't stay locked in exploration mode.
+// Leaves a live explorer (e.g. one who merely retreated from combat) untouched.
+// Returns true if exploration was ended.
+function endExplorationIfExplorerLost() {
+  if (!state.isExploring) return false;
+  const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
+  if (explorer && explorer.hp > 0) return false;
+  state.selectedExplorerId = null;
+  appendLog('💀 The expedition was lost. Control returns to base.');
+  returnToBase();
+  return true;
+}
+
+// 1.0.1 - Single source of truth for exploration movement cost (used by
+// moveExplorer and the map tooltip in ui.js). The old per-call-site copies used
+// Math.floor, which turned the 0.5 corridor cost into 0 for any Scout or
+// Pathfinder explorer — free unlimited movement. Bonuses now scale the cost
+// multiplicatively with a minimum of 0.25 energy per move.
+function getExplorationMoveCost(explorer, terrain) {
+  let cost = terrain === 'room' ? 3 : 0.5;
+  if (explorer && explorer.classBonuses && explorer.classBonuses.exploration) {
+    cost *= explorer.classBonuses.exploration;
+  }
+  if (explorer && hasAbility(explorer, 'pathfinder')) {
+    cost *= 0.85;
+  }
+  return Math.max(0.25, Math.round(cost * 100) / 100);
+}
+
 // 1.0 - Token Movement System
 function moveExplorer(targetX, targetY) {
   if (!state.isExploring || !state.explorerPos) {
@@ -490,14 +469,10 @@ function moveExplorer(targetX, targetY) {
     'hangarBay': 'hangarBay'
   };
   
-  // 1.0 - Map mission IDs to their corresponding keycard sector names
-  const missionToSector = {
-    'medicalBay': 'medicalBay',
-    'engineeringDeck': 'engineeringDeck',
-    'finalAssault': 'hangarBay'
-    // TODO: Add missions 3-12 when they are created
-  };
-  
+  // 1.0.1 - Removed an unused local missionToSector map here: it was never read
+  // (door logic uses terrainToKeycard) and its keys didn't even match real mission
+  // ids — a trap for future maintenance. The real map lives in handleTileEvent.
+
   const sectorNames = {
     'medicalBay': 'Medical Bay',
     'engineeringDeck': 'Engineering Deck',
@@ -554,20 +529,9 @@ function moveExplorer(targetX, targetY) {
     }
   }
   
-  // Calculate energy cost based on terrain (reduced to 2 for corridors)
-  let cost = 0.5; // Base corridor cost (reduced from 8)
-  if (targetTile.terrain === 'room') cost = 3; // Rooms slightly more
-  
-  // Apply Scout class bonus
-  if (explorer.classBonuses && explorer.classBonuses.exploration) {
-    cost = Math.floor(cost * explorer.classBonuses.exploration);
-  }
-  
-  // Apply Pathfinder ability
-  if (hasAbility(explorer, 'pathfinder')) {
-    cost = Math.floor(cost * 0.85);
-  }
-  
+  // Calculate energy cost based on terrain (shared with the ui.js tooltip)
+  const cost = getExplorationMoveCost(explorer, targetTile.terrain);
+
   // Check energy
   if (state.resources.energy < cost) {
     appendLog(`⚠️ Insufficient energy (need ${cost}) to move.`);
@@ -615,6 +579,49 @@ function moveExplorer(targetX, targetY) {
 }
 
 // 1.0 - Spawn hostile survivor encounter
+// 1.0.1 - Single source of truth for converting a hostile survivor into the
+// pseudo-alien shape the combat engines expect. Previously duplicated verbatim
+// in handleTileEvent (re-encounter) and spawnHostileEncounter (first encounter).
+function hostileToPseudoAlien(hostile) {
+  // Calculate attack range from hostile's weapon (preserve min/max for variety)
+  let attackRange = [3, 6]; // Unarmed baseline range
+  let attack = 5; // Average for display
+
+  if (hostile.equipment && hostile.equipment.weapon) {
+    const weapon = hostile.equipment.weapon;
+    if (weapon.damage && Array.isArray(weapon.damage)) {
+      // Apply class and level bonuses to BOTH min and max damage
+      let damageMultiplier = 1.0;
+      damageMultiplier += (hostile.level - 1) * (BALANCE.LEVEL_ATTACK_BONUS || 0.02);
+      if (hostile.classBonuses && hostile.classBonuses.combat) {
+        damageMultiplier += (hostile.classBonuses.combat - 1);
+      }
+
+      const minDamage = Math.floor(weapon.damage[0] * damageMultiplier);
+      const maxDamage = Math.floor(weapon.damage[1] * damageMultiplier);
+      attackRange = [minDamage, maxDamage];
+      attack = Math.floor((minDamage + maxDamage) / 2); // Average for fallback AI
+    }
+  }
+
+  // Calculate defense from armor
+  let defense = 0;
+  if (hostile.equipment && hostile.equipment.armor) {
+    defense = hostile.equipment.armor.defense || 0;
+  }
+
+  return {
+    ...hostile,
+    type: 'hostile_human',
+    attack,
+    attackRange, // Preserve damage range for variety in combat
+    defense,
+    rarity: hostile.rarity,
+    special: 'tactical', // Mark as tactical enemy (uses AI)
+    modifiers: hostile.abilities || []
+  };
+}
+
 function spawnHostileEncounter(idx) {
   const tile = state.tiles[idx];
   const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
@@ -635,48 +642,7 @@ function spawnHostileEncounter(idx) {
   appendLog(`⚔️ Hostile survivors detected: ${names}`);
   
   // For now, treat hostiles like a special "alien" encounter in the existing combat system
-  // Convert hostile survivors to pseudo-aliens for combat compatibility
-  const pseudoAliens = tile.hostileSurvivors.map(hostile => {
-    // Calculate attack range from hostile's weapon (preserve min/max for variety)
-    let attackRange = [3, 6]; // Unarmed baseline range
-    let attack = 5; // Average for display
-    
-    if (hostile.equipment && hostile.equipment.weapon) {
-      const weapon = hostile.equipment.weapon;
-      if (weapon.damage && Array.isArray(weapon.damage)) {
-        // Apply class and level bonuses to BOTH min and max damage
-        let damageMultiplier = 1.0;
-        damageMultiplier += (hostile.level - 1) * (BALANCE.LEVEL_ATTACK_BONUS || 0.02);
-        if (hostile.classBonuses && hostile.classBonuses.combat) {
-          damageMultiplier += (hostile.classBonuses.combat - 1);
-        }
-        
-        // Scale both ends of the damage range
-        const minDamage = Math.floor(weapon.damage[0] * damageMultiplier);
-        const maxDamage = Math.floor(weapon.damage[1] * damageMultiplier);
-        attackRange = [minDamage, maxDamage];
-        attack = Math.floor((minDamage + maxDamage) / 2); // Average for fallback
-      }
-    }
-    
-    // Calculate defense from armor
-    let defense = 0;
-    if (hostile.equipment && hostile.equipment.armor) {
-      const armor = hostile.equipment.armor;
-      defense = armor.defense || 0;
-    }
-    
-    return {
-      ...hostile,
-      type: 'hostile_human',
-      attack, // Average attack for fallback AI
-      attackRange, // Preserve damage range for variety in combat
-      defense, // Add defense value
-      rarity: hostile.rarity,
-      special: 'tactical', // Mark as tactical enemy (uses AI)
-      modifiers: hostile.abilities || []
-    };
-  });
+  const pseudoAliens = tile.hostileSurvivors.map(hostileToPseudoAlien);
   
   // Start combat using existing system
   if (typeof interactiveEncounterAtTile === 'function' && state.selectedExplorerId != null) {

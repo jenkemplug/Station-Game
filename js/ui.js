@@ -435,7 +435,15 @@ function updateUI() {
     btnReturn.style.display = 'none';
     explorerStatus.textContent = explorer ? '🏠 At Base' : '⚠️ Select explorer';
   }
-  
+
+  // 1.0.1 - Offer a way back into an active mission if its modal was closed
+  const btnResume = el('btnResumeMission');
+  if (btnResume) {
+    const missionModal = el('missionModal');
+    const modalOpen = missionModal && missionModal.style.display !== 'none' && missionModal.style.display !== '';
+    btnResume.style.display = (state.activeMissions.length > 0 && !modalOpen && !state.gameWon) ? 'inline-block' : 'none';
+  }
+
   // 0.8.10 - Only update map info if changed
   const mapInfoText = `Explored: ${state.explored.size}/${state.fullMap.width * state.fullMap.height}`;
   if (lastRenderedMapInfo !== mapInfoText) {
@@ -648,7 +656,10 @@ function renderExplorerSelect() {
   const cont = el('explorerDropdown');
   // Keep the currently selected explorer available even if they were just assigned to a mission
   const availableSurvivors = state.survivors.filter(s => !s.onMission || s.id === state.selectedExplorerId);
-  const availableSurvivorsSnapshot = JSON.stringify(availableSurvivors);
+  // 1.0.1 - Include lock state and selection in the snapshot: the arrows' disabled
+  // state is baked into the DOM at render time, so a change to isExploring or the
+  // selected explorer must invalidate the cache or the selector stays stale.
+  const availableSurvivorsSnapshot = `${state.isExploring ? 1 : 0}|${state.selectedExplorerId}|${JSON.stringify(availableSurvivors)}`;
 
   // Optimization: Only re-render if the list of available explorers has changed.
   if (lastRenderedAvailableExplorers === availableSurvivorsSnapshot) {
@@ -667,7 +678,10 @@ function renderExplorerSelect() {
   }
 
   // Use state.selectedExplorerId for persistence
-  if (!state.selectedExplorerId || !availableSurvivors.some(s => s.id === state.selectedExplorerId)) {
+  // 1.0.1 - Never auto-assign while exploring: the previous explorer may have just
+  // died, and silently promoting a survivor who is at base to "currently exploring"
+  // would teleport them onto the field.
+  if (!state.isExploring && (!state.selectedExplorerId || !availableSurvivors.some(s => s.id === state.selectedExplorerId))) {
     state.selectedExplorerId = availableSurvivors[0].id;
   }
 
@@ -699,7 +713,7 @@ function renderExplorerSelect() {
   // Up arrow click handler (previous explorer)
   upArrow.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (isLocked) {
+    if (state.isExploring) {
       appendLog('⚠️ Cannot change explorer while exploring.');
       return;
     }
@@ -709,13 +723,13 @@ function renderExplorerSelect() {
     
     state.selectedExplorerId = availableSurvivors[newIdx].id;
     display.textContent = availableSurvivors[newIdx].name;
-    appendLog(`${availableSurvivors[newIdx].name} selected for exploration.`);
+    appendLog(`${escapeHtml(availableSurvivors[newIdx].name)} selected for exploration.`);
   });
-  
+
   // Down arrow click handler (next explorer)
   downArrow.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (isLocked) {
+    if (state.isExploring) {
       appendLog('⚠️ Cannot change explorer while exploring.');
       return;
     }
@@ -725,9 +739,9 @@ function renderExplorerSelect() {
     
     state.selectedExplorerId = availableSurvivors[newIdx].id;
     display.textContent = availableSurvivors[newIdx].name;
-    appendLog(`${availableSurvivors[newIdx].name} selected for exploration.`);
+    appendLog(`${escapeHtml(availableSurvivors[newIdx].name)} selected for exploration.`);
   });
-  
+
   selector.appendChild(upArrow);
   selector.appendChild(display);
   selector.appendChild(downArrow);
@@ -1275,17 +1289,10 @@ function renderRepairModalContent() {
     return;
   }
 
-  // Calculate repair cost multiplier from survivor bonuses
-  let repairCostMult = 1.0;
-  state.survivors.forEach(s => {
-    if (s.classBonuses && s.classBonuses.repair) {
-      repairCostMult *= s.classBonuses.repair;
-    }
-    if (hasAbility(s, 'quickfix')) {
-      repairCostMult *= 0.80;
-    }
-  });
-  
+  // 1.0.1 - Use the shared multiplier from crafting.js so the modal's listed
+  // costs and the Repair All batch always match what repairItem() charges.
+  const repairCostMult = getItemRepairCostMult();
+
   let totalRepairCost = 0;
   const itemsHtml = damagedItems.map(item => {
     const missingDurability = item.maxDurability - item.durability;
@@ -1602,18 +1609,10 @@ function renderMap() {
       tileEl.classList.add('explorable');
       tileEl.onclick = () => moveExplorer(x, y);
       
-      // Calculate movement cost (must match moveExplorer in exploration.js:
-      // 0.5 base corridor / 3 room, then exploration bonus, then pathfinder)
+      // 1.0.1 - Movement cost comes from the shared helper in exploration.js
       const explorer = state.survivors.find(s => s.id === state.selectedExplorerId);
-      let cost = t.terrain === 'room' ? 3 : 0.5;
+      const cost = getExplorationMoveCost(explorer, t.terrain);
 
-      if (explorer && explorer.classBonuses && explorer.classBonuses.exploration) {
-        cost = Math.floor(cost * explorer.classBonuses.exploration);
-      }
-      if (explorer && hasAbility(explorer, 'pathfinder')) {
-        cost = Math.floor(cost * 0.85);
-      }
-      
       // Show tooltip
       if (isVisible && t.content && !t.cleared) {
         if (t.content === 'hazard') {
@@ -1887,6 +1886,14 @@ function renderMissionModalContent() {
 
   const missionData = AWAY_MISSIONS[missionState.missionId];
   const currentEvent = missionData.events[missionState.currentEvent];
+
+  // 1.0.1 - The assigned survivor may no longer exist (died to starvation, a raid,
+  // etc. while the mission was open). Clear the stale assignment so the player can
+  // assign someone else instead of being stuck on a dead survivor forever.
+  if (missionState.survivorId && !state.survivors.some(s => s.id === missionState.survivorId)) {
+    missionState.survivorId = null;
+    appendMissionLog('<span style="color:var(--danger)">The assigned survivor was lost. Assign another survivor to continue.</span>');
+  }
 
   // Build survivor selector
   const availableSurvivorsForAssign = state.survivors.filter(s => !s.onMission || s.id === missionState.survivorId);

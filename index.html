@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Derelict Station — Expanded Idle</title>
-  <link rel="stylesheet" href="styles.css?v=0.9.20">
+  <link rel="stylesheet" href="styles.css?v=0.10.0">
 </head>
 <body>
 <div class="wrap">
@@ -100,6 +100,7 @@
       <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
         <button id="btnBeginExploration" style="display:none;">🚶 Begin Exploration</button>
         <button id="btnReturnToBase" style="display:none;">🏠 Return to Base</button>
+        <button id="btnResumeMission" class="danger" style="display:none;">📋 Resume Mission</button>
         <div id="explorerStatus" class="small" style="flex:1;"></div>
       </div>
       <div class="map" id="mapGrid" style="margin-top:10px"></div>
@@ -193,7 +194,7 @@
   </aside>
 
   <footer>
-    <div>Version 0.9.20</div>
+    <div>Version 0.10.0</div>
     <div>Autosave every 15s • Offline progress supported • Press Ctrl+D for debug panel</div>
   </footer>
 </div>
@@ -446,35 +447,35 @@
   </div> <!-- End debug-content -->
 </div> <!-- End debug-panel -->
 
-<script src="js/constants.js?v=0.9.20" defer></script>
-<script src="js/state.js?v=0.9.20" defer></script>
-<script src="js/utils.js?v=0.9.20" defer></script>
-<script src="js/names.js?v=0.9.20" defer></script>
-<script src="js/map.js?v=0.9.20" defer></script>
-<script src="js/stationMap.js?v=0.9.20" defer></script>
-<script src="js/ui.js?v=0.9.20" defer></script>
+<script src="js/constants.js?v=0.10.0" defer></script>
+<script src="js/state.js?v=0.10.0" defer></script>
+<script src="js/utils.js?v=0.10.0" defer></script>
+<script src="js/names.js?v=0.10.0" defer></script>
+<script src="js/map.js?v=0.10.0" defer></script>
+<script src="js/stationMap.js?v=0.10.0" defer></script>
+<script src="js/ui.js?v=0.10.0" defer></script>
   <!-- Modular game system -->
-  <script src="js/game/save.js?v=0.9.20" defer></script>
-  <script src="js/game/survivor.js?v=0.9.20" defer></script>
-  <script src="js/game/hostileSurvivors.js?v=0.9.20" defer></script>
-  <script src="js/game/combat.js?v=0.9.20" defer></script>
-  <script src="js/game/combatAnimations.js?v=1.0.0" defer></script>
-  <script src="js/game/combatSequencer.js?v=1.0.0" defer></script>
-  <script src="js/game/exploration.js?v=0.9.20" defer></script>
-  <script src="js/game/crafting.js?v=0.9.20" defer></script>
-  <script src="js/game/items.js?v=0.9.20" defer></script>
-  <script src="js/game/missions.js?v=0.9.20" defer></script>
-  <script src="js/game/threat.js?v=0.9.20" defer></script>
-  <script src="js/game/tick.js?v=0.9.20" defer></script>
-  <script src="js/game/shuttleRepair.js?v=0.9.20" defer></script>
+  <script src="js/game/save.js?v=0.10.0" defer></script>
+  <script src="js/game/survivor.js?v=0.10.0" defer></script>
+  <script src="js/game/hostileSurvivors.js?v=0.10.0" defer></script>
+  <script src="js/game/combat.js?v=0.10.0" defer></script>
+  <script src="js/game/combatAnimations.js?v=0.10.0" defer></script>
+  <script src="js/game/combatSequencer.js?v=0.10.0" defer></script>
+  <script src="js/game/exploration.js?v=0.10.0" defer></script>
+  <script src="js/game/crafting.js?v=0.10.0" defer></script>
+  <script src="js/game/items.js?v=0.10.0" defer></script>
+  <script src="js/game/missions.js?v=0.10.0" defer></script>
+  <script src="js/game/threat.js?v=0.10.0" defer></script>
+  <script src="js/game/tick.js?v=0.10.0" defer></script>
+  <script src="js/game/shuttleRepair.js?v=0.10.0" defer></script>
   <!-- End modular game system -->
-<script src="js/game/recycling.js?v=0.9.20" defer></script>
-<script src="js/game/missionCombat.js?v=0.9.20" defer></script>
-<script src="js/game/missionValidator.js?v=0.9.20" defer></script>
-<script src="js/tutorial.js?v=0.9.20" defer></script>
-<script src="js/animations.js?v=1.0.0" defer></script>
-<script src="js/debug.js?v=0.9.20" defer></script>
-<script src="js/main.js?v=0.9.20" defer></script>
+<script src="js/game/recycling.js?v=0.10.0" defer></script>
+<script src="js/game/missionCombat.js?v=0.10.0" defer></script>
+<script src="js/game/missionValidator.js?v=0.10.0" defer></script>
+<script src="js/tutorial.js?v=0.10.0" defer></script>
+<script src="js/animations.js?v=0.10.0" defer></script>
+<script src="js/debug.js?v=0.10.0" defer></script>
+<script src="js/main.js?v=0.10.0" defer></script>
 
 <!-- Interactive Combat Overlay -->
 <div id="combatOverlay" class="modal-overlay" style="display:none;">
@@ -520,7 +521,7 @@
 </div>
 
 <!-- Interactive combat logic -->
-<script src="js/game/combatInteractive.js?v=0.9.20" defer></script>
+<script src="js/game/combatInteractive.js?v=0.10.0" defer></script>
 
 <!-- Consumable Modal -->
 <div id="consumableModal" class="modal-overlay" style="display:none;">

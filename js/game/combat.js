@@ -555,9 +555,10 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       baseAtk = applyAbilityDamageModifiers(s, baseAtk, { allyCount, fighters });
       
       // 0.9.0 - Get weapon type for ammo consumption
+      // 1.0.1 - No weapon = unarmed: punching must not require or consume ammo
       const weapon = s.equipment && s.equipment.weapon;
-      const weaponType = weapon && weapon.weaponType ? weapon.weaponType : 'rifle'; // Default to rifle if no weapon
-      const ammoMultiplier = WEAPON_TYPES[weaponType] ? WEAPON_TYPES[weaponType].ammoMult : 0.6;
+      const weaponType = weapon && weapon.weaponType ? weapon.weaponType : 'unarmed';
+      const ammoMultiplier = (WEAPON_TYPES[weaponType] && WEAPON_TYPES[weaponType].ammoMult) || 0;
       
       // ammo check - melee weapons don't use ammo
       let ammoUsed = false;
@@ -869,12 +870,14 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       // Rapid Fire (Spitter) gives a 30% chance for an extra attack
       if (hasModifier(a, 'rapid') && Math.random() < 0.30) {
         attackCount++;
-        logCombat(`${a.name} attacks with rapid speed!`);
+        // 1.0.1 - appendLog, not logCombat: this is the auto-resolve engine, where
+        // logCombat no-ops (it writes to the interactive overlay only).
+        appendLog(`${a.name} attacks with rapid speed!`);
       }
       
       for (let strike = 0; strike < attackCount; strike++) {
         // 1.0 - Advanced AI: Smart targeting based on alien type
-        const targ = selectAlienTarget(a, fighters);
+        let targ = selectAlienTarget(a, fighters);
         if (!targ) break;
 
         // 0.9.0 - atkBonus is baked into a.attack at spawn (applyModifiersToAlienStats);
@@ -1102,7 +1105,13 @@ function resolveSkirmish(aliens, context = 'field', idx = null) {
       ally.morale = Math.max(0, ally.morale - BALANCE.MORALE_LOSS_ALLY_DEATH * deathCount);
     });
   }
-  
+
+  // 1.0.1 - A field skirmish may have killed the exploring survivor; if so,
+  // end exploration so the base UI doesn't stay locked in exploration mode.
+  if (context === 'field') {
+    endExplorationIfExplorerLost();
+  }
+
   // Check if raid failed
   if (context === 'base' && aliens.some(a => a.hp > 0)) {
     // Guards lost - apply penalties instead of game over

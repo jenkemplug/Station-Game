@@ -120,7 +120,8 @@ function rollAlienModifiers(alienType, threatValue = 0) {
 
 function evaluateThreat() {
   // 0.9.0 - Threat system rebalanced for longer runs with endgame escalation
-  const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission).length;
+  // 1.0.1 - A Guard who is out exploring is not defending the base
+  const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission && !s.onExploration).length;
   const turrets = state.systems.turret || 0;
   const prevThreat = state.threat || 0;
   
@@ -287,7 +288,9 @@ function resolveRaid() {
   }
 
   // ONLY guards defend the base (0.7.1 - hardcore defense). Turrets now assist (0.7.3).
-  const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission);
+  // 1.0.1 - Exclude guards who are out exploring: they cannot defend the base and
+  // pulling them into raid combat would conflict with their explorer state.
+  const guards = state.survivors.filter(s => s.task === 'Guard' && !s.onMission && !s.onExploration);
   const turretCount = state.systems.turret || 0;
   
   if (guards.length === 0) {

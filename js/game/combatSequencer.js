@@ -6,6 +6,11 @@
 // Animation queue
 let animationQueue = [];
 let isProcessingAnimations = false;
+// 1.0.1 - Generation token: clearAnimationQueue() bumps this, invalidating any
+// in-flight setTimeout/setInterval chains from an earlier combat so their
+// onComplete callbacks (endCombatImmediate, advanceToNextSurvivorImmediate, ...)
+// can never fire against a different combat or turn.
+let animationGeneration = 0;
 
 /**
  * Add an animation to the queue
@@ -21,11 +26,18 @@ function queueAnimation(animationFn, duration = 600) {
  * This should be called after an action completes to play all queued animations
  */
 function processAnimationQueue(onComplete = null) {
+  const generation = animationGeneration;
+
   // If already processing, just add the callback
   if (isProcessingAnimations) {
     if (onComplete) {
       // Wait for current processing to finish, then call callback
       const checkComplete = setInterval(() => {
+        // Queue was cleared for a new combat: this waiter is stale
+        if (generation !== animationGeneration) {
+          clearInterval(checkComplete);
+          return;
+        }
         if (!isProcessingAnimations && animationQueue.length === 0) {
           clearInterval(checkComplete);
           onComplete();
@@ -34,24 +46,27 @@ function processAnimationQueue(onComplete = null) {
     }
     return;
   }
-  
+
   // If queue is empty, call callback immediately
   if (animationQueue.length === 0) {
     if (onComplete) onComplete();
     return;
   }
-  
+
   isProcessingAnimations = true;
-  
+
   function runNext() {
+    // Queue was cleared for a new combat: abandon this chain silently
+    if (generation !== animationGeneration) return;
+
     if (animationQueue.length === 0) {
       isProcessingAnimations = false;
       if (onComplete) onComplete();
       return;
     }
-    
+
     const { fn, duration } = animationQueue.shift();
-    
+
     // Execute animation function
     if (fn) {
       try {
@@ -60,11 +75,11 @@ function processAnimationQueue(onComplete = null) {
         console.error('[QUEUE] Animation error:', e);
       }
     }
-    
+
     // Wait for duration, then run next
     setTimeout(runNext, duration);
   }
-  
+
   runNext();
 }
 
@@ -74,6 +89,7 @@ function processAnimationQueue(onComplete = null) {
 function clearAnimationQueue() {
   animationQueue = [];
   isProcessingAnimations = false;
+  animationGeneration++;
 }
 
 /**

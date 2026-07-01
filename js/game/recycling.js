@@ -81,27 +81,19 @@ function recycleItem(itemId, event) {
     // (and granting component refunds below mutates the inventory).
     const idx = state.inventory.findIndex(i => i.id === item.id);
     if (idx === -1) return;
+    // 1.0.1 - Remove the recycled item BEFORE granting refunds so the capacity
+    // check in grantComponentRefund sees the freed slot.
+    state.inventory.splice(idx, 1);
     // Grant all refunded resources
     for (const [resource, amount] of Object.entries(refunds)) {
       // Check if this is a crafting component using lookup table
       if (COMPONENT_DATA[resource]) {
-        // Add component items back to inventory using metadata
-        const { name, rarity, subtype } = COMPONENT_DATA[resource];
-        for (let i = 0; i < amount; i++) {
-          state.inventory.push({
-            id: state.nextItemId++,
-            type: 'component',
-            subtype: subtype,
-            name: name,
-            rarity: rarity
-          });
-        }
+        grantComponentRefund(resource, amount);
       } else {
         // Regular resources (scrap, tech, energy, ammo)
         state.resources[resource] = (state.resources[resource] || 0) + amount;
       }
     }
-    state.inventory.splice(idx, 1);
 
     // 0.9.0 - Build colored notification showing all resources received with rarity colors
     const itemColor = RARITY_COLORS[item.rarity] || '#a0a0a0';
@@ -132,6 +124,35 @@ function recycleItem(itemId, event) {
     appendLog(`♻️ Recycled <span style="color:${itemColor}">${item.name}</span> → ${resourcesText}`);
     updateUI();
   });
+}
+
+// 1.0.1 - Grant refunded component items without blowing past inventory capacity
+// (recycling previously pushed refunds unchecked, bypassing the cap every other
+// item-creation path enforces). Components that don't fit convert to scrap at
+// their rarity value.
+function grantComponentRefund(resource, amount) {
+  const { name, rarity, subtype } = COMPONENT_DATA[resource];
+  const rarityScrap = { common: 5, uncommon: 10, rare: 15, veryrare: 20 };
+  let overflow = 0;
+  let overflowScrap = 0;
+  for (let i = 0; i < amount; i++) {
+    if (state.inventory.length < getInventoryCapacity()) {
+      state.inventory.push({
+        id: state.nextItemId++,
+        type: 'component',
+        subtype: subtype,
+        name: name,
+        rarity: rarity
+      });
+    } else {
+      overflow++;
+      overflowScrap += rarityScrap[rarity] ?? 5;
+    }
+  }
+  if (overflow > 0) {
+    state.resources.scrap += overflowScrap;
+    appendLog(`♻️ Inventory full: ${overflow} refunded ${name}${overflow !== 1 ? 's' : ''} converted to +${overflowScrap} scrap.`);
+  }
 }
 
 function recycleAllItems(event) {
@@ -176,30 +197,21 @@ function recycleAllItems(event) {
   
   // Show confirmation popup with total refunds
   showRecycleAllConfirmation(recyclableItems.length, totalRefunds, event, () => {
+    // 1.0.1 - Remove the recycled items BEFORE granting refunds so the capacity
+    // check in grantComponentRefund sees the freed slots.
+    state.inventory = state.inventory.filter(item => !itemsToRecycleIds.includes(item.id));
+
     // Grant all refunded resources
     for (const [resource, amount] of Object.entries(totalRefunds)) {
       // Check if this is a crafting component using lookup table
       if (COMPONENT_DATA[resource]) {
-        // Add component items back to inventory using metadata
-        const { name, rarity, subtype } = COMPONENT_DATA[resource];
-        for (let i = 0; i < amount; i++) {
-          state.inventory.push({
-            id: state.nextItemId++,
-            type: 'component',
-            subtype: subtype,
-            name: name,
-            rarity: rarity
-          });
-        }
+        grantComponentRefund(resource, amount);
       } else {
         // Regular resources (scrap, tech, energy, ammo)
         state.resources[resource] = (state.resources[resource] || 0) + amount;
       }
     }
-    
-    // Remove only the items we recycled (by ID), keeping junk and newly created components
-    state.inventory = state.inventory.filter(item => !itemsToRecycleIds.includes(item.id));
-    
+
     // Build colored notification showing all resources received
     const resourceParts = [];
     for (const [resource, amount] of Object.entries(totalRefunds)) {

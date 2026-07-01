@@ -113,6 +113,12 @@ function installShuttleComponent(componentType) {
         survivorId: null,
         tileIndex: null // Not tied to a map tile
       });
+      // 1.0.1 - Actually open the mission: nothing else in the UI ever calls
+      // openMissionModal('finalAssault'), so without this the endgame mission was
+      // unreachable and the stuck activeMissions entry froze exploration forever.
+      if (typeof openMissionModal === 'function') {
+        openMissionModal('finalAssault');
+      }
     }
   }
   

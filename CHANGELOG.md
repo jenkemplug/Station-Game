@@ -1,6 +1,68 @@
 # Changelog
 All notable changes to the Derelict Station project will be documented in this file.
 
+## [0.10.0] - 2026-07-01
+Large stability release: a full multi-agent audit of the codebase (combat systems and animations in particular) surfaced 46 bug candidates; 40 were confirmed and all 40 are fixed here, alongside targeted cleanups.
+
+### Added
+- **Save migration across versions**: the save key embeds the game version, so every version bump used to silently orphan the previous save and start a new game. The loader now finds the most recent save from any previous version and migrates it forward — existing 0.9.x saves survive this update.
+- **Resume Mission button**: closing the mission modal with ✕ used to soft-lock the game permanently (movement blocked, no way to reopen the mission). An active mission can now always be reopened.
+- **Final Assault is reachable**: completing shuttle repair now actually opens the endgame mission. Previously it was pushed into the active-missions list with no UI to ever start it, freezing exploration forever at 100% repair.
+- **Hostile AI item usage**: hostile survivors now actually use the Advanced Medkits and Combat Drugs they are generated with (drug grants +20% damage for 3 turns, with visible status and expiry).
+
+### Fixed — Critical
+- **Explorer death lockout**: if your active explorer died in the field, exploration mode never ended — the explorer selector stayed greyed out and you could never leave the base again. Death in combat, auto-resolve, starvation, or asphyxiation now cleanly ends the expedition and returns control to base (existing stuck saves self-heal on load).
+- **Auto-Resolve during mission combat** silently discarded the entire fight and stranded the mission; the button is now field/base-combat only.
+- **Crash in auto-resolve combat** (`const` reassignment) whenever a Living Shield guardian died intercepting a hit.
+- **Victory screen was hidden instantly** after defeating the Alpha Queen — the win payoff now stays on screen.
+- **Engineering Deck and Security Wing doors never unlocked** after completing their missions (missing entries in the mission→sector map).
+- **Guards out exploring still defended the base**: an exploring Guard reduced threat/raid chance and got pulled into raid combat while simultaneously being on the map.
+
+### Fixed — Combat
+- Unarmed survivors defaulted to "rifle" ammo rules: punching consumed ammo and was fully blocked at 0 ammo (both combat engines).
+- Broken (0-durability) armor still granted full defense against alien attacks in interactive combat; broken weapons still dealt full damage.
+- Berserker, Last Stand, and Commander damage bonuses were shown in tooltips but never applied to the actual damage roll.
+- Silent Killer and Nightmare ambush modifiers were dead code (checked after the ambush flag was already cleared) — they now work.
+- Relentless (Stalker) now resets each round in interactive combat, matching auto-resolve, instead of firing once per fight.
+- Sonic Repulsor was a dead button in combat: no effect, item not consumed, turn stuck. It now reduces threat and advances the turn.
+- Plague/Caustic splash damage that killed a non-targeted survivor skipped all death handling (no downed state, no revival eligibility, no cleanup).
+- A survivor being *downed* charged allies the full ally-death morale penalty; downed and confirmed-death penalties are now separate and match auto-resolve.
+- Hostile Scout class bonuses were stored in the wrong scale (would have read as −80% dodge if ever consumed).
+- Ravager "armored" resist is now consistently 30% everywhere (turret damage, tooltips, and tutorial claimed 50%).
+- Burst-fire overkill numbers in the log were computed against pre-burst HP.
+- Rapid Fire's extra-attack message was silently dropped in auto-resolve combat.
+- Hostile stat tooltips read nonexistent balance keys, showing a stale 75% base accuracy instead of the real 72%.
+
+### Fixed — Animations
+- **Stale animation timers**: ending one combat while animations were queued could fire the *previous* combat's completion callback (e.g. `endCombat`) against a brand-new fight, ending it instantly or skipping turns. The queue now invalidates in-flight timers when cleared.
+- Splash-effect win checks could crash if combat was closed within their delay window.
+- Death visuals (`combat-death`) were stripped on every combat re-render; dead combatants stayed visually dead now.
+
+### Fixed — Systems & UI
+- Scout/Pathfinder explorers paid **zero energy** for corridor moves (`Math.floor(0.5 × bonus) = 0`) — free infinite exploration. Movement cost is now shared, multiplicative, minimum 0.25.
+- A base saved at exactly 0 integrity was silently healed to 100 on load; downed survivors at 0 HP were coerced to 1 HP on load.
+- Missions whose assigned survivor died elsewhere were stuck forever; the modal now detects the loss and lets you reassign.
+- Releasing a survivor who was exploring or on a mission left dangling references; release is now blocked with a message until they return.
+- Recycling refunds bypassed inventory capacity entirely; overflow components now convert to scrap.
+- "Repair All" used a different cost formula than single-item repair (different filters, stacking, and no discount floor); both now share one calculation.
+- Oxygen-critical morale loss (live and offline) could drift arbitrarily negative; now clamped to 0 like all other morale penalties.
+- Offline catch-up divided by zero when production exactly matched consumption.
+- Reset left stale survivor selections in the fresh save.
+- Debug "raise raid chance" was 100× off the unit used by the raid system.
+- Tutorial alien stats updated to match the actual post-0.9.0 balance values.
+- Escaped survivor names in the explorer-selector log (defense-in-depth against imported saves).
+
+### Changed
+- Exploration movement cost, item repair cost, and hostile-survivor combat conversion each now have a single shared implementation instead of drifting per-call-site copies.
+- Offline catch-up is now explicitly documented as lenient by design (no HP damage, deaths, desertion, raids, or system failures while away).
+
+### Removed
+- Dead code: `revealRandomTiles`, `getRecruitCost` (+ its orphaned balance constants), `useMedkit`, `equipBest`, `getArmorHpBonus`, `animateLootLog`, a duplicate `applyArmorEffectsInteractive`, an unused/wrong mission map in `moveExplorer`, and Electron preload boilerplate targeting nonexistent elements.
+
+### Housekeeping
+- Version bumped to 0.10.0 everywhere (constants, package.json, all cache-busted asset URLs, in-game display).
+- `BLUEPRINT.MAP_HEIGHT` corrected to 74 to match the actual station map.
+
 ## [0.9.20a] - 2025-11-02
 ### Added
 - **Poison Effect UI**: The combat UI now displays a passive "Poison" effect for survivors wielding poisonous weapons.
