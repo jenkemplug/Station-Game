@@ -36,7 +36,7 @@ A browser-based survival/management game where you manage a space station, survi
 
 ##  Play Now
 
-Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the latest version!
+Visit [Derelict Station](https://quintonrporter.github.io/Station-Game/) to play the latest version!
 
 ##  Features
 
@@ -144,7 +144,7 @@ Visit [Derelict Station](https://jenkemplug.github.io/Station-Game/) to play the
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/jenkemplug/Station-Game.git
+git clone https://github.com/quintonrporter/Station-Game.git
 cd Station-Game
 ```
 

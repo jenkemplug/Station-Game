@@ -462,7 +462,7 @@ js/
 - Tag releases in git: `git tag v0.6.7`
 
 ### Deployment
-- GitHub repo: jenkemplug/Station-Game
+- GitHub repo: quintonrporter/Station-Game
 - Hosted on Netlify with continuous deployment
 - Main branch deploys automatically
 - Test locally before pushing to main
